@@ -65,11 +65,13 @@ class TestCodecVectors:
     def test_decode_float_be_positive(self):
         """Test decoding positive float from big-endian bytes."""
         result = decode_float_be(bytes([0x3F, 0xC0, 0x00, 0x00]))
+        assert result is not None
         assert abs(result - 1.5) < 0.0001
 
     def test_decode_float_be_negative(self):
         """Test decoding negative float."""
         result = decode_float_be(bytes([0xBF, 0xC0, 0x00, 0x00]))
+        assert result is not None
         assert abs(result - (-1.5)) < 0.0001
 
     def test_decode_float_be_zero(self):
@@ -83,6 +85,7 @@ class TestCodecVectors:
         for value in values:
             encoded = encode_float_be(value)
             decoded = decode_float_be(encoded)
+            assert decoded is not None
             assert abs(decoded - value) < 0.0001
 
     def test_encode_uint16_be(self):

@@ -170,6 +170,7 @@ class TestEndToEndPerformance:
             # Full cycle
             client = AlphaHWRClient("MOCK")
             await client.connect()
+            assert client.telemetry is not None
             telemetry = await client.telemetry.read_once()
             await client.disconnect()
 
@@ -195,6 +196,7 @@ class TestEndToEndPerformance:
             iterations = 50
             start = time.perf_counter()
 
+            assert client.telemetry is not None
             for _ in range(iterations):
                 await client.telemetry.read_once()
 
@@ -217,7 +219,7 @@ class TestMemoryPerformance:
     @pytest.mark.skip("Requires memory_profiler")
     def test_client_memory_footprint(self):
         """Measure client memory footprint."""
-        from memory_profiler import memory_usage
+        from memory_profiler import memory_usage  # type: ignore[import-not-found]
 
         def create_client():
             from alpha_hwr.client import AlphaHWRClient

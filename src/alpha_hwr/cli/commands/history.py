@@ -230,7 +230,7 @@ def _format_series_panel(series, detailed: bool) -> Panel:
     if not series.cycle_10_points:
         table_10.add_row("", "No data", "", style="dim italic")
 
-    # Build content
+    # Build content - default to just the 10-cycle table
     content: Table | Group = table_10
 
     # Add 100-cycle table if detailed
@@ -253,8 +253,6 @@ def _format_series_panel(series, detailed: bool) -> Panel:
             )
 
         # Combine both tables
-        from rich.console import Group
-
         content = Group(table_10, "", table_100)
 
     elif series.cycle_100_points:
@@ -266,8 +264,6 @@ def _format_series_panel(series, detailed: bool) -> Panel:
             "(use --detailed to view)",
             style="dim italic",
         )
-        from rich.console import Group
-
         content = Group(table_10, note)
 
     # Create panel

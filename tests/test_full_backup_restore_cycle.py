@@ -26,15 +26,16 @@ async def client():
         mock_instance.is_connected = True
         mock_bleak.return_value = mock_instance
 
-        client = AlphaHWRClient("AA:BB:CC:DD:EE:FF")
-        await client.connect()
+    client = AlphaHWRClient("AA:BB:CC:DD:EE:FF")
+    await client.connect()
 
-        # Mock transport methods
-        client.transport.query = AsyncMock(return_value=b"\x00" * 7)
-        client.transport.write = AsyncMock()
+    # Mock transport methods
+    assert client.transport is not None
+    client.transport.query = AsyncMock(return_value=b"\x00" * 7)
+    client.transport.write = AsyncMock()
 
-        yield client
-        await client.disconnect()
+    yield client
+    await client.disconnect()
 
     @patch("alpha_hwr.client.AlphaHWRClient._read_class10_subid")
     @patch("alpha_hwr.client.AlphaHWRClient._query")

@@ -92,6 +92,7 @@ async def mock_client_simple():
         await client.connect()
 
         # Mock transport methods to return minimal valid responses
+        assert client.transport is not None, "Transport should be initialized"
         client.transport.write = AsyncMock()
         client.transport.read_response = AsyncMock(return_value=b"\x00" * 7)
         client.transport.send_with_response = AsyncMock(

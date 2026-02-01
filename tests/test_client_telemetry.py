@@ -29,16 +29,17 @@ async def client():
         mock_instance.is_connected = True
         mock_bleak.return_value = mock_instance
 
-        # Create and connect client
-        client = AlphaHWRClient("AA:BB:CC:DD:EE:FF")
-        await client.connect()
+    # Create and connect client
+    client = AlphaHWRClient("AA:BB:CC:DD:EE:FF")
+    await client.connect()
 
-        # Mock transport methods
-        client.transport.query = AsyncMock(return_value=b"\x00" * 7)
-        client.transport.write = AsyncMock()
+    # Mock transport methods
+    assert client.transport is not None
+    client.transport.query = AsyncMock(return_value=b"\x00" * 7)
+    client.transport.write = AsyncMock()
 
-        yield client
-        await client.disconnect()
+    yield client
+    await client.disconnect()
 
 
 @pytest.mark.asyncio

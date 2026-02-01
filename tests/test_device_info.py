@@ -50,13 +50,14 @@ async def test_read_device_info_from_advertisement():
             mock_instance.is_connected = True
             mock_bleak.return_value = mock_instance
 
-            await client.connect()
-            device_info = await client.device_info.read_info()
+        await client.connect()
+        assert client.device_info is not None
+        device_info = await client.device_info.read_info()
 
-            assert device_info is not None
-            assert device_info.product_family == 52  # ALPHA
-            assert device_info.product_type == 7  # HWR
-            assert device_info.product_version == 2
+        assert device_info is not None
+        assert device_info.product_family == 52  # ALPHA
+        assert device_info.product_type == 7  # HWR
+        assert device_info.product_version == 2
 
 
 @pytest.mark.asyncio

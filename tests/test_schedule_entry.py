@@ -202,6 +202,7 @@ class TestScheduleEntryDuration:
         )
         is_valid, error = entry.is_valid_time_range()
         assert not is_valid
+        assert error is not None
         assert "identical" in error
 
 

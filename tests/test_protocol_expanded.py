@@ -12,6 +12,7 @@ class TestProtocolExpanded:
         encoded = encode_float_be(val)
         assert len(encoded) == 4
         decoded = decode_float_be(encoded, 0)
+        assert decoded is not None
         assert abs(decoded - val) < 0.001
 
     def test_parse_packet_structure(self):

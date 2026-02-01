@@ -22,6 +22,7 @@ class TestScheduleProtocol:
             await client.connect()
 
             # Mock the transport's methods to avoid real BLE calls
+            assert client.transport is not None
             client.transport.write = AsyncMock()
             client.transport.read_response = AsyncMock(return_value=b"\x00" * 7)
             client.transport.send_with_response = AsyncMock(
