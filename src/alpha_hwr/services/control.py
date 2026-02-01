@@ -610,9 +610,6 @@ class ControlService(BaseService):
 
         logger.info(f"Setting constant pressure to {value_m} m...")
 
-        # Convert to Pascals
-        value_m * 9806.65
-
         # Validate setpoint against reasonable limits (0.5m to 10m for residential pumps)
         if not (0.5 <= value_m <= 10.0):
             logger.error(
