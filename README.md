@@ -318,7 +318,7 @@ The ALPHA HWR supports **8 out of 32 GENI protocol control modes** (25%), specif
 | 14 | AutoAdapt Underfloor |  Fully Supported | 0.0 - 6.0 m |
 | 15 | AutoAdapt Radiator+Underfloor |  Fully Supported | 0.0 - 6.0 m |
 
-**Unsupported Modes (24 total):** Chemical dosing (16-19), level control (9, 22), differential pressure (11, 12, 26), CEOPS/industrial modes (7, 10, 20-21, 23-25, 27-30, 128). See `docs/protocol/control_modes.md` for details.
+**Unsupported Modes (24 total):** Chemical dosing (16-19), level control (9, 22), differential pressure (11, 12, 26), CEOPS/industrial modes (7, 10, 20-21, 23-25, 27-30, 128). See [Control Modes Matrix](https://eman.github.io/alpha-hwr/protocol/control_modes/) for details.
 
 ### Advanced Features
 
@@ -339,12 +339,12 @@ The ALPHA HWR supports **8 out of 32 GENI protocol control modes** (25%), specif
 
 ## Documentation
 
-Complete documentation is available at [https://alpha-hwr.readthedocs.io/](https://alpha-hwr.readthedocs.io/) (placeholder link).
+Complete documentation is available at [https://eman.github.io/alpha-hwr/](https://eman.github.io/alpha-hwr/).
 
-*   [**Getting Started**](docs/getting_started/installation.md)
-*   [**CLI Guide**](docs/guides/cli_guide.md)
-*   [**API Reference**](docs/api/client.md)
-*   [**Protocol Details**](docs/protocol/ble_architecture.md)
+*   [**Getting Started**](https://eman.github.io/alpha-hwr/getting_started/installation/)
+*   [**CLI Guide**](https://eman.github.io/alpha-hwr/guides/cli_guide/)
+*   [**API Reference**](https://eman.github.io/alpha-hwr/api/client/)
+*   [**Protocol Details**](https://eman.github.io/alpha-hwr/protocol/ble_architecture/)
 
 ## Project Status
 

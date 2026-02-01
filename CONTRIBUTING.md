@@ -6,7 +6,7 @@ Thank you for your interest in contributing to alpha-hwr!
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/alpha-hwr.git
+   git clone https://github.com/eman/alpha-hwr.git
    cd alpha-hwr
    ```
 
