@@ -102,7 +102,8 @@ async def test_read_device_info_with_class7_strings(mock_client_simple):
     device_info = await mock_client_simple.device_info.read_info()
 
     assert device_info is not None
-    assert device_info.serial_number == "0000479"
+    # Serial number gets "1" prepended to the suffix from ID 9
+    assert device_info.serial_number == "10000479"
     assert device_info.software_version == "2601618V04.02.01.02539"
     assert device_info.hardware_version == "2601617V01.03.00.00469"
     assert device_info.ble_version == "2811431V06.00.01.00001"

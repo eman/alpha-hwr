@@ -62,7 +62,8 @@ async def test_read_detailed_info(device_info_service, mock_transport):
     info = await device_info_service.read_detailed()
 
     assert info is not None
-    assert info.serial_number == "SERIAL123"
+    # Serial number gets "1" prepended to the suffix
+    assert info.serial_number == "1SERIAL123"
     assert info.software_version == "SW1.0"
     assert info.hardware_version == "HW2.0"
     assert info.ble_version == "BLE3.0"

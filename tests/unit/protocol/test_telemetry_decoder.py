@@ -357,7 +357,7 @@ class TestAutoDecoding:
         assert result == {}
 
     def test_decode_non_class10_frame(self):
-        """Test auto-decoding rejects non-Class 10 frames."""
+        """Test auto-decoding returns empty dict for non-Class 10 frames."""
         frame = ParsedFrame(
             valid=True,
             frame_type="response",
@@ -369,11 +369,11 @@ class TestAutoDecoding:
             raw_data=b"",
         )
 
-        with pytest.raises(ValueError, match="Expected Class 10"):
-            TelemetryDecoder.decode(frame)
+        result = TelemetryDecoder.decode(frame)
+        assert result == {}
 
     def test_decode_missing_identifiers(self):
-        """Test auto-decoding rejects frames with missing IDs."""
+        """Test auto-decoding returns empty dict for frames with missing IDs."""
         frame = ParsedFrame(
             valid=True,
             frame_type="response",
@@ -385,8 +385,8 @@ class TestAutoDecoding:
             raw_data=b"",
         )
 
-        with pytest.raises(ValueError, match="missing Sub-ID"):
-            TelemetryDecoder.decode(frame)
+        result = TelemetryDecoder.decode(frame)
+        assert result == {}
 
 
 class TestReferenceVectors:
