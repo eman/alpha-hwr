@@ -4,7 +4,6 @@ Unit tests for telemetry_decoder.py
 Tests the telemetry decoder with various payload types and edge cases.
 """
 
-import pytest
 import struct
 
 from alpha_hwr.protocol.telemetry_decoder import (
