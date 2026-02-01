@@ -542,7 +542,9 @@ class ConfigurationService:
                         min_setpoint, max_setpoint
                     )
                 else:
-                    logger.warning("Missing min/max setpoints for Temperature Range restore")
+                    logger.warning(
+                        "Missing min/max setpoints for Temperature Range restore"
+                    )
                     return False
 
             # Map mode name to setter method

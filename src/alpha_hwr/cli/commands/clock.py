@@ -12,7 +12,7 @@ from typing import Optional
 import typer
 
 from ..app import console
-from ..common import require_service,  get_client, handle_error, run_async
+from ..common import require_service, get_client, handle_error, run_async
 from ..output.formatters import print_success
 
 app = typer.Typer(help="View and synchronize pump real-time clock")

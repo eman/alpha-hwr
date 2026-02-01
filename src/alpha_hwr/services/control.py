@@ -408,9 +408,7 @@ class ControlService(BaseService):
                 return True
 
         # Fallback to Class 3
-        logger.debug(
-            f"Mode {mode_val} not in Class 10 map, trying Class 3..."
-        )
+        logger.debug(f"Mode {mode_val} not in Class 10 map, trying Class 3...")
 
         CMD_MAP = {
             0: 0x18,  # Const Pressure
@@ -952,36 +950,43 @@ class ControlService(BaseService):
         # Payload format (Type 1012):
         # [DeltaTempEnabled(1)][MinTemp(4)][MaxTemp(4)][TimeLimits(4)]
         # Total size usually 13 bytes including 3-byte header
-        
+
         # Build 9-byte structure data (without header)
         struct_data = bytearray()
         struct_data.append(0x01)  # DeltaTempEnabled = True
         struct_data.extend(encode_float_be(min_temp))
         struct_data.extend(encode_float_be(max_temp))
-        
+
         # Add 4 bytes of time limits (typically seen as 05 3C 01 1E in captures)
         struct_data.extend(bytes([0x05, 0x3C, 0x01, 0x1E]))
 
         # Build APDU: [Class][OpSpec][Obj][SubH][SubL][Reserved][Type(3)][Size(2)][Data...]
         # Using OpSpec 0xB3 (OpSpec 5, Length 19) similar to schedules
-        apdu = bytearray([
-            0x0A, 0xB3,
-            91,         # Object 91
-            0x01, 0xAE, # Sub-ID 430 (0x01AE)
-            0x00,       # Reserved
-            0xF4, 0x03, 0x00, # Type 1012 header (0x03F4 = 1012)
-            0x00, 0x09, # Size = 9 bytes
-        ])
+        apdu = bytearray(
+            [
+                0x0A,
+                0xB3,
+                91,  # Object 91
+                0x01,
+                0xAE,  # Sub-ID 430 (0x01AE)
+                0x00,  # Reserved
+                0xF4,
+                0x03,
+                0x00,  # Type 1012 header (0x03F4 = 1012)
+                0x00,
+                0x09,  # Size = 9 bytes
+            ]
+        )
         apdu.extend(struct_data)
 
         success = await self._send_with_retry(
             self._build_geni_packet(0xF8, 0xE7, bytes(apdu)),
-            "Set Temperature Range"
+            "Set Temperature Range",
         )
-        
+
         if success:
             await self._send_configuration_commit()
-            
+
         return success
 
     # Helper methods

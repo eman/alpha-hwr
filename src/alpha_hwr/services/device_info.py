@@ -267,7 +267,7 @@ class DeviceInfoService(BaseService):
             if serial_suffix:
                 # The full serial is "10000479", prepend the missing "1"
                 device_info_dict["serial_number"] = f"1{serial_suffix}"
-            
+
             # Read product name (ID 1 often returns "LPHA HWR")
             product_name = await self._read_class7_string(1)
             if product_name:

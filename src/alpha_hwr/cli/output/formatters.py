@@ -229,19 +229,25 @@ def format_setpoint_panel(info: SetpointInfo) -> Panel:
     # Operational Status
     if info.is_running is not None:
         status_str = (
-            "[green]Started[/green]" if info.is_running else "[red]Stopped[/red]"
+            "[green]Started[/green]"
+            if info.is_running
+            else "[red]Stopped[/red]"
         )
         lines.append(f"[bold]Pump Status:[/bold] {status_str}")
 
     if info.is_remote is not None:
         remote_str = (
-            "[green]Enabled[/green]" if info.is_remote else "[yellow]Disabled (Local)[/yellow]"
+            "[green]Enabled[/green]"
+            if info.is_remote
+            else "[yellow]Disabled (Local)[/yellow]"
         )
         lines.append(f"[bold]Remote Control:[/bold] {remote_str}")
 
     if info.schedule_enabled is not None:
         sched_str = (
-            "[green]Active[/green]" if info.schedule_enabled else "[yellow]Inactive[/yellow]"
+            "[green]Active[/green]"
+            if info.schedule_enabled
+            else "[yellow]Inactive[/yellow]"
         )
         lines.append(f"[bold]Internal Schedule:[/bold] {sched_str}")
 

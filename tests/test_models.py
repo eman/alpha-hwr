@@ -1,5 +1,5 @@
-
 from alpha_hwr.models import TelemetryData
+
 
 class TestModels:
     def test_telemetry_data_defaults(self):
@@ -8,16 +8,16 @@ class TestModels:
         assert data.speed_rpm is None
         assert data.power_w is None
         assert data.flow_m3h is None
-        
+
     def test_telemetry_data_update(self):
         """Verify model_copy update mechanism."""
         data = TelemetryData()
         updated = data.model_copy(update={"speed_rpm": 1500.0, "power_w": 45.0})
-        
+
         assert updated.speed_rpm == 1500.0
         assert updated.power_w == 45.0
-        assert updated.flow_m3h is None # Should remain unchanged/None
-        
+        assert updated.flow_m3h is None  # Should remain unchanged/None
+
         # Original should be untouched
         assert data.speed_rpm is None
 
@@ -31,9 +31,7 @@ class TestModels:
         )
 
         data = TelemetryData(
-            flow_m3h=1.0, 
-            head_m=10.0, 
-            media_temperature_c=100.0
+            flow_m3h=1.0, head_m=10.0, media_temperature_c=100.0
         )
 
         # GPM: m3h / factor

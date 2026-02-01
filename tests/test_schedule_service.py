@@ -575,12 +575,10 @@ class TestScheduleWriteEntries:
 
         mock_client_simple.transport.write = AsyncMock()
         mock_client_simple.transport.query = AsyncMock(
-            return_value=b"\x24\x00\xE7\xF8\x0A\x34\x54\x03\xE8\x00\xAA\xBB"
+            return_value=b"\x24\x00\xe7\xf8\x0a\x34\x54\x03\xe8\x00\xaa\xbb"
         )
 
-        await mock_client_simple.schedule.write_entries(
-            entries, layer=0
-        )
+        await mock_client_simple.schedule.write_entries(entries, layer=0)
 
         # Should make transport calls
         call_count = (
@@ -654,9 +652,7 @@ class TestScheduleWriteEntries:
             return_value=b"\x00" * 10
         )
 
-        await mock_client_simple.schedule.write_entries(
-            entries, layer=0
-        )
+        await mock_client_simple.schedule.write_entries(entries, layer=0)
 
         # Should handle dict input
         call_count = (

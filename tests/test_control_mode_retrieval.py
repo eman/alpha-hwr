@@ -45,7 +45,9 @@ class TestControlModeRetrieval:
             ]
         )
 
-        mock_client_simple.transport.query = AsyncMock(return_value=bytes(frame))
+        mock_client_simple.transport.query = AsyncMock(
+            return_value=bytes(frame)
+        )
 
         mode_info = await mock_client_simple.control.get_mode()
 
@@ -93,7 +95,9 @@ class TestControlModeRetrieval:
                 ]
             )
 
-            mock_client_simple.transport.query = AsyncMock(return_value=bytes(frame))
+            mock_client_simple.transport.query = AsyncMock(
+                return_value=bytes(frame)
+            )
 
             mode_info = await mock_client_simple.control.get_mode()
             assert mode_info is not None
@@ -121,9 +125,13 @@ class TestControlModeRetrieval:
         assert mode_info is None
 
     @pytest.mark.asyncio
-    async def test_get_control_mode_exception_handling(self, mock_client_simple):
+    async def test_get_control_mode_exception_handling(
+        self, mock_client_simple
+    ):
         """Test exception handling."""
-        mock_client_simple.transport.query = AsyncMock(side_effect=Exception("Mock Error"))
+        mock_client_simple.transport.query = AsyncMock(
+            side_effect=Exception("Mock Error")
+        )
 
         mode_info = await mock_client_simple.control.get_mode()
 

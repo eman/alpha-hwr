@@ -223,7 +223,9 @@ class AlphaHWRClient:
             and self.session.state == SessionState.AUTHENTICATED
         )
 
-    async def connect(self, timeout: float = 60.0, fast_mode: bool = False) -> None:
+    async def connect(
+        self, timeout: float = 60.0, fast_mode: bool = False
+    ) -> None:
         """
         Connect to the pump via BLE.
 
@@ -260,13 +262,19 @@ class AlphaHWRClient:
         """
         # Automatic Discovery if no address provided
         if not self.address:
-            logger.info("No device address configured. Attempting automatic discovery...")
+            logger.info(
+                "No device address configured. Attempting automatic discovery..."
+            )
             discovered = await self.discover(timeout=10.0)
             if not discovered:
-                raise ConnectionError("No ALPHA HWR pumps found during automatic discovery.")
-            
+                raise ConnectionError(
+                    "No ALPHA HWR pumps found during automatic discovery."
+                )
+
             self.address = discovered[0].address
-            logger.info(f"Discovered and selected pump: {discovered[0].name} ({self.address})")
+            logger.info(
+                f"Discovered and selected pump: {discovered[0].name} ({self.address})"
+            )
 
         try:
             logger.info(f"Connecting to {self.address} (timeout={timeout}s)...")
@@ -458,24 +466,34 @@ class AlphaHWRClient:
         try:
             # Broad scan without UUID filter first to see what's out there
             scanner = BleakScanner()
-            discovered = await scanner.discover(timeout=timeout, return_adv=True)
+            discovered = await scanner.discover(
+                timeout=timeout, return_adv=True
+            )
 
-            logger.debug(f"Scan complete. Found {len(discovered)} total BLE devices.")
+            logger.debug(
+                f"Scan complete. Found {len(discovered)} total BLE devices."
+            )
 
             for address, (device, adv) in discovered.items():
                 uuids = [s.lower() for s in adv.service_uuids]
                 name = device.name or ""
-                
-                logger.debug(f"Checking device: {name} ({address}) - UUIDs: {uuids}")
+
+                logger.debug(
+                    f"Checking device: {name} ({address}) - UUIDs: {uuids}"
+                )
 
                 # Matches if:
                 # 1. Has correct Service UUID (fdd0)
                 # 2. Has Grundfos Company ID in service data (fe5d)
                 is_geni = "0000fdd0-0000-1000-8000-00805f9b34fb" in uuids
-                is_grundfos = "0000fe5d-0000-1000-8000-00805f9b34fb" in adv.service_data
+                is_grundfos = (
+                    "0000fe5d-0000-1000-8000-00805f9b34fb" in adv.service_data
+                )
 
                 if is_geni or is_grundfos:
-                    logger.info(f"MATCHED ALPHA HWR: {name} ({address}) [Service={is_geni}, Data={is_grundfos}]")
+                    logger.info(
+                        f"MATCHED ALPHA HWR: {name} ({address}) [Service={is_geni}, Data={is_grundfos}]"
+                    )
                     # Extract device info from advertisement
                     info = DeviceInfo(
                         address=device.address,

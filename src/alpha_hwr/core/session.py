@@ -191,7 +191,10 @@ class Session:
         ValueError
             If called from state other than CONNECTED or AUTHENTICATED
         """
-        if self.state not in (SessionState.CONNECTED, SessionState.AUTHENTICATED):
+        if self.state not in (
+            SessionState.CONNECTED,
+            SessionState.AUTHENTICATED,
+        ):
             raise ValueError(
                 f"Cannot authenticate from state {self.state.name}. "
                 "Must be CONNECTED or AUTHENTICATED first."

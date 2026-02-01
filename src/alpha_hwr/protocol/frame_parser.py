@@ -282,10 +282,12 @@ class FrameParser:
             if opspec in (0x30, 0x2B, 0x14, 0x2E, 0x2D):
                 if len(data) > 12:
                     result.payload = data[13:-2]  # Data starts at offset 13
-                    # We can store the ID as obj_id for routing if needed, 
+                    # We can store the ID as obj_id for routing if needed,
                     # but these are handled by decode_register_read_response anyway.
                     result.obj_id = (data[8] << 8) | data[9]
-                    result.sub_id = (data[6] << 8) | data[7]  # This is actually sequence number
+                    result.sub_id = (data[6] << 8) | data[
+                        7
+                    ]  # This is actually sequence number
             elif len(data) > 9:
                 # Class 10 Notification/SET: [Class][OpSpec][SubH][SubL][ObjH][ObjL][Payload...][CRC]
                 result.sub_id = (data[6] << 8) | data[7]  # Big-endian uint16

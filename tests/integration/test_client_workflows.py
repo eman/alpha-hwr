@@ -86,27 +86,26 @@ class TestClientWorkflows:
         async def test_telemetry_streaming(self, mock_client):
             """Test continuous telemetry streaming."""
             updates = []
-        
+
             async def collect_updates():
                 async for data in mock_client.telemetry.stream():
                     updates.append(data)
                     if len(updates) >= 3:
                         break
-        
+
             # Run for limited time
             try:
                 await asyncio.wait_for(collect_updates(), timeout=5.0)
             except asyncio.TimeoutError:
                 pass
-        
+
             # Should have received multiple updates
             assert len(updates) >= 2
             assert all(u.voltage_ac_v > 0 for u in updates)
-    
-    
+
     class TestControlOperations:
         """Test pump control operations."""
-    
+
     @pytest.mark.asyncio
     @pytest.mark.skip("Flaky due to MockPump timing/state update issues")
     async def test_start_pump(self, mock_client):
@@ -114,11 +113,11 @@ class TestClientWorkflows:
         # Get initial telemetry
         initial_telem = await mock_client.telemetry.read_once()
         assert initial_telem.speed_rpm == 0
-    
+
         # Start pump
         success = await mock_client.control.start()
         assert success
-    
+
         # Pump should be running - verify through telemetry
         after_start = await mock_client.telemetry.read_once()
         assert after_start.speed_rpm > 0

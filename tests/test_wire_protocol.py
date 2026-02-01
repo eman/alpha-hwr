@@ -55,8 +55,6 @@ class TestWireProtocol:
         # Payload for 0x1234 is [12, 34] (2 bytes)
         # Length byte = 4 + 2 = 6. Correct.
 
-    
-    
     def test_write_packet_fragmentation_logic(self):
         """Test the logic of _write_packet MTU splitting (mocked)."""
         # This requires mocking the BleakClient.
@@ -140,13 +138,9 @@ class TestWireProtocol:
         assert c3[8] == 0x45
         assert c3[9] == 0x01
 
-    
     def test_build_execute_request(self):
         """Verify construction of EXECUTE command."""
         cmd = FrameBuilder.build_execute_request(0x01, 0x02)
         assert cmd[5] == CommandOpcode.EXECUTE  # 0x05
         assert cmd[6] == 0x01
         assert cmd[7] == 0x02
-
-    
-    

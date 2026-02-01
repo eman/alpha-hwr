@@ -15,7 +15,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from ..app import console
-from ..common import require_service,  get_client, handle_error, run_async
+from ..common import require_service, get_client, handle_error, run_async
 
 app = typer.Typer(
     help="View pump event log entries",

@@ -14,9 +14,6 @@ class TestProtocolExpanded:
         decoded = decode_float_be(encoded, 0)
         assert abs(decoded - val) < 0.001
 
-    
-    
-    
     def test_parse_packet_structure(self):
         # Valid Header
         # Header needs to be at least 10 bytes for full Class 10 parse or just enough for 'valid'

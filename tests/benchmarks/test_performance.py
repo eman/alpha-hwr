@@ -210,6 +210,7 @@ class TestEndToEndPerformance:
             # Relaxed threshold
             assert per_read < 500, f"Telemetry reads too slow: {per_read:.1f}ms"
 
+
 class TestMemoryPerformance:
     """Benchmark memory usage."""
 

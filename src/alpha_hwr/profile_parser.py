@@ -82,7 +82,6 @@ class GeniProfileParser:
                 param_nodes = parameters_elem.findall(".//{*}parameter")
 
             for param_elem in param_nodes:
-
                 param = self._parse_parameter(param_elem)
                 if param:
                     self.parameters.append(param)

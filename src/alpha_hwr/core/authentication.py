@@ -269,7 +269,9 @@ class AuthenticationHandler:
             logger.error(f"Authentication handshake failed: {e}")
             return False
 
-    async def send_legacy_burst(self, repeats: int = 3, delay: float = 0.05) -> None:
+    async def send_legacy_burst(
+        self, repeats: int = 3, delay: float = 0.05
+    ) -> None:
         """
         Send legacy magic packet burst.
 
@@ -295,7 +297,9 @@ class AuthenticationHandler:
                 if delay > 0:
                     await asyncio.sleep(delay)
 
-    async def send_class10_burst(self, repeats: int = 5, delay: float = 0.05) -> None:
+    async def send_class10_burst(
+        self, repeats: int = 5, delay: float = 0.05
+    ) -> None:
         """
         Send Class 10 unlock burst.
 

@@ -157,7 +157,7 @@ class MockPump:
 
         # Handle non-standard set clock command
         # Format: [0x27][Len][0x07][0x5E][0x64][0x70][DateTime...]
-        if len(full_command) >= 6 and full_command[2:6] == b"\x07\x5E\x64\x70":
+        if len(full_command) >= 6 and full_command[2:6] == b"\x07\x5e\x64\x70":
             return self._handle_set_clock(full_command)
 
         # Parse incoming command
@@ -211,7 +211,7 @@ class MockPump:
         """Handle Class 10 SET operations (OpSpec 0x93, 0xB3, 0x90)."""
         raw_data = frame.raw_data
         opspec = raw_data[5]
-        
+
         # OpSpec 0xB3 uses a different header format than 0x90/0x93
         if opspec == 0xB3:
             # [0A][B3][ObjID][SubH][SubL][...]
@@ -245,6 +245,7 @@ class MockPump:
         # [0x27][Len][0x07][0x5E][0x64][0x70][Year(2)][Month][Day][Hour][Minute][Second]...
         if len(command) >= 13:
             from datetime import datetime
+
             yr = (command[6] << 8) | command[7]
             mo, da, hr, mi, sc = command[8:13]
             try:
@@ -264,14 +265,14 @@ class MockPump:
             self.state.schedule_entries[layer] = data
         else:
             pass
-            
+
         return self._build_ack_response()
 
     async def _handle_class10(self, frame) -> bytes:
         """Handle Class 10 DataObject operations."""
         # For Class 10 READ requests (OpSpec 0x03), extract identifiers
         # Request format: [Start][Len][SvcH][SvcL][Class][OpSpec][ObjID][SubH][SubL][CRC]
-        
+
         raw_data = frame.raw_data
         if len(raw_data) >= 10 and raw_data[5] == 0x03:
             obj_id = raw_data[6]
@@ -343,7 +344,7 @@ class MockPump:
 
         # For Class 3, frame structure is:
         # [Start][Len][SvcH][SvcL][Class][OpSpec][Register...][Value...][CRC]
-        
+
         raw_data = frame.raw_data
         if len(raw_data) < 7:
             return self._build_error_response()
@@ -402,7 +403,7 @@ class MockPump:
         # From ControlService: [0x2F, 0x01, 0x00, 0x00, 0x07, 0x00, Flag, Mode]
         flag = payload[6]  # 0x00 = start, 0x01 = stop
         mode = payload[7]
-        
+
         if flag == 0x00:
             # Start command
             self.state.running = True
@@ -471,7 +472,7 @@ class MockPump:
         payload.extend(struct.pack(">H", 5))  # Starts 1h
         payload.extend(struct.pack(">H", 10))  # Starts 24h
         payload.extend(struct.pack(">I", 36000))  # Operating time (10 hours)
-        
+
         return self._build_class10_response(1, 93, bytes(payload))
 
     def _build_schedule_overview_response(self) -> bytes:
@@ -482,14 +483,14 @@ class MockPump:
         payload.append(0x01 if self.state.schedule_enabled else 0x00)  # Enabled
         payload.append(0x02)  # Default action
         payload.extend(encode_float_be(1.5))  # Base setpoint
-        
+
         return self._build_class10_response(1, 84, bytes(payload))
 
     def _build_schedule_entries_response(self, sub_id: int) -> bytes:
         """Build Class 10 schedule entries response (Obj 84, Sub 1000-1004)."""
         payload = bytearray()
         payload.extend(bytes([0x00, 0x00, 0x00]))  # Header
-        
+
         layer = sub_id - 1000
         if layer in self.state.schedule_entries:
             payload.extend(self.state.schedule_entries[layer])
@@ -497,14 +498,15 @@ class MockPump:
             # 7 days * 6 bytes = 42 bytes of zeros
             for i in range(7):
                 payload.extend(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
-            
+
         return self._build_class10_response(sub_id, 84, bytes(payload))
 
     def _build_clock_response(self) -> bytes:
         """Build Class 10 clock response (Obj 94, Sub 101)."""
         from datetime import datetime
+
         dt = self.state.last_synced_time or datetime.now()
-        
+
         payload = bytearray()
         payload.extend(bytes([0x00, 0x00]))  # Status (valid)
         payload.append(0x07)  # Length
@@ -514,7 +516,7 @@ class MockPump:
         payload.append(dt.hour)
         payload.append(dt.minute)
         payload.append(dt.second)
-        
+
         return self._build_class10_response(101, 94, bytes(payload))
 
     def _build_setpoint_info_response(self) -> bytes:
@@ -550,7 +552,7 @@ class MockPump:
         # Next counter (1 byte)
         # Next 100-cycle value (float, 4 bytes)
         # Last 10 of 100-cycle values (10 bytes, 1 byte each)
-        
+
         payload = bytearray()
         payload.extend(bytes([0x00, 0x00, 0x00]))  # Header
         payload.extend(encode_float_be(2.5))  # Current value (451=flow)
@@ -569,14 +571,14 @@ class MockPump:
         payload.extend(struct.pack(">H", 5))  # Available entries
         payload.extend(struct.pack(">H", 20))  # Max size
         payload.append(0x00)  # Reserved
-        
+
         return self._build_class10_response(10199, 88, bytes(payload))
 
     def _build_event_log_entry_response(self, sub_id: int) -> bytes:
         """Build event log entry response (Obj 88, Sub 10200-10219)."""
         payload = bytearray()
         payload.extend(bytes([0x00, 0x00, 0x00]))  # Header
-        
+
         # 16-byte entry
         entry = bytearray(16)
         entry[4] = 145  # Cycle counter
@@ -584,7 +586,7 @@ class MockPump:
         entry[9] = 0x01  # Event type (start)
         # Timestamp: Jan 31, 2026 12:00:00 UTC
         entry[10:14] = struct.pack(">I", 1769860800)
-        
+
         payload.extend(entry)
         return self._build_class10_response(sub_id, 88, bytes(payload))
 

@@ -299,7 +299,9 @@ class TimeService(BaseService):
             new_time = await self.get_clock()
             if new_time:
                 time_diff = abs((new_time - dt).total_seconds())
-                if time_diff < 5 or getattr(self.session, "fast_mode", False):  # Within 5 seconds is success
+                if time_diff < 5 or getattr(
+                    self.session, "fast_mode", False
+                ):  # Within 5 seconds is success
                     logger.info("Clock synchronized successfully")
                     return True
                 else:
@@ -359,7 +361,9 @@ class TimeService(BaseService):
                     f"{description} attempt {attempt + 1} failed: {e}"
                 )
 
-            if attempt < retries - 1 and not getattr(self.session, "fast_mode", False):
+            if attempt < retries - 1 and not getattr(
+                self.session, "fast_mode", False
+            ):
                 await asyncio.sleep(0.5)
 
         return False

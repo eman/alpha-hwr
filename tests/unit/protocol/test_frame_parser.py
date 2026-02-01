@@ -4,7 +4,6 @@ Unit tests for frame_parser.py
 Tests the GENI protocol frame parser with various frame types and edge cases.
 """
 
-
 from alpha_hwr.protocol.frame_parser import (
     FrameParser,
     TEST_VECTORS,

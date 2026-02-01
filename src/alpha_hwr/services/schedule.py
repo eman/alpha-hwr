@@ -776,7 +776,7 @@ class ScheduleService(BaseService):
                     await asyncio.sleep(
                         0.5
                     )  # Give pump time to process and update state
-                
+
                 verify_data = await self._read_class10_object(84, 1)
                 if verify_data and len(verify_data) > 7:
                     actual_enabled = verify_data[7] != 0

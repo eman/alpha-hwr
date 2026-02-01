@@ -13,7 +13,7 @@ from datetime import datetime
 import typer
 
 from ..app import console
-from ..common import require_service,  get_client, handle_error, run_async
+from ..common import require_service, get_client, handle_error, run_async
 from ..output.formatters import print_success
 
 app = typer.Typer(help="Backup and restore pump configuration")
@@ -94,14 +94,22 @@ def cmd_restore(
     if input_file is None:
         backup_dir = Path.home() / ".config" / "alpha-hwr" / "backups"
         if not backup_dir.exists():
-            console.print(f"[error]No backup directory found at {backup_dir}[/error]")
+            console.print(
+                f"[error]No backup directory found at {backup_dir}[/error]"
+            )
             raise typer.Exit(1)
-        
-        backups = sorted(backup_dir.glob("alpha_hwr_backup_*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+
+        backups = sorted(
+            backup_dir.glob("alpha_hwr_backup_*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
         if not backups:
-            console.print(f"[error]No automatic backups found in {backup_dir}[/error]")
+            console.print(
+                f"[error]No automatic backups found in {backup_dir}[/error]"
+            )
             raise typer.Exit(1)
-        
+
         input_file = backups[0]
         console.print(f"[info]Selected latest backup: {input_file.name}[/info]")
 
@@ -132,22 +140,28 @@ async def _config_backup(
     try:
         async with get_client(device) as client:
             config_service = require_service(client.config, "Configuration")
-            device_info_service = require_service(client.device_info, "DeviceInfo")
+            device_info_service = require_service(
+                client.device_info, "DeviceInfo"
+            )
 
             # Determine final output path
             if output_file is None:
                 # Get serial number for filename
                 info = await device_info_service.read_info()
-                serial = info.serial_number if info and info.serial_number else "unknown"
-                
+                serial = (
+                    info.serial_number
+                    if info and info.serial_number
+                    else "unknown"
+                )
+
                 # Standard backup directory: ~/.config/alpha-hwr/backups/
                 backup_dir = Path.home() / ".config" / "alpha-hwr" / "backups"
                 backup_dir.mkdir(parents=True, exist_ok=True)
-                
+
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"alpha_hwr_backup_{serial}_{timestamp}.json"
                 output_file = backup_dir / filename
-            
+
             # Re-check overwrite if we just generated a path that might exist
             if output_file.exists() and not force:
                 confirm = typer.confirm(
@@ -161,7 +175,9 @@ async def _config_backup(
             success = await config_service.backup(str(output_file))
 
             if success:
-                print_success(f"Configuration backed up to: [bold]{output_file}[/bold]")
+                print_success(
+                    f"Configuration backed up to: [bold]{output_file}[/bold]"
+                )
             else:
                 console.print("[error]Failed to backup configuration[/error]")
                 raise typer.Exit(1)

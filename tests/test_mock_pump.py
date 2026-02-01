@@ -168,7 +168,7 @@ class TestMockPump:
         register = (53 << 16) | 451
         cmd = FrameBuilder.build_class10_read(register)
         response = await pump.send_command(cmd)
-    
+
         frame = FrameParser.parse_frame(response)
         assert frame.valid
         assert frame.class_byte == 10

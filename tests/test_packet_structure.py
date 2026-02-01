@@ -109,14 +109,16 @@ def test_frame_parser_class10_response():
     """Test that FrameParser correctly handles Class 10 response frames (OpSpec 0x2B, etc)."""
     # Flow response (OpSpec 0x2B)
     # [Start][Len][Dst][Src][Class=0x0A][OpSpec=0x2B][Seq=0002][Id=3502][Res=0000][DataLen=24][Data...][CRC]
-    packet = bytes.fromhex("242ff8e70a2b00023502000024390aa42646e58ac27fffffff7fffffff7fffffff7fffffff3ef3b48b403fccd43f609fc2bc06")
-    
+    packet = bytes.fromhex(
+        "242ff8e70a2b00023502000024390aa42646e58ac27fffffff7fffffff7fffffff7fffffff3ef3b48b403fccd43f609fc2bc06"
+    )
+
     frame = FrameParser.parse_frame(packet)
     assert frame.valid
     assert frame.class_byte == 0x0A
     assert frame.obj_id == 0x3502
     assert frame.sub_id == 0x0002
-    
+
     # Payload should start after the DataLen byte (offset 13)
     # The new parser logic uses data[13:-2] for these special OpSpecs
     assert frame.payload.hex().startswith("390aa426")
@@ -127,7 +129,7 @@ def test_frame_parser_class10_notification():
     # Motor state notification (OpSpec 0x0E)
     # [Start][Len][Dst][Src][Class=0x0A][OpSpec=0x0E][Sub=0045][Obj=0057][Payload...][CRC]
     packet = bytes.fromhex("2415e7f80a0e00450057437000000000000040200000fbdc")
-    
+
     frame = FrameParser.parse_frame(packet)
     assert frame.valid
     assert frame.class_byte == 0x0A
