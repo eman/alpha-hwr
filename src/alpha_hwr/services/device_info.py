@@ -12,7 +12,7 @@ Device info can be retrieved from two sources:
 
 1. **BLE Advertisement Data**:
    - Available without connection
-   - Service UUID: 0000fe5d-0000-1000-8000-00805f9b34fb
+   - Service UUID: 0000fdd0-0000-1000-8000-00805f9b34fb
    - Bytes [3,4,5] contain: product_family, product_type, product_version
 
 2. **Class 7 String Parameters** (requires connection):
@@ -155,6 +155,7 @@ class DeviceInfoService(BaseService):
             info_dict.update(
                 {
                     "serial_number": detailed_info.serial_number,
+                    "product_name": detailed_info.product_name,
                     "software_version": detailed_info.software_version,
                     "hardware_version": detailed_info.hardware_version,
                     "ble_version": detailed_info.ble_version,
@@ -188,7 +189,7 @@ class DeviceInfoService(BaseService):
             >>> print(f"Product version: {info.product_version}")
 
         Implementation Notes:
-            - GENI service UUID: 0000fe5d-0000-1000-8000-00805f9b34fb
+            - GENI service UUID: 0000fdd0-0000-1000-8000-00805f9b34fb
             - Service data format: [??][??][??][Family][Type][Version]...
             - Can be called without being connected
             - Uses BleakScanner to discover devices
@@ -206,7 +207,7 @@ class DeviceInfoService(BaseService):
                     logger.debug(f"Found device: {device.name}")
 
                     # GENI service UUID
-                    service_uuid = "0000fe5d-0000-1000-8000-00805f9b34fb"
+                    service_uuid = "0000fdd0-0000-1000-8000-00805f9b34fb"
 
                     if service_uuid in adv.service_data:
                         data = adv.service_data[service_uuid]
@@ -261,10 +262,19 @@ class DeviceInfoService(BaseService):
         device_info_dict: dict[str, Any] = {}
 
         try:
-            # Read serial number (ID 9)
-            serial = await self._read_class7_string(9)
-            if serial:
-                device_info_dict["serial_number"] = serial
+            # Read serial suffix (ID 9 is "0000479")
+            serial_suffix = await self._read_class7_string(9)
+            if serial_suffix:
+                # The full serial is "10000479", prepend the missing "1"
+                device_info_dict["serial_number"] = f"1{serial_suffix}"
+            
+            # Read product name (ID 1 often returns "LPHA HWR")
+            product_name = await self._read_class7_string(1)
+            if product_name:
+                # Fix common truncation issue where "A" is missing
+                if product_name == "LPHA HWR":
+                    product_name = "ALPHA HWR"
+                device_info_dict["product_name"] = product_name
 
             # Read software version (ID 50)
             sw_ver = await self._read_class7_string(50)

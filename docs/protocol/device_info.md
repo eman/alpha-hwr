@@ -8,7 +8,7 @@ The pump broadcasts device info in its BLE advertisement service data.
 
 ### Service UUID
 
-`0000fe5d-0000-1000-8000-00805f9b34fb` (GENI service)
+`0000fdd0-0000-1000-8000-00805f9b34fb` (GENI service)
 
 ### Service Data Format
 
@@ -30,7 +30,8 @@ The ALPHA HWR (Family 52, Type 7) supports reading detailed device identificatio
 
 The following string parameters can be read when the device is connected and authenticated:
 
-- **ID 9**: Serial Number (e.g., `0000479`)
+- **ID 1**: Product Name (e.g., `LPHA HWR`, cleaned up to `ALPHA HWR`)
+- **ID 9**: Serial Number Suffix (e.g., `0000479`)
 - **ID 50**: Software Version String (e.g., `2601618V04.02.01.02539`)
 - **ID 52**: Hardware Version (reported as Backend SW, e.g., `2601617V01.03.00.00469`)
 - **ID 58**: BLE Version (e.g., `2811431V06.00.01.00001`)
@@ -39,9 +40,11 @@ The following string parameters can be read when the device is connected and aut
 
 The pump returns the string encoded as UTF-8 (or ASCII), typically null-terminated and padded with trailing nulls.
 
+**Note on Serial Number:** The full serial number is formed by prepending a "1" to the suffix from ID 9 (e.g., `1` + `0000479` = `10000479`).
+
 ```text
 Request:  2707e7f8070109...  (Read String ID 9)
-Response: 240ef8e70701093030303034373900... (Serial: "0000479")
+Response: 240ef8e70701093030303034373900... (Suffix: "0000479")
 ```
 
 ### Authentication Requirement
@@ -50,14 +53,11 @@ Class 7 reading requires the device to be **Authenticated** via the handshake se
 
 ## Available Information
 
-### Via BLE Advertisement (Basic Info)
+1.  **Product Identification** (BLE Advertisement):
+    - Broad scan for ALPHA HWR pumps.
+    - Match by Service UUID `0000fdd0-0000-1000-8000-00805f9b34fb` or Grundfos Company ID `0000fe5d-0000-1000-8000-00805f9b34fb` in service data.
+    - Extract Family (Byte 3), Type (Byte 4), and Version (Byte 5) from service data.
 
-Basic identification is available without a connection by scanning BLE advertisements.
-
-```python
-device_info = await client.read_device_info(connect=False)
-# Returns: DeviceInfo(product_family=52, product_type=7, product_version=2)
-```
 
 ### Via Class 7 Strings (Detailed Info)
 

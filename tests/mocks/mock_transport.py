@@ -7,7 +7,6 @@ to a MockPump without requiring actual BLE hardware.
 
 import asyncio
 from typing import Callable, Optional
-from unittest.mock import AsyncMock
 
 from .mock_pump import MockPump
 

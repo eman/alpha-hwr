@@ -90,6 +90,7 @@ from .base import BaseService
 if TYPE_CHECKING:
     from alpha_hwr.core.session import Session
     from alpha_hwr.core.transport import Transport
+    from alpha_hwr.services.schedule import ScheduleService
 
 
 logger = logging.getLogger(__name__)
@@ -136,20 +137,30 @@ class ControlService(BaseService):
     _CLASS10_CONTROL_MAP = {
         0: (0x00, bytes([0x45, 0x65, 0x70, 0x00])),  # Constant Pressure
         2: (0x02, bytes([0x45, 0x65, 0x70, 0x00])),  # Constant Speed
+        13: (0x0D, bytes([0x45, 0x65, 0x70, 0x00])),  # AutoAdapt Radiator
+        14: (0x0E, bytes([0x45, 0x65, 0x70, 0x00])),  # AutoAdapt Underfloor
+        15: (0x0F, bytes([0x45, 0x65, 0x70, 0x00])),  # AutoAdapt Combined
         25: (0x19, bytes([0x38, 0xC6, 0x70, 0x00])),  # DHW
         27: (0x1B, bytes([0x39, 0x67, 0x70, 0x00])),  # Temp Range
     }
 
-    def __init__(self, transport: Transport, session: Session) -> None:
+    def __init__(
+        self,
+        transport: Transport,
+        session: Session,
+        schedule_service: Optional["ScheduleService"] = None,
+    ) -> None:
         """
         Initialize control service.
 
         Args:
             transport: Transport layer for BLE communication
             session: Session manager for state tracking
+            schedule_service: Optional schedule service for status reading
         """
         super().__init__(transport, session)
         self._current_mode: ControlMode | int = ControlMode.CONSTANT_SPEED
+        self._schedule_service = schedule_service
 
     async def start(self, mode: Optional[int] = None) -> bool:
         """
@@ -397,7 +408,7 @@ class ControlService(BaseService):
                 return True
 
         # Fallback to Class 3
-        logger.warning(
+        logger.debug(
             f"Mode {mode_val} not in Class 10 map, trying Class 3..."
         )
 
@@ -485,6 +496,21 @@ class ControlService(BaseService):
                         f"setpoint={setpoint:.2f}, source={control_source}"
                     )
 
+                    # Get schedule state if service is available
+                    schedule_active = None
+                    if self._schedule_service:
+                        schedule_active = (
+                            await self._schedule_service.get_state()
+                        )
+
+                    # Determine status flags
+                    is_remote = (
+                        control_source == 2
+                    )  # 2 = Remote/Digital, 1 = Local/Panel
+                    is_running = (
+                        operation_mode != 1
+                    )  # 1 = Stopped, 0 = Auto/Running
+
                     # Special handling for Temperature Range Control (mode 27)
                     if control_mode == ControlMode.TEMPERATURE_RANGE_CONTROL:
                         logger.debug(
@@ -529,6 +555,9 @@ class ControlService(BaseService):
                                 min_setpoint=min_temp,
                                 max_setpoint=max_temp,  # High temperature
                                 unit="°C",
+                                is_remote=is_remote,
+                                is_running=is_running,
+                                schedule_enabled=schedule_active,
                             )
                         else:
                             logger.warning(
@@ -540,6 +569,9 @@ class ControlService(BaseService):
                         control_mode=control_mode,
                         operation_mode=operation_mode,
                         setpoint=setpoint,
+                        is_remote=is_remote,
+                        is_running=is_running,
+                        schedule_enabled=schedule_active,
                     )
                 else:
                     logger.warning(
@@ -888,6 +920,69 @@ class ControlService(BaseService):
 
         logger.warning("All setpoint write attempts for Mode 5 failed")
         return False
+
+    async def set_temperature_range_control(
+        self, min_temp: float, max_temp: float
+    ) -> bool:
+        """
+        Set temperature range control mode (Mode 27) with min/max setpoints.
+
+        Args:
+            min_temp: Minimum temperature in Celsius
+            max_temp: Maximum temperature in Celsius
+
+        Returns:
+            True if successful, False otherwise
+
+        Example:
+            >>> await control.set_temperature_range_control(35.0, 45.0)
+        """
+        self.session.ensure_authenticated()
+
+        logger.info(
+            f"Setting Temperature Range Control: {min_temp}°C - {max_temp}°C..."
+        )
+
+        # 1. Switch to Mode 27
+        if not await self.set_mode(ControlMode.TEMPERATURE_RANGE_CONTROL):
+            logger.error("Failed to switch to Temperature Range Control mode")
+            return False
+
+        # 2. Write temperature range to Object 91, Sub-ID 430
+        # Payload format (Type 1012):
+        # [DeltaTempEnabled(1)][MinTemp(4)][MaxTemp(4)][TimeLimits(4)]
+        # Total size usually 13 bytes including 3-byte header
+        
+        # Build 9-byte structure data (without header)
+        struct_data = bytearray()
+        struct_data.append(0x01)  # DeltaTempEnabled = True
+        struct_data.extend(encode_float_be(min_temp))
+        struct_data.extend(encode_float_be(max_temp))
+        
+        # Add 4 bytes of time limits (typically seen as 05 3C 01 1E in captures)
+        struct_data.extend(bytes([0x05, 0x3C, 0x01, 0x1E]))
+
+        # Build APDU: [Class][OpSpec][Obj][SubH][SubL][Reserved][Type(3)][Size(2)][Data...]
+        # Using OpSpec 0xB3 (OpSpec 5, Length 19) similar to schedules
+        apdu = bytearray([
+            0x0A, 0xB3,
+            91,         # Object 91
+            0x01, 0xAE, # Sub-ID 430 (0x01AE)
+            0x00,       # Reserved
+            0xF4, 0x03, 0x00, # Type 1012 header (0x03F4 = 1012)
+            0x00, 0x09, # Size = 9 bytes
+        ])
+        apdu.extend(struct_data)
+
+        success = await self._send_with_retry(
+            self._build_geni_packet(0xF8, 0xE7, bytes(apdu)),
+            "Set Temperature Range"
+        )
+        
+        if success:
+            await self._send_configuration_commit()
+            
+        return success
 
     # Helper methods
 

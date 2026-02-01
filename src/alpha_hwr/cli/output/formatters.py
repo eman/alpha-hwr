@@ -142,6 +142,35 @@ def format_device_info_panel(info: DeviceInfo) -> Panel:
     return Panel(content, title="Device Information", border_style="blue")
 
 
+def format_discovery_table(devices: list[DeviceInfo]) -> Table:
+    """
+    Format discovered devices as Rich table.
+
+    Args:
+        devices: List of discovered device info
+
+    Returns:
+        Rich Table object
+    """
+    table = Table(
+        title="Discovered ALPHA HWR Pumps",
+        show_header=True,
+        header_style="bold cyan",
+    )
+    table.add_column("Device Name", style="cyan")
+    table.add_column("Address", style="green")
+    table.add_column("Product", style="blue")
+
+    for device in devices:
+        table.add_row(
+            device.name or "Unknown",
+            device.address or "Unknown",
+            device.product_name or "ALPHA HWR",
+        )
+
+    return table
+
+
 def format_schedule_table(entries: list[ScheduleEntry]) -> Table:
     """
     Format schedule entries as Rich table.
@@ -196,6 +225,25 @@ def format_setpoint_panel(info: SetpointInfo) -> Panel:
     # Current setpoint
     value, unit = info.get_display_value()
     lines.append(f"[bold]Current Setpoint:[/bold] {value:.2f} {unit}")
+
+    # Operational Status
+    if info.is_running is not None:
+        status_str = (
+            "[green]Started[/green]" if info.is_running else "[red]Stopped[/red]"
+        )
+        lines.append(f"[bold]Pump Status:[/bold] {status_str}")
+
+    if info.is_remote is not None:
+        remote_str = (
+            "[green]Enabled[/green]" if info.is_remote else "[yellow]Disabled (Local)[/yellow]"
+        )
+        lines.append(f"[bold]Remote Control:[/bold] {remote_str}")
+
+    if info.schedule_enabled is not None:
+        sched_str = (
+            "[green]Active[/green]" if info.schedule_enabled else "[yellow]Inactive[/yellow]"
+        )
+        lines.append(f"[bold]Internal Schedule:[/bold] {sched_str}")
 
     # Limits
     if info.min_setpoint is not None and info.max_setpoint is not None:

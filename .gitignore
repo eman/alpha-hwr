@@ -49,3 +49,4 @@ resources
 traffic_db
 .DS_Store
 site
+tox_output.log

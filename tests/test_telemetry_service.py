@@ -10,7 +10,7 @@ This module tests the TelemetryService including:
 
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 from datetime import datetime
 
 
@@ -166,7 +166,7 @@ class TestReadOnce:
     async def test_read_once_filters_notifications(self, mock_client_simple):
         """Test that read_once filters out passive notifications (OpSpec 0x0E)."""
         # Create a notification frame (OpSpec 0x0E) - should be filtered
-        notification = bytes(
+        bytes(
             [
                 0x27,
                 0x10,
@@ -387,8 +387,6 @@ class TestUpdateFromNotification:
             ]
         )
 
-        initial_telemetry = mock_client_simple.telemetry._telemetry
-
         # Update from notification
         mock_client_simple.telemetry.update_from_notification(notification)
 
@@ -525,7 +523,6 @@ class TestTelemetryServiceIntegration:
 
         # Mock read_once for streaming to modify data each time
         call_count = 0
-        original_read_once = mock_client_simple.telemetry.read_once
 
         async def mock_read_once():
             nonlocal call_count
@@ -617,11 +614,3 @@ class TestTelemetryServiceEdgeCases:
         # Should handle exception gracefully
         result = await mock_client_simple.telemetry.read_once()
         assert result is not None
-
-    def test_register_with_transport(self, mock_client_simple):
-        """Test registering telemetry with transport."""
-        # Should not crash
-        try:
-            mock_client_simple.telemetry.register_with_transport()
-        except Exception:
-            pytest.fail("Should register with transport without error")

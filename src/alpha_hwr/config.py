@@ -1,7 +1,7 @@
 from typing import Optional
-import platform
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, model_validator
+from .utils import resolve_platform_address
 
 
 class Settings(BaseSettings):
@@ -14,13 +14,7 @@ class Settings(BaseSettings):
 
     device_address: Optional[str] = Field(
         None,
-        description="BLE Device UUID (macOS) or MAC Address (Linux/Windows)",
-    )
-    device_address_macos: Optional[str] = Field(
-        None, description="BLE Device UUID for macOS"
-    )
-    mac_address: Optional[str] = Field(
-        None, description="BLE MAC Address for Linux/Windows"
+        description="BLE Device Address (UUID on macOS, MAC on Linux/Windows). Supports comma-separated lists.",
     )
     adapter: Optional[str] = Field(
         None, description="BLE Adapter (Linux hci0, etc.)"
@@ -34,19 +28,10 @@ class Settings(BaseSettings):
     log_level: str = Field("INFO", description="Logging level")
 
     @model_validator(mode="after")
-    def select_platform_address(self):
-        """Select the appropriate device address based on platform."""
-        # If device_address is explicitly set, use it
+    def resolve_address(self) -> "Settings":
+        """Resolve device_address if it's a comma-separated list."""
         if self.device_address:
-            return self
-
-        # Detect platform and choose appropriate address
-        system = platform.system()
-        if system == "Darwin" and self.device_address_macos:
-            self.device_address = self.device_address_macos
-        elif system in ("Linux", "Windows") and self.mac_address:
-            self.device_address = self.mac_address
-
+            self.device_address = resolve_platform_address(self.device_address)
         return self
 
 

@@ -38,7 +38,10 @@ class BLEWriter(Protocol):
     """Protocol for BLE characteristic write operations."""
 
     async def write_gatt_char(
-        self, char_uuid: str, data: bytes, response: bool = False
+        self,
+        char_specifier: str,
+        data: bytes,
+        response: bool | None = None,
     ) -> None:
         """Write data to a GATT characteristic."""
         ...

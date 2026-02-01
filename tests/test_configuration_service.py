@@ -5,8 +5,6 @@ Tests backup/restore functionality for pump configuration.
 """
 
 import json
-from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import pytest

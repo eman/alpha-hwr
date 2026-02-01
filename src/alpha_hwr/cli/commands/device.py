@@ -11,15 +11,34 @@ from typing import Optional
 
 import typer
 
+from ...client import AlphaHWRClient
 from ..app import console
 from ..common import require_service, get_client, handle_error, run_async
 from ..output.formatters import (
     format_device_info_panel,
     format_statistics_panel,
     format_alarm_panel,
+    format_discovery_table,
 )
 
 app = typer.Typer(help="Device information and status")
+
+
+@app.command("scan")
+def cmd_scan(
+    timeout: float = typer.Option(
+        10.0, "--timeout", "-t", help="Scan duration in seconds"
+    ),
+) -> None:
+    """
+    Scan for nearby ALPHA HWR pumps.
+
+    Searches for devices advertising the GENI service.
+
+    Example:
+      alpha-hwr device scan
+    """
+    run_async(_device_scan(timeout))
 
 
 @app.command("info")
@@ -83,6 +102,29 @@ def cmd_alarms(
 
 
 # Internal async implementations
+
+
+async def _device_scan(timeout: float) -> None:
+    """Internal async implementation of scan command."""
+    try:
+        console.print(
+            f"[dim]Scanning for ALPHA HWR pumps ({timeout}s)...[/dim]"
+        )
+        devices = await AlphaHWRClient.discover(timeout=timeout)
+
+        if not devices:
+            console.print("[yellow]No ALPHA HWR pumps found.[/yellow]")
+            console.print(
+                "[dim]Tip: Ensure the pump is not already connected to another device or mobile app.[/dim]"
+            )
+            return
+
+        # Display result
+        table = format_discovery_table(devices)
+        console.print(table)
+
+    except Exception as e:
+        handle_error(e, "Scan failed")
 
 
 async def _device_info(device: Optional[str]) -> None:

@@ -7,3 +7,6 @@ It provides both a high-level Python API and a Command Line Interface (CLI) for 
 ## Disclaimer
 
 This project is **not affiliated with, endorsed by, or associated with Grundfos**. Use this software at your own risk. Incorrect usage of motor control commands could potentially damage hardware, although safety limits in the pump firmware generally prevent this.
+
+---
+*Version: 0.1.0*

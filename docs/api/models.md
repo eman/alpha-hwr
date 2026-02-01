@@ -77,6 +77,9 @@ A Pydantic model representing the current setpoint configuration.
 | `min_setpoint` | `float \| None` | Minimum allowed setpoint (if available) |
 | `max_setpoint` | `float \| None` | Maximum allowed setpoint (if available) |
 | `unit` | `str \| None` | Unit of measurement |
+| `is_remote` | `bool \| None` | `True` if remote control mode is enabled |
+| `is_running` | `bool \| None` | `True` if the pump motor is started |
+| `schedule_enabled` | `bool \| None` | `True` if internal schedule is active |
 
 ### Methods
 
@@ -164,9 +167,16 @@ A Pydantic model representing device identification information.
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
+| `address` | `str \| None` | BLE device address |
+| `name` | `str \| None` | BLE device name |
+| `product_name` | `str \| None` | Full product name (e.g., "ALPHA HWR") |
 | `product_family` | `int \| None` | Product family code (52 = ALPHA) |
 | `product_type` | `int \| None` | Product type (7 = HWR) |
 | `product_version` | `int \| None` | Product version number |
+| `serial_number` | `str \| None` | Device serial number |
+| `software_version` | `str \| None` | Primary firmware version |
+| `hardware_version` | `str \| None` | Hardware board version |
+| `ble_version` | `str \| None` | Bluetooth module firmware version |
 
 **Example:**
 

@@ -12,7 +12,7 @@ Standard identifiers for the Grundfos BLE service.
 
 | Constant | Value | Description |
 | :--- | :--- | :--- |
-| `GENI_SERVICE_UUID` | `0000fe5d-0000-1000-8000-00805f9b34fb` | Main Service UUID |
+| `GENI_SERVICE_UUID` | `0000fdd0-0000-1000-8000-00805f9b34fb` | Main Service UUID |
 | `GENI_CHAR_UUID` | `859cffd1-036e-432a-aa28-1a0085b87ba9` | GENI Read/Write/Notify Characteristic |
 
 ## Protocol Constants

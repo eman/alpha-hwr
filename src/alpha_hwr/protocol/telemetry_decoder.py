@@ -649,12 +649,10 @@ class TelemetryDecoder:
             ValueError: If frame is not a valid Class 10 frame
         """
         if frame.class_byte != 0x0A:  # CLASS_10
-            raise ValueError(
-                f"Expected Class 10 frame, got Class {frame.class_byte}"
-            )
+            return {}  # Not a Class 10 frame, nothing to decode here
 
         if frame.obj_id is None or frame.sub_id is None:
-            raise ValueError("Class 10 frame missing Sub-ID or Object ID")
+            return {}  # Missing identifiers, can't decode as telemetry
 
         # Route to appropriate decoder
         match (frame.obj_id, frame.sub_id):

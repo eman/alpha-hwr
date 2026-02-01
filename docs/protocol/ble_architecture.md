@@ -22,21 +22,17 @@ The ALPHA HWR uses a layered communication architecture:
 
 **BLE Service:**
 
-- **UUID:** `0000fe5d-0000-1000-8000-00805f9b34fb` (Grundfos GENI service)
-- **Characteristic:** `0000feed-0000-1000-8000-00805f9b34fb` (Read/Write/Notify)
+- **UUID:** `0000fdd0-0000-1000-8000-00805f9b34fb` (GENI Service)
+- **Characteristic:** `859cffd1-036e-432a-aa28-1a0085b87ba9` (Read/Write/Notify)
 
 **Connection Properties:**
-
-- **MTU:** 23 bytes (3 header + 20 payload)
-- **ATT MTU Limit:** 20 bytes max per write operation
-- **Security:** No encryption required (pump has no pairing capability on macOS)
-
+...
 ### Device Discovery
 
 The pump broadcasts BLE advertisements with:
 
 ```text
-Service Data (UUID: 0000fe5d-0000-1000-8000-00805f9b34fb):
+Service Data (Grundfos Company ID: 0000fe5d-0000-1000-8000-00805f9b34fb):
 [flags...][product_family][product_type][product_version][...]
   Byte 3: 52 (0x34) = ALPHA family
   Byte 4: 7  (0x07) = HWR type

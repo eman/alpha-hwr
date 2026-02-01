@@ -4,6 +4,7 @@ Main Typer application for alpha-hwr CLI.
 Provides a modern command-line interface with Rich formatting.
 """
 
+import logging
 import typer
 from rich.console import Console
 
@@ -19,6 +20,22 @@ app = typer.Typer(
 
 # Initialize Rich console with theme
 console = Console(theme=default_theme)
+
+
+@app.callback()
+def global_options(
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable verbose logging"
+    ),
+) -> None:
+    """Configure global options for all commands."""
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
+        # Set bleak/asyncio to INFO to avoid too much noise
+        logging.getLogger("bleak").setLevel(logging.INFO)
+        logging.getLogger("asyncio").setLevel(logging.INFO)
+    else:
+        logging.basicConfig(level=logging.WARNING)
 
 
 def main() -> None:

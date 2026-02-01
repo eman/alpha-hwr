@@ -48,6 +48,9 @@ markdown_extensions:
       generic: true
   - attr_list
 
+extra:
+  version: "0.1.0"
+
 nav:
   - Home: index.md
   - Getting Started:

@@ -32,6 +32,23 @@ The pump streams telemetry at ~10Hz. If a telemetry read request or notification
 Even after successfully writing the control command, the pump may revert to its previous state immediately unless the change is "committed".
 *   **Action**: Send a specific "Configuration Commit" packet immediately after the control command.
 
+## Remote Control Mode
+
+The ALPHA HWR can be placed in "Remote Control Mode", which changes how it prioritizes external commands over the physical operating panel.
+
+### Overview
+- **Override Local Control**: When active, the pump prioritizes commands from the Bluetooth interface and ignores most button presses on the physical panel.
+- **Persistence**: Once enabled, the pump stays in Remote Mode until it is explicitly returned to "Auto" (local) control.
+- **Command Lock**: This is recommended when an external controller (like a home automation system) is managing the pump's logic to prevent accidental local overrides.
+
+### Technical Implementation
+Remote mode uses the legacy **Class 3** (Register) protocol:
+
+- **Enable Remote**: Command ID `7` (`0x03 C1 07`)
+- **Disable Remote (Auto)**: Command ID `6` (`0x03 C1 06`)
+
+These commands are sent to the standard GENI Service ID `0xE7` from Source `0xF8`.
+
 ## Packet Structure
 
 ### Control Command Payload

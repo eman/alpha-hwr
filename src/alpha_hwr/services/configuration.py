@@ -240,6 +240,7 @@ class ConfigurationService:
                     backup_data["control_mode"] = {
                         "mode_name": mode_name,
                         "setpoint": setpoint_info.setpoint,
+                        "min_setpoint": setpoint_info.min_setpoint,
                         "max_setpoint": setpoint_info.max_setpoint,
                         "setpoint_unit": setpoint_info.unit,
                     }
@@ -523,6 +524,7 @@ class ConfigurationService:
         try:
             mode_name = mode_data.get("mode_name")
             setpoint = mode_data.get("setpoint")
+            min_setpoint = mode_data.get("min_setpoint")
             max_setpoint = mode_data.get("max_setpoint")
 
             if not mode_name or setpoint is None:
@@ -530,9 +532,18 @@ class ConfigurationService:
                 return False
 
             logger.info(
-                f"Restoring control mode: {mode_name} = {setpoint} "
-                f"(max={max_setpoint})"
+                f"Restoring control mode: {mode_name} (min={min_setpoint}, max={max_setpoint})"
             )
+
+            # Special case for Temperature Range Control (needs two setpoints)
+            if mode_name == "TEMPERATURE_RANGE_CONTROL":
+                if min_setpoint is not None and max_setpoint is not None:
+                    return await self.control.set_temperature_range_control(
+                        min_setpoint, max_setpoint
+                    )
+                else:
+                    logger.warning("Missing min/max setpoints for Temperature Range restore")
+                    return False
 
             # Map mode name to setter method
             # Only support modes that are currently implemented

@@ -20,27 +20,32 @@ pip install .
 
 ## Configuration
 
-The library supports cross-platform device addressing. Create a `.env` file in your project root:
+The library supports cross-platform device addressing and automatic discovery. Create a `.env` file in your project root:
 
 ```bash
-# Platform-specific device addresses
-# The library automatically chooses the correct one based on your OS
-ALPHA_HWR_DEVICE_ADDRESS_MACOS="your-macos-uuid-here"
-ALPHA_HWR_MAC_ADDRESS="your-mac-address-here"
-
-# Optional: Override automatic platform selection
-# ALPHA_HWR_DEVICE_ADDRESS="specific-address"
+# BLE Device Address
+# Format is platform-specific:
+# - macOS: Uses UUID format (e.g., "A1B2C3D4-E5F6-7890-1234-567890ABCDEF")
+# - Linux/Windows: Uses MAC address format (e.g., "00:11:22:33:44:55")
+# 
+# Seamless Cross-Platform: You can provide a comma-separated list of addresses.
+# The library automatically picks the correct one for your current OS.
+ALPHA_HWR_DEVICE_ADDRESS="A1B2C3D4-E5F6-7890-1234-567890ABCDEF, 00:11:22:33:44:55"
 ```
 
-**Platform Differences:**
-- **macOS**: Uses UUID format (e.g., `A1B2C3D4-E5F6-7890-1234-567890ABCDEF`)
-- **Linux/Windows**: Uses MAC address format (e.g., `00:11:22:33:44:55`)
+### Automatic Discovery
 
-The library automatically selects the appropriate address based on your operating system. You can override this by setting `ALPHA_HWR_DEVICE_ADDRESS` explicitly.
+If you don't provide a device address (either via `.env` or as a parameter), the library will automatically attempt to discover and connect to any nearby ALPHA HWR pump.
 
 ## Usage
 
 ### CLI
+
+**Discovery:**
+```bash
+# Scan for nearby pumps
+alpha-hwr device scan
+```
 
 **Monitoring:**
 ```bash

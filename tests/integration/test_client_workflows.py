@@ -5,20 +5,22 @@ These tests verify complete workflows from client through to mock hardware,
 testing the full stack without requiring physical pump hardware.
 """
 
-import pytest
-import pytest_asyncio
-import asyncio
 import sys
 from pathlib import Path
-from unittest.mock import patch, AsyncMock
 
 # Add tests directory to path for mocks import
 tests_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(tests_dir))
+if str(tests_dir) not in sys.path:
+    sys.path.insert(0, str(tests_dir))
 
-from mocks.mock_pump import MockPump
-from mocks.mock_transport import MockTransport, MockBleakClient
-from alpha_hwr.client import AlphaHWRClient
+import pytest  # noqa: E402
+import pytest_asyncio  # noqa: E402
+import asyncio  # noqa: E402
+from unittest.mock import patch  # noqa: E402
+
+from mocks.mock_pump import MockPump  # noqa: E402
+from mocks.mock_transport import MockBleakClient  # noqa: E402
+from alpha_hwr.client import AlphaHWRClient  # noqa: E402
 
 
 @pytest_asyncio.fixture

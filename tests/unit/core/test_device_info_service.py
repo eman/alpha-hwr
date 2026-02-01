@@ -4,7 +4,7 @@ Unit tests for DeviceInfoService.
 
 import pytest
 import struct
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from alpha_hwr.services.device_info import DeviceInfoService
 from alpha_hwr.core.transport import Transport
 from alpha_hwr.core.session import Session
@@ -35,10 +35,14 @@ async def test_read_detailed_info(device_info_service, mock_transport):
     def mock_query(frame, match_func=None, timeout=None):
         string_id = frame[6]
         val = ""
-        if string_id == 9: val = "SERIAL123"
-        elif string_id == 50: val = "SW1.0"
-        elif string_id == 52: val = "HW2.0"
-        elif string_id == 58: val = "BLE3.0"
+        if string_id == 9:
+            val = "SERIAL123"
+        elif string_id == 50:
+            val = "SW1.0"
+        elif string_id == 52:
+            val = "HW2.0"
+        elif string_id == 58:
+            val = "BLE3.0"
         
         # Response: [24][Len][Dst][Src][Class][Cmd][ID][Data][CRC]
         resp = bytes([0x24, 0x00, 0xE7, 0xF8, 0x07, 0x81, string_id]) + val.encode() + b'\x00\x00\x00'

@@ -104,13 +104,12 @@ class TestScheduleState:
     @pytest.mark.asyncio
     async def test_enable_success(self, mock_client_simple):
         """Test successfully enabling schedule."""
-        # Mock successful write response
-        mock_client_simple.transport.write = AsyncMock()
+        # Mock transport.query to return success
         mock_client_simple.transport.query = AsyncMock(
-            return_value=b"\x00" * 10
+            return_value=build_class10_response(84, 1, b"\x00" * 10)
         )
 
-        result = await mock_client_simple.schedule.enable()
+        await mock_client_simple.schedule.enable()
 
         # Should make transport calls
         call_count = (
@@ -128,7 +127,7 @@ class TestScheduleState:
             return_value=b"\x00" * 10
         )
 
-        result = await mock_client_simple.schedule.disable()
+        await mock_client_simple.schedule.disable()
 
         # Should make transport calls
         call_count = (
@@ -576,10 +575,10 @@ class TestScheduleWriteEntries:
 
         mock_client_simple.transport.write = AsyncMock()
         mock_client_simple.transport.query = AsyncMock(
-            return_value=b"\x00" * 10
+            return_value=b"\x24\x00\xE7\xF8\x0A\x34\x54\x03\xE8\x00\xAA\xBB"
         )
 
-        result = await mock_client_simple.schedule.write_entries(
+        await mock_client_simple.schedule.write_entries(
             entries, layer=0
         )
 
@@ -623,7 +622,7 @@ class TestScheduleWriteEntries:
             return_value=b"\x00" * 10
         )
 
-        result = await mock_client_simple.schedule.write_entries([], layer=0)
+        await mock_client_simple.schedule.write_entries([], layer=0)
 
         # Should still make calls (to clear the schedule)
         call_count = (
@@ -655,7 +654,7 @@ class TestScheduleWriteEntries:
             return_value=b"\x00" * 10
         )
 
-        result = await mock_client_simple.schedule.write_entries(
+        await mock_client_simple.schedule.write_entries(
             entries, layer=0
         )
 

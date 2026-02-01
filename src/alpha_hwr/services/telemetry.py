@@ -361,16 +361,21 @@ class TelemetryService:
         """
         Update telemetry state from BLE notification.
 
-        This method is called by the transport layer when a notification
-        arrives. It parses the frame, decodes telemetry, and updates state.
+        This method is called by the Client's notification handler when a
+        notification arrives. It parses the frame, decodes telemetry, and
+        updates state.
 
         Args:
             data: Raw notification bytes from BLE
 
+        Note:
+            Registration of this handler is managed by the Client layer during
+            connection setup. Services should not directly interact with the
+            transport layer per the architecture guidelines.
+
         Example:
-            >>> # In transport notification handler
-            >>> def on_notification(sender, data):
-            ...     telemetry_service.update_from_notification(data)
+            >>> # Handler registration happens in Client.connect()
+            >>> # The client automatically forwards notifications to this method
 
         Implementation Notes:
             - Automatically detects Class 10 telemetry frames
@@ -386,18 +391,18 @@ class TelemetryService:
 
             # Parse frame
             frame = FrameParser.parse_frame(data)
-            class_str = (
-                f"0x{frame.class_byte:02X}"
-                if frame.class_byte is not None
-                else "None"
-            )
-            logger.debug(
-                f"Frame parsed: valid={frame.valid}, class={class_str}"
-            )
 
+            # Check if this is even a Class 10 frame before proceeding
             if not frame.valid or frame.class_byte != 0x0A:
-                logger.debug("Not a Class 10 telemetry frame, ignoring")
-                return  # Not a Class 10 telemetry frame
+                logger.debug("Not a Class 10 frame, ignoring")
+                return
+
+            # Validate Class 10 identifiers
+            if frame.sub_id is None or frame.obj_id is None:
+                logger.debug(
+                    "Class 10 frame missing identifiers (likely an ACK or partial), ignoring"
+                )
+                return
 
             # Decode telemetry
             telemetry_data = TelemetryDecoder.decode(frame)
@@ -455,18 +460,3 @@ class TelemetryService:
 
         except Exception as e:
             logger.error(f"Failed to parse telemetry notification: {e}")
-
-    def register_with_transport(self) -> None:
-        """
-        Register notification callback with transport layer.
-
-        This sets up the telemetry service to receive notifications
-        from the transport layer automatically.
-
-        Example:
-            >>> service.register_with_transport()
-            >>> # Now notifications will automatically update telemetry
-        """
-        # TODO: This requires the transport layer to support callback registration
-        # For now, the client must manually call update_from_notification
-        pass

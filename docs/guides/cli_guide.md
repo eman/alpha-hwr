@@ -236,15 +236,26 @@ alpha-hwr history timestamps --count 100
 ### Start and Stop
 
 ```bash
-# Start the pump
-alpha-hwr control start
-
 # Start with specific mode
 alpha-hwr control start --mode constant_pressure
 
 # Stop the pump
 alpha-hwr control stop
 ```
+
+### Remote Control Mode
+
+By default, the pump operates in "Auto" mode where both the physical panel and Bluetooth commands are accepted. You can use Remote Mode to prioritize digital control:
+
+```bash
+# Prioritize Bluetooth commands and lock physical panel
+alpha-hwr control enable-remote
+
+# Return to normal operation (physical panel enabled)
+alpha-hwr control disable-remote
+```
+
+**Note**: Use Remote Mode when you want to ensure your automation logic isn't overridden by someone pressing buttons on the pump.
 
 ### Set Control Mode
 
@@ -311,6 +322,18 @@ alpha-hwr control set-mode autoadapt-combined --setpoint 3.5
 ---
 
 ## Device Information
+
+### Scan for Pumps
+
+Scan for nearby ALPHA HWR pumps advertising on BLE:
+
+```bash
+# Default: 10-second scan
+alpha-hwr device scan
+
+# Custom timeout
+alpha-hwr device scan --timeout 5.0
+```
 
 ### Basic Information
 
@@ -736,7 +759,7 @@ Configure via environment variables:
 
 ```bash
 # Set device address
-export ALPHA_HWR_DEVICE="AA:BB:CC:DD:EE:FF"
+export ALPHA_HWR_DEVICE_ADDRESS="AA:BB:CC:DD:EE:FF"
 
 # Set Bluetooth adapter (Linux)
 export ALPHA_HWR_ADAPTER="hci0"
@@ -786,6 +809,7 @@ alpha-hwr monitor live
 
 | Command | Description |
 |---------|-------------|
+| `device scan` | Scan for nearby pumps |
 | `device info` | Show device information |
 | `device stats` | Show operating statistics |
 | `device alarms` | Show active alarms |

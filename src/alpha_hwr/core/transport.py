@@ -17,7 +17,7 @@ import logging
 from collections.abc import Callable
 
 from bleak import BleakClient
-from bleak import BleakGATTCharacteristic
+from bleak.backends.characteristic import BleakGATTCharacteristic
 
 from ..constants import GENI_CHAR_UUID
 

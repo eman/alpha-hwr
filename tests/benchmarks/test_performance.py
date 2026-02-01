@@ -7,19 +7,21 @@ to ensure the library meets performance requirements.
 Run with: pytest tests/benchmarks/ -v --benchmark-only
 """
 
-import pytest
-import time
-import asyncio
 import sys
 from pathlib import Path
 
 # Add tests directory to path for mocks import
 tests_dir = Path(__file__).parent.parent
-sys.path.insert(0, str(tests_dir))
+if str(tests_dir) not in sys.path:
+    sys.path.insert(0, str(tests_dir))
 
-from mocks.mock_pump import MockPump
-from alpha_hwr.protocol.codec import encode_float_be, decode_float_be
-from alpha_hwr.protocol import FrameBuilder, FrameParser
+import pytest  # noqa: E402
+import time  # noqa: E402
+import asyncio  # noqa: E402
+
+from mocks.mock_pump import MockPump  # noqa: E402
+from alpha_hwr.protocol.codec import encode_float_be, decode_float_be  # noqa: E402
+from alpha_hwr.protocol import FrameBuilder, FrameParser  # noqa: E402
 
 
 class TestCodecPerformance:
@@ -140,7 +142,7 @@ class TestMockPumpPerformance:
         per_cmd = (elapsed / iterations) * 1000  # ms
         throughput = iterations / elapsed  # commands/sec
 
-        print(f"\nMock pump throughput:")
+        print("\nMock pump throughput:")
         print(f"  {per_cmd:.2f}ms per command")
         print(f"  {throughput:.1f} commands/sec")
 
@@ -199,7 +201,7 @@ class TestEndToEndPerformance:
             elapsed = time.perf_counter() - start
             per_read = (elapsed / iterations) * 1000  # ms
 
-            print(f"\nRapid reads:")
+            print("\nRapid reads:")
             print(f"  {per_read:.2f}ms per read")
             print(f"  {iterations / elapsed:.1f} reads/sec")
 
@@ -222,7 +224,7 @@ class TestMemoryPerformance:
             return AlphaHWRClient("MOCK")
 
         mem_before = memory_usage()[0]
-        client = create_client()
+        _ = create_client()
         mem_after = memory_usage()[0]
 
         footprint = mem_after - mem_before

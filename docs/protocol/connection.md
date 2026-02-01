@@ -6,7 +6,7 @@ To control the ALPHA HWR pump, a client must follow a specific connection sequen
 
 ### Advertising
 The pump advertises with the Local Name `Grundfos` or `HWR`.
-*   **Service UUID**: `0000fe5d-0000-1000-8000-00805f9b34fb` (GENI Service)
+*   **Service UUID**: `0000fdd0-0000-1000-8000-00805f9b34fb` (GENI Service)
 
 ### Characteristic
 All communication (commands and telemetry) happens over a single GATT Characteristic:

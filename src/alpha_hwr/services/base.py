@@ -162,6 +162,7 @@ class BaseService:
                 # Extract string data: skip frame header (7 bytes) and CRC (2 bytes)
                 # Frame: [STX][LEN][DST][SRC][Class][Cmd][ID][...STRING...][CRC_H][CRC_L]
                 string_data = response[7:-2]
+                logger.debug(f"Raw string data for ID {string_id}: {string_data.hex()}")
                 # Decode as UTF-8, strip null terminators and whitespace
                 string_value = (
                     string_data.decode("utf-8", errors="ignore")

@@ -5,7 +5,6 @@ This module provides common fixtures that can be used across all test files.
 """
 
 import asyncio
-import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, patch
 

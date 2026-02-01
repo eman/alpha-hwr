@@ -30,7 +30,7 @@ using namespace esphome::ble_client;
 
 // GENI UUIDs
 static const esp32_ble_tracker::ESPBTUUID GENI_SERVICE_UUID = 
-    esp32_ble_tracker::ESPBTUUID::from_raw("0000fe5d-0000-1000-8000-00805f9b34fb");
+    esp32_ble_tracker::ESPBTUUID::from_raw("0000fdd0-0000-1000-8000-00805f9b34fb");
 static const esp32_ble_tracker::ESPBTUUID GENI_CHAR_UUID = 
     esp32_ble_tracker::ESPBTUUID::from_raw("859cffd1-036e-432a-aa28-1a0085b87ba9");
 
@@ -236,7 +236,7 @@ using namespace esphome;
 using namespace esphome::ble_client;
 
 static const esp32_ble_tracker::ESPBTUUID GENI_SERVICE_UUID = 
-    esp32_ble_tracker::ESPBTUUID::from_raw("0000fe5d-0000-1000-8000-00805f9b34fb");
+    esp32_ble_tracker::ESPBTUUID::from_raw("0000fdd0-0000-1000-8000-00805f9b34fb");
 static const esp32_ble_tracker::ESPBTUUID GENI_CHAR_UUID = 
     esp32_ble_tracker::ESPBTUUID::from_raw("859cffd1-036e-432a-aa28-1a0085b87ba9");
 

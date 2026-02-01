@@ -1,5 +1,5 @@
 from unittest.mock import AsyncMock
-from alpha_hwr import AlphaHWRClient, ControlMode
+from alpha_hwr import ControlMode
 import pytest
 
 # Note: client fixture is now provided by conftest.py as mock_client_simple

@@ -231,68 +231,42 @@ class AlphaHWRClient:
         all service modules. If auto_authenticate is enabled, also performs
         authentication handshake.
 
+        If no address is configured, automatically attempts to discover
+        a nearby ALPHA HWR pump.
+
         Args:
             timeout: Connection timeout in seconds (default 60s)
             fast_mode: If True, skips authentication delays (for testing)
 
         Raises:
-            ConnectionError: If connection fails
-            ValueError: If device address is not configured
+            ConnectionError: If connection fails or no device found during discovery
+            ValueError: If discovery fails
 
         Example:
+            >>> # Connect to specific address
             >>> client = AlphaHWRClient("DEVICE_ADDRESS")
             >>> await client.connect()
-            >>> print(f"Connected: {client.is_connected}")
-            >>> print(f"Authenticated: {client.is_authenticated}")
+            >>>
+            >>> # Connect using automatic discovery
+            >>> client = AlphaHWRClient()
+            >>> await client.connect()
 
         Implementation Notes:
             Connection sequence:
-            1. Create BleakClient with device address
-            2. Connect to BLE device
-            3. Initialize Transport (wraps BleakClient)
-            4. Initialize Session (tracks auth state)
-            5. Initialize AuthenticationHandler
-            6. Initialize all service modules
-            7. Optionally authenticate
-
-            TypeScript:
-              async connect(timeout: number = 60000): Promise<void> {
-                this.bleakClient = new BleakClient(this.address);
-                await this.bleakClient.connect(timeout);
-
-                this.transport = new Transport(this.bleakClient);
-                this.session = new Session(this.transport);
-                this.auth = new AuthenticationHandler(this.transport);
-
-                this.initializeServices();
-
-                if (this.autoAuthenticate) {
-                  await this.authenticate();
-                }
-              }
-
-            Rust:
-              pub async fn connect(&mut self, timeout: Duration) -> Result<()> {
-                self.bleak_client = Some(BleakClient::new(&self.address)?);
-                self.bleak_client.as_mut().unwrap().connect(timeout).await?;
-
-                self.transport = Some(Transport::new(self.bleak_client.as_ref().unwrap()));
-                self.session = Some(Session::new(self.transport.as_ref().unwrap()));
-                self.auth = Some(AuthenticationHandler::new(self.transport.as_ref().unwrap()));
-
-                self.initialize_services();
-
-                if self.auto_authenticate {
-                  self.authenticate().await?;
-                }
-
-                Ok(())
-              }
+            1. Resolve address (discovery if needed)
+            2. Scan for advertisement data before connecting
+            3. Create BleakClient with device address
+            ...
         """
+        # Automatic Discovery if no address provided
         if not self.address:
-            raise ValueError(
-                "No device address configured. Set ALPHA_HWR_DEVICE_ADDRESS or pass address parameter."
-            )
+            logger.info("No device address configured. Attempting automatic discovery...")
+            discovered = await self.discover(timeout=10.0)
+            if not discovered:
+                raise ConnectionError("No ALPHA HWR pumps found during automatic discovery.")
+            
+            self.address = discovered[0].address
+            logger.info(f"Discovered and selected pump: {discovered[0].name} ({self.address})")
 
         try:
             logger.info(f"Connecting to {self.address} (timeout={timeout}s)...")
@@ -301,6 +275,7 @@ class AlphaHWRClient:
             await self._scan_advertisement_data()
 
             # Create BLE client
+            assert self.address is not None
             self._bleak_client = BleakClient(self.address, adapter=self.adapter)
 
             # Connect to device
@@ -481,24 +456,33 @@ class AlphaHWRClient:
         devices: list[DeviceInfo] = []
 
         try:
-            # Scan for devices with GENI service
+            # Broad scan without UUID filter first to see what's out there
             scanner = BleakScanner()
-            discovered = await scanner.discover(timeout=timeout)
+            discovered = await scanner.discover(timeout=timeout, return_adv=True)
 
-            for device in discovered:
-                # Check if device advertises GENI service
-                # Note: metadata is available at runtime but not in type stubs
-                uuids = getattr(device, "metadata", {}).get("uuids", [])  # type: ignore[attr-defined]
-                if service_uuid.lower() in [s.lower() for s in uuids]:
+            logger.debug(f"Scan complete. Found {len(discovered)} total BLE devices.")
+
+            for address, (device, adv) in discovered.items():
+                uuids = [s.lower() for s in adv.service_uuids]
+                name = device.name or ""
+                
+                logger.debug(f"Checking device: {name} ({address}) - UUIDs: {uuids}")
+
+                # Matches if:
+                # 1. Has correct Service UUID (fdd0)
+                # 2. Has Grundfos Company ID in service data (fe5d)
+                is_geni = "0000fdd0-0000-1000-8000-00805f9b34fb" in uuids
+                is_grundfos = "0000fe5d-0000-1000-8000-00805f9b34fb" in adv.service_data
+
+                if is_geni or is_grundfos:
+                    logger.info(f"MATCHED ALPHA HWR: {name} ({address}) [Service={is_geni}, Data={is_grundfos}]")
                     # Extract device info from advertisement
-                    # TODO: Parse manufacturer data to extract product family/type/version
                     info = DeviceInfo(
                         address=device.address,
                         name=device.name or "Unknown",
-                        product_name="ALPHA HWR",  # Placeholder
+                        product_name="ALPHA HWR",
                     )
                     devices.append(info)
-                    logger.info(f"Found device: {info.name} at {info.address}")
 
         except Exception as e:
             logger.error(f"Discovery failed: {e}")
@@ -537,8 +521,10 @@ class AlphaHWRClient:
 
         # Initialize services
         self.telemetry = TelemetryService(self.transport, self.session)
-        self.control = ControlService(self.transport, self.session)
         self.schedule = ScheduleService(self.session, self.transport)
+        self.control = ControlService(
+            self.transport, self.session, self.schedule
+        )
         self.device_info = DeviceInfoService(
             self.transport,
             self.session,
@@ -574,11 +560,11 @@ class AlphaHWRClient:
                 if str(device.address).upper() == str(self.address).upper():
                     logger.debug(f"Found device: {device.name}")
 
-                    # GENI service UUID
-                    service_uuid = "0000fe5d-0000-1000-8000-00805f9b34fb"
+                    # Look for product info in service data (uses company UUID fe5d)
+                    company_uuid = "0000fe5d-0000-1000-8000-00805f9b34fb"
 
-                    if service_uuid in adv.service_data:
-                        data = adv.service_data[service_uuid]
+                    if company_uuid in adv.service_data:
+                        data = adv.service_data[company_uuid]
                         logger.debug(f"Service data: {data.hex()}")
 
                         if len(data) >= 6:

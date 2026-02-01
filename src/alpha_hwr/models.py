@@ -146,6 +146,17 @@ class SetpointInfo(BaseModel):
     )
     unit: str | None = Field(default=None, description="Unit of measurement")
 
+    # Operational status
+    is_remote: bool | None = Field(
+        default=None, description="True if remote control mode is enabled"
+    )
+    is_running: bool | None = Field(
+        default=None, description="True if the pump motor is started"
+    )
+    schedule_enabled: bool | None = Field(
+        default=None, description="True if internal schedule is active"
+    )
+
     def get_display_value(self) -> tuple[float, str]:
         """
         Get setpoint value with appropriate unit based on control mode.
