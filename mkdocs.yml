@@ -1,0 +1,98 @@
+site_name: Alpha HWR Documentation
+site_description: Independent implementation and control documentation for Grundfos ALPHA HWR pumps.
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.arithmatex:
+      generic: true
+  - attr_list
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting_started/installation.md
+      - Quick Start: getting_started/quick_start.md
+  - User Guides:
+      - CLI Guide: guides/cli_guide.md
+      - Understanding Telemetry: guides/understanding_telemetry.md
+      - Control Modes & Setpoints: guides/control_modes.md
+      - Backup & Restore: guides/backup_restore.md
+      - Historical Data: guides/historical_data.md
+      - Time Management: guides/time_management.md
+  - Protocol Guide:
+      - Architecture: protocol/architecture.md
+      - BLE Architecture: protocol/ble_architecture.md
+      - Connection & Auth: protocol/connection.md
+      - Wire Format: protocol/wire_format.md
+      - Telemetry & Data: protocol/telemetry.md
+      - Control & Commands: protocol/control.md
+      - Control Modes Matrix: protocol/control_modes.md
+      - AutoAdapt Modes: protocol/autoadapt_modes.md
+      - Schedule Management: protocol/schedules.md
+      - Device Information: protocol/device_info.md
+      - Energy & Power: protocol/energy_power.md
+      - Packet Traces:
+          - Connection: protocol/packet_traces/01_connection.md
+          - Authentication: protocol/packet_traces/02_authentication.md
+          - Telemetry Stream: protocol/packet_traces/03_telemetry_stream.md
+          - Set Mode: protocol/packet_traces/04_set_mode.md
+          - Schedule Write: protocol/packet_traces/05_schedule_write.md
+  - Reimplementation Guide:
+      - Overview: reimplementation/README.md
+      - Architecture: reimplementation/architecture.md
+      - Layer-by-Layer: reimplementation/layer_by_layer.md
+      - Checklist: reimplementation/checklist.md
+      - Test Vectors: reimplementation/test_vectors.md
+      - Common Pitfalls: reimplementation/common_pitfalls.md
+  - Python API:
+      - Client: api/client.md
+      - Models: api/models.md
+      - Constants: api/constants.md
+  - Reference:
+      - Hardware Details: reference/hardware.md
+      - Data Models: reference/data_models.md
+  - Integrations:
+      - ESPHome / ESP32: integrations/esphome.md
+  - Development:
+      - Testing Strategy: TESTING_STRATEGY.md

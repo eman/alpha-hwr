@@ -1,0 +1,70 @@
+import argparse
+from unittest.mock import AsyncMock, patch
+import pytest
+from alpha_hwr.cli import cmd_mode
+
+class TestCLIMode:
+
+    @pytest.fixture
+    def args(self):
+        args = argparse.Namespace()
+        args.device = "00:00:00:00:00:00"
+        args.adapter = None
+        return args
+
+    @patch("alpha_hwr.cli.AlphaHWRClient")
+    @pytest.mark.asyncio
+    async def test_cmd_mode_success(self, MockClient, args, capsys):
+        """Test mode command displays mode name."""
+        client_instance = MockClient.return_value
+        client_instance.__aenter__.return_value = client_instance
+        client_instance.pair_device = AsyncMock() # Fix
+        client_instance.get_control_mode = AsyncMock(return_value=2) # Constant Speed
+        
+        await cmd_mode(args)
+        
+        captured = capsys.readouterr()
+        assert "Connecting" in captured.out
+        assert "Connected" in captured.out
+        assert "Current Mode: CONSTANT_SPEED (2)" in captured.out
+
+    @patch("alpha_hwr.cli.AlphaHWRClient")
+    @pytest.mark.asyncio
+    async def test_cmd_mode_system_air_venting(self, MockClient, args, capsys):
+        """Test mode command handles System Air Venting (128)."""
+        client_instance = MockClient.return_value
+        client_instance.__aenter__.return_value = client_instance
+        client_instance.pair_device = AsyncMock()
+        client_instance.get_control_mode = AsyncMock(return_value=128) 
+        
+        await cmd_mode(args)
+        
+        captured = capsys.readouterr()
+        assert "Current Mode: SYSTEM_AIR_VENTING (128)" in captured.out
+
+    @patch("alpha_hwr.cli.AlphaHWRClient")
+    @pytest.mark.asyncio
+    async def test_cmd_mode_failure(self, MockClient, args, capsys):
+        """Test mode command handles None return."""
+        client_instance = MockClient.return_value
+        client_instance.__aenter__.return_value = client_instance
+        client_instance.pair_device = AsyncMock() # Fix
+        client_instance.get_control_mode = AsyncMock(return_value=None)
+        
+        await cmd_mode(args)
+        
+        captured = capsys.readouterr()
+        assert "Could not retrieve control mode" in captured.out
+
+    @patch("alpha_hwr.cli.AlphaHWRClient")
+    @pytest.mark.asyncio
+    async def test_cmd_mode_exception(self, MockClient, args, capsys):
+        """Test mode command handles exceptions."""
+        client_instance = MockClient.return_value
+        client_instance.__aenter__.side_effect = Exception("Connection refused")
+        
+        with pytest.raises(SystemExit):
+            await cmd_mode(args)
+            
+        captured = capsys.readouterr()
+        assert "Error: Connection refused" in captured.out

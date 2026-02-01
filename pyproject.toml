@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alpha-hwr"
+version = "0.1.0"
+description = "Python API and CLI for Grundfos ALPHA HWR pumps via BLE"
+readme = "README.md"
+authors = [
+    { name = "Grundfos Firmware Team", email = "firmware@grundfos.com" }
+]
+requires-python = ">=3.13"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+]
+dependencies = [
+    "bleak>=0.19.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy",
+    "ruff",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-benchmark",
+    "pytest-cov",
+    "tox",
+]
+docs = [
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
+
+[project.scripts]
+alpha-hwr = "alpha_hwr.cli.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 80
+exclude = ["src/alpha_hwr/*_baseline.py"]
+
+[tool.pyright]
+typeCheckingMode = "standard"
+reportAny = false
+reportExplicitAny = false
+reportUnusedCallResult = false
+exclude = ["src/alpha_hwr/*_baseline.py"]
+
+[tool.mypy]
+ignore_missing_imports = true
+exclude = ["src/alpha_hwr/.*_baseline\\.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["tools", "dist", "build", ".tox"]
