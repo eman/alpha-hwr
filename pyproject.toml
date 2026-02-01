@@ -36,13 +36,6 @@ classifiers = [
     "Framework :: AsyncIO",
     "Operating System :: OS Independent",
 ]
-
-[project.urls]
-Homepage = "https://github.com/eman/alpha-hwr"
-Documentation = "https://eman.github.io/alpha-hwr"
-Repository = "https://github.com/eman/alpha-hwr"
-Issues = "https://github.com/eman/alpha-hwr/issues"
-Changelog = "https://github.com/eman/alpha-hwr/blob/main/CHANGELOG.md"
 dependencies = [
     "bleak>=0.19.0",
     "pydantic>=2.0.0",
@@ -50,6 +43,13 @@ dependencies = [
     "typer>=0.9.0",
     "rich>=13.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/eman/alpha-hwr"
+Documentation = "https://eman.github.io/alpha-hwr"
+Repository = "https://github.com/eman/alpha-hwr"
+Issues = "https://github.com/eman/alpha-hwr/issues"
+Changelog = "https://github.com/eman/alpha-hwr/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
