@@ -1,0 +1,21 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+include pyproject.toml
+include .bumpversion.cfg
+recursive-include src *.py
+recursive-include tests *.py
+recursive-include docs *.md *.yml
+include mkdocs.yml
+exclude .env
+exclude .env.*
+prune .git
+prune .github
+prune .venv
+prune __pycache__
+prune *.egg-info
+prune build
+prune dist
+global-exclude *.pyc
+global-exclude .DS_Store
