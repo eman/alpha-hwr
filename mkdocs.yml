@@ -90,6 +90,7 @@ nav:
       - Common Pitfalls: reimplementation/common_pitfalls.md
   - Python API:
       - Client: api/client.md
+      - Services: api/services.md
       - Models: api/models.md
       - Constants: api/constants.md
   - Reference:
