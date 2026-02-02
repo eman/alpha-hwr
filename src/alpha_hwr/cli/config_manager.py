@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime
 
 from rich.console import Console
@@ -20,10 +20,10 @@ console = Console()
 class ConfigManager:
     """Manages CLI configuration including saved device profiles."""
 
-    CONFIG_DIR = Path.home() / ".config" / "alpha-hwr"
-    CONFIG_FILE = CONFIG_DIR / "config.json"
+    CONFIG_DIR: Path = Path.home() / ".config" / "alpha-hwr"
+    CONFIG_FILE: Path = CONFIG_DIR / "config.json"
 
-    DEFAULT_CONFIG = {
+    DEFAULT_CONFIG: dict[str, Any] = {
         "default_device": None,
         "devices": {},
         "last_used": None,
