@@ -41,17 +41,17 @@ static const esp32_ble_tracker::ESPBTUUID GRUNDFOS_COMPANY_ID =
 // In your scan callback:
 if (device->get_manufacturer_data().contains(GRUNDFOS_COMPANY_ID)) {
     // This is an ALPHA HWR pump
-    const auto &service_data = device->get_manufacturer_data()[GRUNDFOS_COMPANY_ID];
+    const auto &manufacturer_data = device->get_manufacturer_data()[GRUNDFOS_COMPANY_ID];
     
-    // Parse service data:
+    // Parse manufacturer data:
     // Byte 0-1: Flags
     // Byte 2: Product Family (0x34 = ALPHA)
     // Byte 3: Product Type (0x07 = HWR)
     // Byte 4: Product Version
     
-    if (service_data.size() >= 5 && 
-        service_data[2] == 0x34 && 
-        service_data[3] == 0x07) {
+    if (manufacturer_data.size() >= 5 && 
+        manufacturer_data[2] == 0x34 && 
+        manufacturer_data[3] == 0x07) {
         // Confirmed ALPHA HWR pump
     }
 }

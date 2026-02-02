@@ -8,6 +8,7 @@ config directory (~/.config/alpha-hwr/config.json).
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Optional, TypedDict
 from datetime import datetime
@@ -37,8 +38,11 @@ class Config(TypedDict):
 class ConfigManager:
     """Manages CLI configuration including saved device profiles."""
 
-    CONFIG_DIR: Path = Path.home() / ".config" / "alpha-hwr"
-    CONFIG_FILE: Path = CONFIG_DIR / "config.json"
+    _CONFIG_DIR: Path = (
+        Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config")))
+        / "alpha-hwr"
+    )
+    _CONFIG_FILE: Path = _CONFIG_DIR / "config.json"
 
     DEFAULT_CONFIG: Config = {
         "default_device": None,
@@ -51,16 +55,16 @@ class ConfigManager:
     @classmethod
     def _ensure_config_dir(cls) -> None:
         """Create config directory if it doesn't exist."""
-        cls.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        cls._CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
     @classmethod
     def _load_config(cls) -> Config:
         """Load config from file, or return default if not present."""
         cls._ensure_config_dir()
 
-        if cls.CONFIG_FILE.exists():
+        if cls._CONFIG_FILE.exists():
             try:
-                with open(cls.CONFIG_FILE, "r") as f:
+                with open(cls._CONFIG_FILE, "r") as f:
                     loaded: dict = json.load(f)
                 # Ensure all required keys exist with correct types
                 config: Config = {
@@ -83,7 +87,7 @@ class ConfigManager:
         """Save config to file."""
         cls._ensure_config_dir()
         try:
-            with open(cls.CONFIG_FILE, "w") as f:
+            with open(cls._CONFIG_FILE, "w") as f:
                 json.dump(config, f, indent=2)
         except IOError as e:
             console.print(
