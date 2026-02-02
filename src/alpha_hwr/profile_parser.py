@@ -69,7 +69,11 @@ class GeniProfileParser:
             tree = ET.parse(self.xml_path)
             root = tree.getroot()
 
-            # Find all parameter elements
+            if root is None:
+                raise ValueError(
+                    f"Empty or invalid XML profile: {self.xml_path}"
+                )
+
             # Find all parameter elements
             parameters_elem = root.find(".//parameters")
             if parameters_elem is None:
