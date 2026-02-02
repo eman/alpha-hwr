@@ -5,13 +5,13 @@ To control the ALPHA HWR pump, a client must follow a specific connection sequen
 ## 1. BLE Connection
 
 ### Advertising
-The pump advertises with the Local Name `Grundfos` or `HWR`.
+The pump advertises with the Local Name **`ALPHA_<SERIAL_NUMBER>`** (e.g., `ALPHA_0000479`).
 
-**Important**: The pump advertises its **name** but NOT the GENI service UUID in the advertisement. The GENI Service UUID is only available in the GATT service table after connection.
+**Important**: The pump advertises its BLE name and manufacturer ID in the advertisement, but NOT the GENI service UUID. The GENI Service UUID is only available in the GATT service table after connection.
 
-*   **Device Name**: `Grundfos` or `HWR` (advertised, use this to find pump)
+*   **Device Name**: `ALPHA_<SERIAL>` (advertised, use this to find pump)
 *   **GENI Service UUID**: `0000fdd0-0000-1000-8000-00805f9b34fb` (discovered after connecting, NOT in advertisement)
-*   **Company ID**: `0000fe5d-0000-1000-8000-00805f9b34fb` (Grundfos manufacturer ID, optional alternative discovery method)
+*   **Company ID**: `0000fe5d-0000-1000-8000-00805f9b34fb` (Grundfos manufacturer ID, in service data)
 
 ### Characteristic
 All communication (commands and telemetry) happens over a single GATT Characteristic:
