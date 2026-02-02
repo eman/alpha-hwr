@@ -33,9 +33,11 @@ Contains electrical and mechanical performance data.
 
 | Offset | Type | Unit | Description |
 | :--- | :--- | :--- | :--- |
-| +0 | Float32 | RPM | Motor Speed (0 - 5000) |
-| +4 | Float32 | Watts | Power Consumption (0 - 500) |
-| +8 | Float32 | Volts | AC Input Voltage (0 - 300) |
+| +0 | Float32 | Volts | AC Input Voltage (0 - 300) |
+| +8 | Float32 | Amps | Current Draw (0 - 10) |
+| +16 | Float32 | Watts | DC Power Consumption (0 - 1000) |
+| +20 | Float32 | RPM | Motor Speed (0 - 6000) |
+| +24 | Float32 | °C | Converter Temperature (-20 to 120) |
 
 ### 2. Flow & Head
 
