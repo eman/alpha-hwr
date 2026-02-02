@@ -17,14 +17,14 @@ from rich.console import Console
 console = Console()
 
 
-class DeviceEntry(TypedDict, total=False):
+class DeviceEntry(TypedDict):
     """TypedDict for device configuration entry."""
 
     address: str
     saved_at: str
 
 
-class Config(TypedDict, total=False):
+class Config(TypedDict):
     """TypedDict for complete configuration structure."""
 
     default_device: Optional[str]
@@ -44,6 +44,7 @@ class ConfigManager:
         "default_device": None,
         "devices": {},
         "last_used": None,
+        "last_used_at": None,
         "version": "1.0",
     }
 
@@ -60,11 +61,15 @@ class ConfigManager:
         if cls.CONFIG_FILE.exists():
             try:
                 with open(cls.CONFIG_FILE, "r") as f:
-                    config: Config = json.load(f)  # type: ignore
-                # Ensure all required keys exist
-                for key in cls.DEFAULT_CONFIG:
-                    if key not in config:
-                        config[key] = cls.DEFAULT_CONFIG[key]  # type: ignore
+                    loaded: dict = json.load(f)
+                # Ensure all required keys exist with correct types
+                config: Config = {
+                    "default_device": loaded.get("default_device"),
+                    "devices": loaded.get("devices", {}),
+                    "last_used": loaded.get("last_used"),
+                    "last_used_at": loaded.get("last_used_at"),
+                    "version": loaded.get("version", "1.0"),
+                }
                 return config
             except (json.JSONDecodeError, IOError) as e:
                 console.print(
@@ -114,10 +119,11 @@ class ConfigManager:
         """
         config = cls._load_config()
         device_name = name or address
-        config["devices"][device_name] = {
+        device_entry: DeviceEntry = {
             "address": address,
             "saved_at": datetime.now().isoformat(),
         }
+        config["devices"][device_name] = device_entry
 
         if set_default:
             config["default_device"] = address
@@ -140,8 +146,9 @@ class ConfigManager:
         config = cls._load_config()
 
         # Direct lookup by name
-        if name_or_address in config.get("devices", {}):
-            return config["devices"][name_or_address]["address"]
+        devices = config["devices"]
+        if name_or_address in devices:
+            return devices[name_or_address]["address"]
 
         # Check if it's already a MAC address
         if _is_valid_mac(name_or_address):
@@ -158,18 +165,19 @@ class ConfigManager:
             List of device dicts with name, address, and saved_at
         """
         config = cls._load_config()
-        devices = []
-        for name, info in config.get("devices", {}).items():
-            devices.append(
+        devices_list = []
+        devices = config["devices"]
+        for name, info in devices.items():
+            devices_list.append(
                 {
                     "name": name,
-                    "address": info.get("address", ""),
-                    "saved_at": info.get("saved_at", ""),
-                    "is_default": info.get("address")
+                    "address": info["address"],
+                    "saved_at": info["saved_at"],
+                    "is_default": info["address"]
                     == config.get("default_device"),
                 }
             )
-        return devices
+        return devices_list
 
     @classmethod
     def delete_device(cls, name: str) -> bool:
@@ -183,12 +191,12 @@ class ConfigManager:
             True if deleted, False if not found
         """
         config = cls._load_config()
-        if name in config.get("devices", {}):
-            del config["devices"][name]
+        devices = config["devices"]
+        if name in devices:
+            device_entry = devices[name]
+            del devices[name]
             # If this was the default, clear it
-            if config.get("default_device") == config.get("devices", {}).get(
-                name, {}
-            ).get("address"):
+            if config.get("default_device") == device_entry.get("address"):
                 config["default_device"] = None
             cls._save_config(config)
             return True
