@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Profile Parser**: Resolved MyPy type-checking errors and improved XML parsing robustness by adding null checks for the root element in `profile_parser.py`.
 - **Device Statistics Bug**: Fixed statistics returning None after BaseService refactoring.
 - **Schedule Write Operations**: Fixed to use correct OpSpec 0xB3 format discovered through protocol analysis.
 - **BLE Packet Splitting**: Fixed packet splitting logic to handle 3+ chunks for large data writes.
