@@ -64,7 +64,9 @@ class ConfigManager:
             with open(cls.CONFIG_FILE, "w") as f:
                 json.dump(config, f, indent=2)
         except IOError as e:
-            console.print(f"[yellow]Warning:[/yellow] Failed to save config: {e}")
+            console.print(
+                f"[yellow]Warning:[/yellow] Failed to save config: {e}"
+            )
 
     @classmethod
     def get_default_device(cls) -> Optional[str]:
@@ -188,5 +190,7 @@ def _is_valid_mac(address: str) -> bool:
     return (
         len(parts) == 6
         and all(len(part) == 2 for part in parts)
-        and all(all(c in "0123456789ABCDEFabcdef" for c in part) for part in parts)
+        and all(
+            all(c in "0123456789ABCDEFabcdef" for c in part) for part in parts
+        )
     )
