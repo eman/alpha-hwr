@@ -81,10 +81,10 @@ def calculate_crc16_modbus(data: bytes) -> int:
 
 **Correct Sequence:**
 1. Connect to BLE device
-2. Send **exactly 3** Legacy Magic packets: `27 06 E7 F8 00 67 A3 E3`
-3. Send **exactly 5** Class 10 Unlock packets: `27 07 E7 F8 0A 04 00 85 02 12`
-4. Send **exactly 1** Extend 1 packet: `27 07 E7 F8 1A 2C 00 52 01 02`
-5. Send **exactly 1** Extend 2 packet: `27 06 E7 F8 1A 54 D2 55`
+2. Send **exactly 3** Legacy Magic packets: `27 07 E7 F8 02 03 94 95 96 EB 47`
+3. Send **exactly 5** Class 10 Unlock packets: `27 07 E7 F8 0A 03 56 00 06 C5 5A`
+4. Send **exactly 1** Extend 1 packet: `27 05 E7 F8 0B C1 0F D0 C3`
+5. Send **exactly 1** Extend 2 packet: `27 05 E7 F8 05 C1 4B C3 82`
 
 **Common Mistakes:**
 - Wrong number of repetitions
@@ -502,11 +502,11 @@ length = 1 + 1 + 1 + 1 + len(apdu) + 2
 
 **Example:**
 ```
-Packet: 27 06 E7 F8 00 67 A3 E3
-Length: 06 (means 6 bytes total, including start and length)
-Bytes:  [27][06] E7 F8 00 67 A3 E3
-         ^   ^  ^  ^  ^  ^  ^  ^
-         1   2  3  4  5  6 (CRC doesn't count)
+Packet: 27 07 E7 F8 02 03 94 95 96 EB 47
+Length: 07 (means 7 bytes total, including start and length)
+Bytes:  [27][07] E7 F8 02 03 94 95 96 EB 47
+         ^   ^  ^  ^  ^  ^  ^  ^  ^  ^  ^
+         1   2  3  4  5  6  7 (CRC doesn't count)
 ```
 
 **Rule:** Length field = position of last APDU byte + 1
