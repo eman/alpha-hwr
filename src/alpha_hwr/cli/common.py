@@ -17,6 +17,7 @@ from rich.console import Console
 from ..client import AlphaHWRClient
 from ..config import get_settings
 from ..exceptions import AlphaHWRError
+from .config_manager import ConfigManager
 
 if TYPE_CHECKING:
     pass
@@ -64,12 +65,13 @@ async def get_client(
         ...     data = await client.telemetry.read_once()
     """
     settings = get_settings()
-    address = device or settings.device_address
+    # Priority: explicit device > config manager > env var
+    address = device or ConfigManager.get_default_device() or settings.device_address
 
     if not address:
         console.print("[red]Error:[/red] No device address configured.")
         console.print(
-            "Set ALPHA_HWR_DEVICE_ADDRESS in .env or use --device option"
+            "Use 'alpha-hwr device scan' to find devices, then save with 'alpha-hwr device set <mac>'"
         )
         sys.exit(1)
 
