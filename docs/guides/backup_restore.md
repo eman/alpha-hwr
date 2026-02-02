@@ -380,4 +380,4 @@ Check the logs to see if specific restore steps were skipped (e.g., using `--ski
 ## API Reference
 
 For complete API documentation, see:
-- [`ConfigurationService`](../api/client.md#services)
+- [`ConfigurationService`](../api/services.md#configurationservice)

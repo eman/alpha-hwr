@@ -455,7 +455,7 @@ class ControlService(BaseService):
         Implementation Notes:
             - Standard modes: Object 86, Sub-ID 6, Type 303 (OperationStatusRequest)
             - Temperature Range: Object 91, Sub-ID 430, Type 1012
-            - Response format: [00 00 XX][control_source][operation_mode][control_mode][setpoint(4 bytes float)]
+            - Response format: `[00 00 XX][control_source][operation_mode][control_mode][setpoint(4 bytes float)]`
             - Setpoint is big-endian float at offset 3 (after 3-byte header)
         """
         self.session.ensure_authenticated()

@@ -190,7 +190,7 @@ class DeviceInfoService(BaseService):
 
         Implementation Notes:
             - GENI service UUID: 0000fdd0-0000-1000-8000-00805f9b34fb
-            - Service data format: [??][??][??][Family][Type][Version]...
+            - Service data format: `[??][??][??][Family][Type][Version]...`
             - Can be called without being connected
             - Uses BleakScanner to discover devices
         """
@@ -254,7 +254,7 @@ class DeviceInfoService(BaseService):
         Implementation Notes:
             - Uses Class 7 ReadString command (0x07, 0x01)
             - String IDs: 9=serial, 50=sw_ver, 52=hw_ver, 58=ble_ver
-            - Response format: [Frame Header][String Data...][CRC]
+            - Response format: `[Frame Header][String Data...][CRC]`
             - Strings are UTF-8 encoded, null-terminated
         """
         self.session.ensure_authenticated()
@@ -321,7 +321,7 @@ class DeviceInfoService(BaseService):
 
         Implementation Notes:
             - Object 93, Sub-ID 1 (Type 248: operation_history_pump_obj)
-            - Format: [starts(4)][starts_1h(2)][starts_24h(2)][operating_time(4)]...
+            - Format: `[starts(4)][starts_1h(2)][starts_24h(2)][operating_time(4)]...`
             - Response has 3-byte header [00 00 XX]
             - operating_time is in seconds, convert to hours
         """

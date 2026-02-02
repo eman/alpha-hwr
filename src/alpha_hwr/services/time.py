@@ -9,13 +9,13 @@ Protocol Details
 The pump's RTC is managed via GENI DataObjects:
 
 1. **Read Time** - Object 94, SubID 101 (DateTimeActual):
-   - Returns: [Status(2)][Length(1)][Year(2BE)][Month][Day][Hour][Minute][Second]
+   - Returns: `[Status(2)][Length(1)][Year(2BE)][Month][Day][Hour][Minute][Second]`
    - Status 0x0000 = valid, 0xFFFF = unset
    - Year is big-endian uint16
 
 2. **Set Time** - Object 94, SubID 100 (DateTimeConfig):
-   - Payload: [Year(2BE)][Month][Day][Hour][Minute][Second] + 13 padding bytes (19 total)
-   - Frame: [0x27][Length][0x07][0x5E][0x64][0x70][DateTime...][CRC]
+   - Payload: `[Year(2BE)][Month][Day][Hour][Minute][Second]` + 13 padding bytes (19 total)
+   - Frame: `[0x27][Length][0x07][0x5E][0x64][0x70][DateTime...][CRC]`
    - Note: Class 16 ID 0 (set_unix_rtc) does NOT work despite being documented
 
 Example (TypeScript):
@@ -140,7 +140,7 @@ class TimeService(BaseService):
 
         Implementation Notes:
             - Uses Class 10 GET on Object 94, SubID 101
-            - Response format: [Status(2)][Length(1)][Year(2)][Month(1)][Day(1)][Hour(1)][Minute(1)][Second(1)]
+            - Response format: `[Status(2)][Length(1)][Year(2)][Month(1)][Day(1)][Hour(1)][Minute(1)][Second(1)]`
             - Status 0x0000 = valid, 0xFFFF = unset
             - Year is big-endian uint16
             - Invalid dates (year < 1970, month/day = 0) indicate unset clock
@@ -156,7 +156,7 @@ class TimeService(BaseService):
                 logger.debug(f"Raw clock data: {data.hex()} (len={len(data)})")
 
                 # Parse Type 322 structure:
-                # [Status(2)][Length(1)][Year(2)][Month(1)][Day(1)][Hour(1)][Minute(1)][Second(1)]
+                # `[Status(2)][Length(1)][Year(2)][Month(1)][Day(1)][Hour(1)][Minute(1)][Second(1)]`
                 status = (data[0] << 8) | data[1]
 
                 # Data starts after Status (2) and Length (1)
@@ -223,8 +223,8 @@ class TimeService(BaseService):
 
         Implementation Notes:
             - Uses Object 94, SubID 100 (DateTimeConfig) with SET operation
-            - Format: [UnknownByte][Object][SubID][OpSpec][DateTime...]
-            - DateTime format: [Year(2BE)][Month][Day][Hour][Minute][Second][...]
+            - Format: `[UnknownByte][Object][SubID][OpSpec][DateTime...]`
+            - DateTime format: `[Year(2BE)][Month][Day][Hour][Minute][Second][...]`
             - This is confirmed by protocol behavior
         """
         self.session.ensure_authenticated()
@@ -239,7 +239,7 @@ class TimeService(BaseService):
 
         try:
             # Build datetime payload in the format iOS uses
-            # [Year(2 bytes, big-endian)][Month][Day][Hour][Minute][Second][padding...]
+            # `[Year(2 bytes, big-endian)][Month][Day][Hour][Minute][Second][padding...]`
             datetime_bytes = bytearray()
             datetime_bytes.extend(
                 struct.pack(">H", dt.year)
@@ -260,7 +260,7 @@ class TimeService(BaseService):
                 f"{dt.hour:02d}:{dt.minute:02d}:{dt.second:02d})"
             )
 
-            # Build APDU: [UnknownByte][Object][SubID][OpSpec][Data...]
+            # Build APDU: `[UnknownByte][Object][SubID][OpSpec][Data...]`
             # From iOS captures:
             # - UnknownByte: 0x07 (purpose unknown, possibly address/routing)
             # - Object: 0x5E (94)

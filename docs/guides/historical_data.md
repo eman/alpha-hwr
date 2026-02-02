@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
 For detailed API documentation, see:
 
-- [`HistoryService`](../api/client.md#services)
-- [`EventLogService`](../api/client.md#services)
+- [`HistoryService`](../api/services.md#historyservice)
+- [`EventLogService`](../api/services.md#eventlogservice)
 - [`TrendDataCollection`](../api/models.md)
 - [`EventLogEntry`](../api/models.md)

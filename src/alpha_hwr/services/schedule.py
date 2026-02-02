@@ -121,7 +121,7 @@ class ScheduleService(BaseService):
 
         Implementation Notes:
             Protocol: Class 10, Object 84, SubID 1 (ClockProgramOverview)
-            - Response format: [Header(3)][Capabilities(4)][Enabled(1)][DefaultAction(1)][BaseSetpoint(4)]
+            - Response format: `[Header(3)][Capabilities(4)][Enabled(1)][DefaultAction(1)][BaseSetpoint(4)]`
             - Byte 7 is the enabled flag (0x01=enabled, 0x00=disabled)
             - No scanning required - SubID 1 is a fixed location
 
@@ -169,7 +169,7 @@ class ScheduleService(BaseService):
 
         Implementation Notes:
             Protocol: Class 10, OpSpec 0x90, Object 1016
-            - APDU: [0x0A][0x90][SubH][SubL][0x03][0xF8][0x01]
+            - APDU: `[0x0A][0x90][SubH][SubL][0x03][0xF8][0x01]`
             - 0x0A = Class 10
             - 0x90 = OpSpec for SET operation
             - SubH, SubL = Discovered SubID (big-endian)
@@ -378,6 +378,7 @@ class ScheduleService(BaseService):
             - SubID: 1000 + layer
             - Payload: 42 bytes (7 days × 6 bytes)
             - APDU format:
+              ```
               [0x0A]              # Class 10
               [0xB3]              # OpSpec 5
               [84]                # Object ID
@@ -386,6 +387,7 @@ class ScheduleService(BaseService):
               [0xDE][0x01][0x00]  # Type 222 header
               [0x00][0x2A]        # Size (42 bytes)
               [42 bytes data]     # Schedule entries
+              ```
 
             TypeScript:
               const payload = Buffer.alloc(42); // Initialize with zeros
