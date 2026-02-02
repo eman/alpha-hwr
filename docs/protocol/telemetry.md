@@ -72,6 +72,15 @@ Contains thermal sensor readings from various points in the system.
 | **PCB Temp** | +4 | +4 | Float32 | °C |
 | **Ambient Temp** | +8 | +8 | Float32 | °C |
 
+### 4. Setpoint RPM
+
+Reserved for setpoint notifications (passive stream only, not actively queried).
+
+* **SubID**: `0x0001` (1)
+* **ObjID**: `0x012F` (303)
+
+**Note**: This telemetry object is reserved for potential future use. Currently, RPM setpoints are controlled via Class 10 SET operations rather than passively observed.
+
 ---
 
 ## Active Polling (Modern Approach)

@@ -64,7 +64,8 @@ class TelemetryObject:
     MOTOR_STATE = (0x0045, 0x0057)  # Voltage, Current, Power, RPM, Temp
     FLOW_PRESSURE = (0x0122, 0x005D)  # Flow rate and head pressure
     TEMPERATURE = (0x012C, 0x005D)  # Media, PCB, control box temperatures
-    SETPOINT = (0x0001, 0x012F)  # Setpoint RPM (passive notification)
+    # SETPOINT reserved for future use: passive notification of current RPM setpoint
+    SETPOINT = (0x0001, 0x012F)
 
 
 class Register(IntEnum):
