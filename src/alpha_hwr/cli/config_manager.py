@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Optional, TypedDict
+from typing import Optional, TypedDict
 from datetime import datetime
 
 from rich.console import Console
