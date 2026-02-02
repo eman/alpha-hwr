@@ -58,6 +58,7 @@ nav:
       - Quick Start: getting_started/quick_start.md
   - User Guides:
       - CLI Guide: guides/cli_guide.md
+      - Device Profiles: guides/device-profiles.md
       - Understanding Telemetry: guides/understanding_telemetry.md
       - Control Modes & Setpoints: guides/control_modes.md
       - Backup & Restore: guides/backup_restore.md

@@ -5,6 +5,9 @@ Commands:
   - info: Show device information
   - stats: Show operating statistics
   - alarms: Check for active alarms
+  - scan: Scan for nearby pumps
+  - set: Save a device address
+  - list: List saved devices
 """
 
 from typing import Optional
@@ -14,6 +17,7 @@ import typer
 from ...client import AlphaHWRClient
 from ..app import console
 from ..common import require_service, get_client, handle_error, run_async
+from ..config_manager import ConfigManager
 from ..output.formatters import (
     format_device_info_panel,
     format_statistics_panel,
@@ -29,6 +33,9 @@ def cmd_scan(
     timeout: float = typer.Option(
         10.0, "--timeout", "-t", help="Scan duration in seconds"
     ),
+    save: Optional[str] = typer.Option(
+        None, "--save", "-s", help="Save device with this name (or 'default')"
+    ),
 ) -> None:
     """
     Scan for nearby ALPHA HWR pumps.
@@ -37,8 +44,9 @@ def cmd_scan(
 
     Example:
       alpha-hwr device scan
+      alpha-hwr device scan --save basement
     """
-    run_async(_device_scan(timeout))
+    run_async(_device_scan(timeout, save))
 
 
 @app.command("info")
@@ -101,10 +109,80 @@ def cmd_alarms(
     run_async(_device_alarms(device))
 
 
+@app.command("set")
+def cmd_set(
+    address: str = typer.Argument(..., help="MAC address of the pump"),
+    name: Optional[str] = typer.Option(
+        None, "--name", "-n", help="Friendly name for this device"
+    ),
+    default: bool = typer.Option(
+        False, "--default", "-d", help="Set as default device"
+    ),
+) -> None:
+    """
+    Save a device address with optional friendly name.
+
+    Example:
+      alpha-hwr device set AA:BB:CC:DD:EE:FF
+      alpha-hwr device set AA:BB:CC:DD:EE:FF --name basement
+      alpha-hwr device set AA:BB:CC:DD:EE:FF --name basement --default
+    """
+    try:
+        ConfigManager.save_device(address, name, set_default=default)
+        device_name = name or address
+        console.print(
+            f"[green]✓[/green] Saved device '{device_name}' ({address})"
+        )
+        if default:
+            console.print("[green]✓[/green] Set as default device")
+    except Exception as e:
+        handle_error(e, "Failed to save device")
+
+
+@app.command("list")
+def cmd_list() -> None:
+    """
+    List all saved device addresses.
+
+    Shows friendly names, MAC addresses, and which is default.
+
+    Example:
+      alpha-hwr device list
+    """
+    devices = ConfigManager.list_devices()
+
+    if not devices:
+        console.print("[yellow]No saved devices.[/yellow]")
+        console.print(
+            "[dim]Use 'alpha-hwr device scan' to find devices.[/dim]"
+        )
+        return
+
+    # Display table
+    from rich.table import Table
+
+    table = Table(title="Saved Devices")
+    table.add_column("Name", style="cyan")
+    table.add_column("Address", style="magenta")
+    table.add_column("Default", style="yellow")
+    table.add_column("Saved At", style="dim")
+
+    for device in devices:
+        default_marker = "[green]✓[/green]" if device["is_default"] else ""
+        table.add_row(
+            device["name"],
+            device["address"],
+            default_marker,
+            device["saved_at"][:19] if device["saved_at"] else "",
+        )
+
+    console.print(table)
+
+
 # Internal async implementations
 
 
-async def _device_scan(timeout: float) -> None:
+async def _device_scan(timeout: float, save: Optional[str] = None) -> None:
     """Internal async implementation of scan command."""
     try:
         console.print(
@@ -122,6 +200,28 @@ async def _device_scan(timeout: float) -> None:
         # Display result
         table = format_discovery_table(devices)
         console.print(table)
+
+        # Auto-save if requested
+        if save and devices:
+            # Use first device if multiple found
+            first_device = devices[0]
+            device_address = first_device.address
+            if not device_address:
+                console.print(
+                    "[yellow]Cannot save device without address[/yellow]"
+                )
+                return
+
+            if save.lower() == "default":
+                ConfigManager.set_default_device(device_address)
+                console.print(
+                    f"[green]✓[/green] Set default device to {device_address}"
+                )
+            else:
+                ConfigManager.save_device(device_address, name=save)
+                console.print(
+                    f"[green]✓[/green] Saved device '{save}' ({device_address})"
+                )
 
     except Exception as e:
         handle_error(e, "Scan failed")

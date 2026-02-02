@@ -104,9 +104,24 @@ Flow: 1.2 m³/h | Power: 25.0 W
 
 ## 4. Using the CLI
 
-The library includes a convenient command-line interface for common operations:
+### Finding Your Device
 
-**Monitoring:**
+The library includes a convenient CLI for device discovery and management:
+
+```bash
+# Discover nearby pumps
+alpha-hwr device scan
+
+# Save a device for later use (no need to remember the address!)
+alpha-hwr device set AA:BB:CC:DD:EE:FF --name my-pump --default
+
+# List all saved devices
+alpha-hwr device list
+```
+
+See the [Device Profiles Guide](../guides/device-profiles.md) for more details on managing multiple devices.
+
+### Monitoring:**
 ```bash
 # Continuously monitor telemetry
 alpha-hwr monitor live
