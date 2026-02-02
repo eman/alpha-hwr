@@ -9,12 +9,29 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, TypedDict
 from datetime import datetime
 
 from rich.console import Console
 
 console = Console()
+
+
+class DeviceEntry(TypedDict, total=False):
+    """TypedDict for device configuration entry."""
+
+    address: str
+    saved_at: str
+
+
+class Config(TypedDict, total=False):
+    """TypedDict for complete configuration structure."""
+
+    default_device: Optional[str]
+    devices: dict[str, DeviceEntry]
+    last_used: Optional[str]
+    last_used_at: Optional[str]
+    version: str
 
 
 class ConfigManager:
@@ -23,7 +40,7 @@ class ConfigManager:
     CONFIG_DIR: Path = Path.home() / ".config" / "alpha-hwr"
     CONFIG_FILE: Path = CONFIG_DIR / "config.json"
 
-    DEFAULT_CONFIG: dict[str, Any] = {
+    DEFAULT_CONFIG: Config = {
         "default_device": None,
         "devices": {},
         "last_used": None,
@@ -36,18 +53,18 @@ class ConfigManager:
         cls.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def _load_config(cls) -> dict:
+    def _load_config(cls) -> Config:
         """Load config from file, or return default if not present."""
         cls._ensure_config_dir()
 
         if cls.CONFIG_FILE.exists():
             try:
                 with open(cls.CONFIG_FILE, "r") as f:
-                    config = json.load(f)
+                    config: Config = json.load(f)  # type: ignore
                 # Ensure all required keys exist
-                for key, value in cls.DEFAULT_CONFIG.items():
+                for key in cls.DEFAULT_CONFIG:
                     if key not in config:
-                        config[key] = value
+                        config[key] = cls.DEFAULT_CONFIG[key]  # type: ignore
                 return config
             except (json.JSONDecodeError, IOError) as e:
                 console.print(
@@ -57,7 +74,7 @@ class ConfigManager:
         return cls.DEFAULT_CONFIG.copy()
 
     @classmethod
-    def _save_config(cls, config: dict) -> None:
+    def _save_config(cls, config: Config) -> None:
         """Save config to file."""
         cls._ensure_config_dir()
         try:
