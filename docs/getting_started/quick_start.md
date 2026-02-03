@@ -6,7 +6,7 @@ This guide will help you connect to your Grundfos ALPHA HWR pump, authenticate, 
 
 First, you need to find the Bluetooth address of your pump. You can use any BLE scanner app (like nRF Connect) or a simple Python script using `bleak`.
 
-The pump usually advertises with a name like `Grundfos` or `HWR`.
+The pump advertises with a name like **`ALPHA_0000479`** (where the numbers are the pump's serial number).
 
 ```python
 import asyncio
@@ -15,7 +15,9 @@ from bleak import BleakScanner
 async def scan():
     devices = await BleakScanner.discover()
     for d in devices:
-        print(f"Address: {d.address} | Name: {d.name}")
+        # Look for devices starting with "ALPHA_"
+        if d.name and d.name.startswith("ALPHA_"):
+            print(f"Found pump: {d.address} | Name: {d.name}")
 
 asyncio.run(scan())
 ```

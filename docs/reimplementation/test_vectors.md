@@ -10,40 +10,40 @@ All GENI frames use CRC-16/MODBUS (polynomial 0x8005, initial value 0xFFFF).
 
 **Input bytes:**
 ```
-0x27 0x06 0xE7 0xF8 0x00 0x67
+0x27 0x07 0xE7 0xF8 0x02 0x03 0x94 0x95 0x96
 ```
 
 **Expected CRC:**
 ```
-0xA3E3
+0xEB47
 ```
 
 **Breakdown:**
-- CRC bytes: `0xA3` (high), `0xE3` (low)
-- Full packet: `27 06 E7 F8 00 67 A3 E3`
+- CRC bytes: `0xEB` (high), `0x47` (low)
+- Full packet: `27 07 E7 F8 02 03 94 95 96 EB 47`
 
 **Validation:**
 ```python
-data = bytes([0x27, 0x06, 0xE7, 0xF8, 0x00, 0x67])
+data = bytes([0x27, 0x07, 0xE7, 0xF8, 0x02, 0x03, 0x94, 0x95, 0x96])
 crc = calculate_crc16_modbus(data)
-assert crc == 0xA3E3
+assert crc == 0xEB47
 ```
 
 ### Test Vector 1.2: Authentication Packet
 
 **Input bytes:**
 ```
-0x27 0x07 0xE7 0xF8 0x0A 0x04 0x00 0x85
+0x27 0x07 0xE7 0xF8 0x0A 0x03 0x56 0x00 0x06
 ```
 
 **Expected CRC:**
 ```
-0x0212
+0xC55A
 ```
 
 **Full packet:**
 ```
-27 07 E7 F8 0A 04 00 85 02 12
+27 07 E7 F8 0A 03 56 00 06 C5 5A
 ```
 
 ### Test Vector 1.3: Zero-Length Payload
@@ -189,16 +189,16 @@ assert encoded == bytes([0x46, 0xE5, 0xB0, 0x00])
 
 **Expected Full Packet:**
 ```
-27 06 E7 F8 00 67 A3 E3
+27 07 E7 F8 02 03 94 95 96 EB 47
 ```
 
 **Breakdown:**
 - `27`: Start byte
-- `06`: Length (6 bytes including start and length)
+- `07`: Length (7 bytes including start and length)
 - `E7`: Service ID
 - `F8`: Source address
-- `00 67`: Payload
-- `A3 E3`: CRC-16
+- `02 03 94 95 96`: Payload (Class 2, OpSpec 0x03, Register 0x9495, Value 0x96)
+- `EB 47`: CRC-16
 
 ### Test Vector 5.2: Class 10 Unlock Packet
 
@@ -206,7 +206,7 @@ assert encoded == bytes([0x46, 0xE5, 0xB0, 0x00])
 
 **Expected Full Packet:**
 ```
-27 07 E7 F8 0A 04 00 85 02 12
+27 07 E7 F8 0A 03 56 00 06 C5 5A
 ```
 
 **Breakdown:**
@@ -215,8 +215,8 @@ assert encoded == bytes([0x46, 0xE5, 0xB0, 0x00])
 - `E7`: Service ID
 - `F8`: Source
 - `0A`: Class byte (Class 10)
-- `04 00 85`: APDU
-- `02 12`: CRC-16
+- `03 56 00 06`: APDU (OpSpec 0x03, Sub 0x5600, Obj 0x0006)
+- `C5 5A`: CRC-16
 
 ### Test Vector 5.3: Info Command (Read Temperature)
 
@@ -422,12 +422,12 @@ Setpoint: 1.5m
 
 **Input Packet:**
 ```
-27 06 E7 F8 00 67 FF FF
+27 07 E7 F8 02 03 94 95 96 FF FF
 ```
 
 **Expected Result:**
 - CRC validation: `FAIL`
-- Expected CRC: `0xA3E3`
+- Expected CRC: `0xEB47`
 - Actual CRC: `0xFFFF`
 - Action: Reject packet
 

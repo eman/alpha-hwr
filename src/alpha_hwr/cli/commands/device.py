@@ -153,9 +153,7 @@ def cmd_list() -> None:
 
     if not devices:
         console.print("[yellow]No saved devices.[/yellow]")
-        console.print(
-            "[dim]Use 'alpha-hwr device scan' to find devices.[/dim]"
-        )
+        console.print("[dim]Use 'alpha-hwr device scan' to find devices.[/dim]")
         return
 
     # Display table

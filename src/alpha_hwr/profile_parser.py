@@ -4,7 +4,8 @@ GENI Profile Parser Module
 Provides classes to parse GENI profile XML files and extract parameter definitions.
 """
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
+from xml.etree.ElementTree import Element  # nosec B405
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Union
@@ -68,7 +69,11 @@ class GeniProfileParser:
             tree = ET.parse(self.xml_path)
             root = tree.getroot()
 
-            # Find all parameter elements
+            if root is None:
+                raise ValueError(
+                    f"Empty or invalid XML profile: {self.xml_path}"
+                )
+
             # Find all parameter elements
             parameters_elem = root.find(".//parameters")
             if parameters_elem is None:
@@ -93,7 +98,7 @@ class GeniProfileParser:
         except ET.ParseError as e:
             raise ValueError(f"Invalid XML file: {e}")
 
-    def _parse_parameter(self, param_elem: ET.Element) -> Optional[Parameter]:
+    def _parse_parameter(self, param_elem: Element) -> Optional[Parameter]:
         """Parse a single parameter element"""
         try:
             name = self._get_text(param_elem, "name")
@@ -193,7 +198,7 @@ class GeniProfileParser:
             # Silently skip malformed parameters or log if logger available
             return None
 
-    def _get_text(self, elem: ET.Element, tag: str, default: str = "") -> str:
+    def _get_text(self, elem: Element, tag: str, default: str = "") -> str:
         """Get text content of a child element"""
         child = elem.find(tag)
         if child is not None and child.text:
