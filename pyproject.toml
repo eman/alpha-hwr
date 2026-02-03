@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alpha-hwr"
-version = "0.2.0"
+version = "0.3.0"
 description = "Modern Python library and CLI for Grundfos ALPHA HWR pumps via Bluetooth Low Energy"
 readme = "README.md"
 authors = [
