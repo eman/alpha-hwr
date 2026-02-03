@@ -66,7 +66,9 @@ async def get_client(
     """
     settings = get_settings()
     # Priority: explicit device > config manager > env var
-    address = device or ConfigManager.get_default_device() or settings.device_address
+    address = (
+        device or ConfigManager.get_default_device() or settings.device_address
+    )
 
     if not address:
         console.print("[red]Error:[/red] No device address configured.")

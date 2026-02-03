@@ -15,13 +15,13 @@ Use this checklist to track your implementation progress. Features are organized
 
 ### Authentication
 - [ ] Send 3x Legacy Magic packets
-  - Packet: `27 06 E7 F8 00 67 A3 E3`
+  - Packet: `27 07 E7 F8 02 03 94 95 96 EB 47`
 - [ ] Send 5x Class 10 Unlock packets
-  - Packet: `27 07 E7 F8 0A 04 00 85 02 12`
+  - Packet: `27 07 E7 F8 0A 03 56 00 06 C5 5A`
 - [ ] Send Extend 1 packet
-  - Packet: `27 07 E7 F8 1A 2C 00 52 01 02`
+  - Packet: `27 05 E7 F8 0B C1 0F D0 C3`
 - [ ] Send Extend 2 packet
-  - Packet: `27 06 E7 F8 1A 54 D2 55`
+  - Packet: `27 05 E7 F8 05 C1 4B C3 82`
 - [ ] Verify pump accepts commands after authentication
 
 ### Session Management

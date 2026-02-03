@@ -29,7 +29,7 @@ sequenceDiagram
 
 ### Hex Dump
 ```
-27 06 E7 F8 00 67 A3 E3
+27 07 E7 F8 02 03 94 95 96 EB 47
 ```
 
 ### Byte-by-Byte Breakdown
@@ -37,13 +37,16 @@ sequenceDiagram
 | Offset | Byte | Name | Description |
 |--------|------|------|-------------|
 | 0 | `0x27` | Start Byte | Request frame marker |
-| 1 | `0x06` | Length | Total length = 6 bytes (up to last APDU byte) |
+| 1 | `0x07` | Length | Total length = 7 bytes (up to last APDU byte) |
 | 2 | `0xE7` | Service ID | GENI service |
 | 3 | `0xF8` | Source | Client address |
-| 4 | `0x00` | Class/Op | Legacy authentication command |
-| 5 | `0x67` | Data | Magic value |
-| 6 | `0xA3` | CRC High | CRC-16/MODBUS high byte |
-| 7 | `0xE3` | CRC Low | CRC-16/MODBUS low byte |
+| 4 | `0x02` | Class | Class 2 (Register-based operations) |
+| 5 | `0x03` | OpSpec | SET operation, 3 data bytes |
+| 6 | `0x94` | Register High | Register address 0x9495 high byte |
+| 7 | `0x95` | Register Low | Register address 0x9495 low byte |
+| 8 | `0x96` | Data | Unlock value |
+| 9 | `0xEB` | CRC High | CRC-16-CCITT high byte |
+| 10 | `0x47` | CRC Low | CRC-16-CCITT low byte |
 
 ### Purpose
 Unlocks legacy Class 2/3 commands (register-based operations).
@@ -56,7 +59,7 @@ None (pump acknowledges silently).
 
 ### Implementation
 ```python
-LEGACY_MAGIC = bytes([0x27, 0x06, 0xE7, 0xF8, 0x00, 0x67, 0xA3, 0xE3])
+LEGACY_MAGIC = bytes.fromhex("2707e7f80203949596eb47")
 
 for _ in range(3):
     await tx_char.write_value(LEGACY_MAGIC)
@@ -69,7 +72,7 @@ for _ in range(3):
 
 ### Hex Dump
 ```
-27 07 E7 F8 0A 04 00 85 02 12
+27 07 E7 F8 0A 03 56 00 06 C5 5A
 ```
 
 ### Byte-by-Byte Breakdown
@@ -81,11 +84,12 @@ for _ in range(3):
 | 2 | `0xE7` | Service ID | GENI service |
 | 3 | `0xF8` | Source | Client |
 | 4 | `0x0A` | Class | Class 10 (DataObject) |
-| 5 | `0x04` | Op-Spec | Unlock operation |
-| 6 | `0x00` | Sub ID High | Sub 0x0000 |
-| 7 | `0x85` | Data | Unlock code |
-| 8 | `0x02` | CRC High | CRC high byte |
-| 9 | `0x12` | CRC Low | CRC low byte |
+| 5 | `0x03` | OpSpec | SET operation, 3 bytes follow |
+| 6 | `0x56` | Sub ID High | Sub 0x5600 (control/unlock subsystem) |
+| 7 | `0x00` | Sub ID Low | Sub 0x5600 low byte |
+| 8 | `0x06` | Object ID | Object 0x0006 (unlock object) |
+| 9 | `0xC5` | CRC High | CRC-16-CCITT high byte |
+| 10 | `0x5A` | CRC Low | CRC-16-CCITT low byte |
 
 ### Purpose
 Unlocks Class 10 commands (modern DataObject operations). Required for telemetry, control, and all advanced features.
@@ -98,7 +102,7 @@ None (pump acknowledges silently).
 
 ### Implementation
 ```python
-CLASS10_UNLOCK = bytes([0x27, 0x07, 0xE7, 0xF8, 0x0A, 0x04, 0x00, 0x85, 0x02, 0x12])
+CLASS10_UNLOCK = bytes.fromhex("2707e7f80a03560006c55a")
 
 for _ in range(5):
     await tx_char.write_value(CLASS10_UNLOCK)
@@ -111,7 +115,7 @@ for _ in range(5):
 
 ### Hex Dump
 ```
-27 07 E7 F8 1A 2C 00 52 01 02
+27 05 E7 F8 0B C1 0F D0 C3
 ```
 
 ### Byte-by-Byte Breakdown
@@ -119,15 +123,14 @@ for _ in range(5):
 | Offset | Byte | Name | Description |
 |--------|------|------|-------------|
 | 0 | `0x27` | Start Byte | Request frame |
-| 1 | `0x07` | Length | 7 bytes |
+| 1 | `0x05` | Length | 5 bytes |
 | 2 | `0xE7` | Service ID | GENI service |
 | 3 | `0xF8` | Source | Client |
-| 4 | `0x1A` | Class | Extended authentication |
-| 5 | `0x2C` | Op-Spec | Extend command 1 |
-| 6 | `0x00` | Data 1 | Extension parameter |
-| 7 | `0x52` | Data 2 | Extension code |
-| 8 | `0x01` | CRC High | CRC high byte |
-| 9 | `0x02` | CRC Low | CRC low byte |
+| 4 | `0x0B` | Class | Class 11 (Session extension) |
+| 5 | `0xC1` | OpSpec | Extension command 1 |
+| 6 | `0x0F` | Data | Extension parameter |
+| 7 | `0xD0` | CRC High | CRC-16-CCITT high byte |
+| 8 | `0xC3` | CRC Low | CRC-16-CCITT low byte |
 
 ### Purpose
 Enables extended functionality (schedules, configuration, advanced telemetry).
@@ -140,7 +143,7 @@ None.
 
 ### Implementation
 ```python
-EXTEND_1 = bytes([0x27, 0x07, 0xE7, 0xF8, 0x1A, 0x2C, 0x00, 0x52, 0x01, 0x02])
+EXTEND_1 = bytes.fromhex("2705e7f80bc10fd0c3")
 
 await tx_char.write_value(EXTEND_1)
 await asyncio.sleep(0.05)
@@ -152,7 +155,7 @@ await asyncio.sleep(0.05)
 
 ### Hex Dump
 ```
-27 06 E7 F8 1A 54 D2 55
+27 05 E7 F8 05 C1 4B C3 82
 ```
 
 ### Byte-by-Byte Breakdown
@@ -160,13 +163,14 @@ await asyncio.sleep(0.05)
 | Offset | Byte | Name | Description |
 |--------|------|------|-------------|
 | 0 | `0x27` | Start Byte | Request frame |
-| 1 | `0x06` | Length | 6 bytes |
+| 1 | `0x05` | Length | 5 bytes |
 | 2 | `0xE7` | Service ID | GENI service |
 | 3 | `0xF8` | Source | Client |
-| 4 | `0x1A` | Class | Extended authentication |
-| 5 | `0x54` | Op-Spec | Extend command 2 |
-| 6 | `0xD2` | CRC High | CRC high byte |
-| 7 | `0x55` | CRC Low | CRC low byte |
+| 4 | `0x05` | Class | Class 5 (Extension protocol) |
+| 5 | `0xC1` | OpSpec | Extension command 2 |
+| 6 | `0x4B` | Data | Extension parameter |
+| 7 | `0xC3` | CRC High | CRC-16-CCITT high byte |
+| 8 | `0x82` | CRC Low | CRC-16-CCITT low byte |
 
 ### Purpose
 Final authentication step. Enables full access to all pump features.
@@ -179,7 +183,7 @@ None.
 
 ### Implementation
 ```python
-EXTEND_2 = bytes([0x27, 0x06, 0xE7, 0xF8, 0x1A, 0x54, 0xD2, 0x55])
+EXTEND_2 = bytes.fromhex("2705e7f805c14bc382")
 
 await tx_char.write_value(EXTEND_2)
 await asyncio.sleep(0.1)
@@ -196,10 +200,10 @@ import asyncio
 from bleak import BleakClient
 
 # Authentication packets (pre-calculated with CRC)
-LEGACY_MAGIC = bytes([0x27, 0x06, 0xE7, 0xF8, 0x00, 0x67, 0xA3, 0xE3])
-CLASS10_UNLOCK = bytes([0x27, 0x07, 0xE7, 0xF8, 0x0A, 0x04, 0x00, 0x85, 0x02, 0x12])
-EXTEND_1 = bytes([0x27, 0x07, 0xE7, 0xF8, 0x1A, 0x2C, 0x00, 0x52, 0x01, 0x02])
-EXTEND_2 = bytes([0x27, 0x06, 0xE7, 0xF8, 0x1A, 0x54, 0xD2, 0x55])
+LEGACY_MAGIC = bytes.fromhex("2707e7f80203949596eb47")
+CLASS10_UNLOCK = bytes.fromhex("2707e7f80a03560006c55a")
+EXTEND_1 = bytes.fromhex("2705e7f80bc10fd0c3")
+EXTEND_2 = bytes.fromhex("2705e7f805c14bc382")
 
 # BLE UUIDs
 GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
@@ -261,10 +265,10 @@ if __name__ == "__main__":
 
 ```javascript
 // Authentication packets
-const LEGACY_MAGIC = new Uint8Array([0x27, 0x06, 0xE7, 0xF8, 0x00, 0x67, 0xA3, 0xE3]);
-const CLASS10_UNLOCK = new Uint8Array([0x27, 0x07, 0xE7, 0xF8, 0x0A, 0x04, 0x00, 0x85, 0x02, 0x12]);
-const EXTEND_1 = new Uint8Array([0x27, 0x07, 0xE7, 0xF8, 0x1A, 0x2C, 0x00, 0x52, 0x01, 0x02]);
-const EXTEND_2 = new Uint8Array([0x27, 0x06, 0xE7, 0xF8, 0x1A, 0x54, 0xD2, 0x55]);
+const LEGACY_MAGIC = new Uint8Array([0x27, 0x07, 0xE7, 0xF8, 0x02, 0x03, 0x94, 0x95, 0x96, 0xEB, 0x47]);
+const CLASS10_UNLOCK = new Uint8Array([0x27, 0x07, 0xE7, 0xF8, 0x0A, 0x03, 0x56, 0x00, 0x06, 0xC5, 0x5A]);
+const EXTEND_1 = new Uint8Array([0x27, 0x05, 0xE7, 0xF8, 0x0B, 0xC1, 0x0F, 0xD0, 0xC3]);
+const EXTEND_2 = new Uint8Array([0x27, 0x05, 0xE7, 0xF8, 0x05, 0xC1, 0x4B, 0xC3, 0x82]);
 
 async function authenticate(txCharacteristic) {
   // Step 1: Legacy Magic (3x)

@@ -6,7 +6,89 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install bandit safety
+    
+    - name: Run Bandit security scan
+      run: bandit -r src/alpha_hwr -ll
+    
+    - name: Run Safety dependency check
+      run: safety check --json
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff
+    
+    - name: Run Ruff format check
+      run: ruff format --check .
+    
+    - name: Run Ruff lint
+      run: ruff check .
+
+  type-check:
+    name: Type Check on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13", "3.14"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install mypy basedpyright
+    
+    - name: Run MyPy
+      run: mypy src/alpha_hwr
+    
+    - name: Run BasedPyright
+      run: basedpyright
+
   test:
     name: Test on Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
@@ -28,19 +110,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
-        pip install basedpyright
-    
-    - name: Run Ruff format check
-      run: ruff format --check .
-    
-    - name: Run Ruff lint
-      run: ruff check .
-    
-    - name: Run MyPy
-      run: mypy src/alpha_hwr
-    
-    - name: Run BasedPyright
-      run: basedpyright
     
     - name: Run tests with coverage
       run: pytest tests/ -v --cov=alpha_hwr --cov-report=xml --cov-report=term

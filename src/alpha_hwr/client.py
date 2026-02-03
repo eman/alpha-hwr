@@ -283,7 +283,8 @@ class AlphaHWRClient:
             await self._scan_advertisement_data()
 
             # Create BLE client
-            assert self.address is not None
+            if self.address is None:
+                raise ValueError("BLE device address is not set")
             self._bleak_client = BleakClient(self.address, adapter=self.adapter)
 
             # Connect to device
