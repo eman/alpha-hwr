@@ -5,7 +5,6 @@ Provides classes to parse GENI profile XML files and extract parameter definitio
 """
 
 import defusedxml.ElementTree as ET
-from typing import Any
 from xml.etree.ElementTree import Element  # nosec B405
 from pathlib import Path
 from dataclasses import dataclass, field
