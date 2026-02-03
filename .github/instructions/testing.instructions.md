@@ -155,7 +155,7 @@ async def test_with_client(client):
 
 ### Test Naming
 ```python
-# ✅ Good test names (descriptive, specific)
+# GOOD: Good test names (descriptive, specific)
 def test_telemetry_parses_valid_frame():
     """Test parsing of valid telemetry frame."""
 
@@ -165,7 +165,7 @@ def test_control_rejects_negative_pressure():
 def test_schedule_entry_validates_time_range():
     """Test time range validation in schedule entries."""
 
-# ❌ Bad test names (vague, generic)
+# BAD: Bad test names (vague, generic)
 def test_telemetry():
     """Test telemetry."""
 
@@ -175,14 +175,14 @@ def test_control():
 
 ### Assertions
 ```python
-# ✅ Specific assertions with messages
+# GOOD: Specific assertions with messages
 assert result.flow_m3h > 0, "Flow rate should be positive"
 assert result.head_m <= 6.0, "Head should not exceed maximum"
 
-# ✅ Use pytest helpers for complex checks
+# GOOD: Use pytest helpers for complex checks
 pytest.approx(result.temperature_c, 25.0, abs=0.5)
 
-# ❌ Generic assertions without context
+# BAD: Generic assertions without context
 assert result
 assert result.value
 ```
@@ -270,7 +270,7 @@ def test_frame_parsing_performance(benchmark):
 
 ## Common Testing Mistakes
 
-### ❌ Don't
+### BAD - Don't Do This
 ```python
 # Testing against real hardware
 async def test_with_real_pump():
@@ -289,7 +289,7 @@ def test_modify_global():
 #     pass
 ```
 
-### ✅ Do
+### GOOD - Do This Instead
 ```python
 # Always use MockPump
 async def test_with_mock():

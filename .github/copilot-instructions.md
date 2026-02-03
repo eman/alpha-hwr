@@ -230,32 +230,32 @@ When modifying features, update:
 ## Common Pitfalls to Avoid
 
 ### Architecture Violations
-❌ **DON'T**: Import services in protocol layer
-❌ **DON'T**: Put business logic in protocol layer
-❌ **DON'T**: Have services depend on other services
-✅ **DO**: Keep layers independent and focused
+**DON'T**: Import services in protocol layer
+**DON'T**: Put business logic in protocol layer
+**DON'T**: Have services depend on other services
+**DO**: Keep layers independent and focused
 
 ### Async/Await Issues
-❌ **DON'T**: Mix sync and async code without proper handling
-❌ **DON'T**: Forget `await` on async calls
-❌ **DON'T**: Use blocking I/O in async functions
-✅ **DO**: Use `asyncio.to_thread()` for blocking operations
-✅ **DO**: Always use `async with` for BLE client
+**DON'T**: Mix sync and async code without proper handling
+**DON'T**: Forget `await` on async calls
+**DON'T**: Use blocking I/O in async functions
+**DO**: Use `asyncio.to_thread()` for blocking operations
+**DO**: Always use `async with` for BLE client
 
 ### Type Checking
-❌ **DON'T**: Use `Any` type without justification
-❌ **DON'T**: Ignore type errors with `# type: ignore` without comment
-❌ **DON'T**: Use bare `except:` clauses
-✅ **DO**: Provide explicit types for all parameters
-✅ **DO**: Use union types (`str | None`) over `Optional`
+**DON'T**: Use `Any` type without justification
+**DON'T**: Ignore type errors with `# type: ignore` without comment
+**DON'T**: Use bare `except:` clauses
+**DO**: Provide explicit types for all parameters
+**DO**: Use union types (`str | None`) over `Optional`
 
 ### Testing
-❌ **DON'T**: Test against real hardware in CI
-❌ **DON'T**: Write tests that depend on timing
-❌ **DON'T**: Commit commented-out test code
-✅ **DO**: Use MockPump for all integration tests
-✅ **DO**: Test edge cases and error conditions
-✅ **DO**: Keep tests fast (<1s per test)
+**DON'T**: Test against real hardware in CI
+**DON'T**: Write tests that depend on timing
+**DON'T**: Commit commented-out test code
+**DO**: Use MockPump for all integration tests
+**DO**: Test edge cases and error conditions
+**DO**: Keep tests fast (<1s per test)
 
 ## File Organization
 
@@ -278,11 +278,11 @@ When modifying features, update:
 ## Project Status and Goals
 
 ### Current Status
-- ✅ **Refactor**: Monolithic client split into modular services
-- ✅ **Protocol**: Fully implemented (Class 10 DataObjects, Class 3 fallback)
-- ✅ **Documentation**: Comprehensive user guides and protocol specs
-- ✅ **Testing**: High coverage with MockPump integration
-- ✅ **PyPI**: Published and actively maintained
+- **Refactor**: Monolithic client split into modular services (Complete)
+- **Protocol**: Fully implemented (Class 10 DataObjects, Class 3 fallback)
+- **Documentation**: Comprehensive user guides and protocol specs
+- **Testing**: High coverage with MockPump integration
+- **PyPI**: Published and actively maintained
 
 ### Goals
 1. **Maintenance**: Fix bugs, improve stability

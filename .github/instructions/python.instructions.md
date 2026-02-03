@@ -131,7 +131,7 @@ async def test_control_flow():
 
 ## Common Mistakes to Avoid
 
-### ❌ Don't
+### BAD - Don't Do This
 ```python
 # Missing type hints
 def process_data(data):
@@ -154,7 +154,7 @@ except:  # WRONG!
     pass
 ```
 
-### ✅ Do
+### GOOD - Do This Instead
 ```python
 # Complete type hints
 def process_data(data: float) -> float:
@@ -183,20 +183,20 @@ except ValueError as e:
 
 ### Layer Violations - NEVER DO THIS
 ```python
-# ❌ Protocol importing from Services
+# BAD: Protocol importing from Services
 from alpha_hwr.services.telemetry import TelemetryService  # WRONG!
 
-# ❌ Services importing from other Services
+# BAD: Services importing from other Services
 from alpha_hwr.services.control import ControlService  # WRONG!
 ```
 
 ### Correct Dependencies
 ```python
-# ✅ Services can import from Protocol and Core
+# GOOD: Services can import from Protocol and Core
 from alpha_hwr.core.transport import Transport
 from alpha_hwr.protocol.frame import Frame
 
-# ✅ Client can import from Services
+# GOOD: Client can import from Services
 from alpha_hwr.services.telemetry import TelemetryService
 ```
 
