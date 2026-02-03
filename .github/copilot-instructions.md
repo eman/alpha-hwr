@@ -60,6 +60,7 @@
 - **Type Hints**: Required for all function signatures, use `| None` not `Optional`
 - **Async/Await**: All I/O operations must be async
 - **Immutability**: Prefer frozen Pydantic models where appropriate
+- **No Emoji**: Do not use emoji in code, comments, or documentation
 - **Naming**:
   - Classes: `PascalCase`
   - Functions/variables: `snake_case`
@@ -188,6 +189,7 @@ This runs: ruff format check → ruff lint → mypy → basedpyright → pytest
 - Add/update docstrings (Google-style format)
 - Include parameter types, return types, examples
 - Document exceptions that can be raised
+- Do not use emoji in docstrings or comments
 
 ### User-Facing Documentation
 When modifying features, update:

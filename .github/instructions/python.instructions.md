@@ -8,6 +8,10 @@ applies_to:
 
 ## Code Style
 
+### General Rules
+- **No Emoji**: Do not use emoji in code, comments, or docstrings
+- **Line Length**: 80 characters maximum
+
 ### Type Hints
 - **REQUIRED**: All function signatures must have complete type hints
 - Use modern syntax: `str | None` instead of `Optional[str]`
