@@ -407,6 +407,7 @@ pytest -n auto  # Uses pytest-xdist
 
 ### GitHub Actions Workflow
 
+{% raw %}
 ```yaml
 name: Tests
 
@@ -444,6 +445,7 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v3
 ```
+{% endraw %}
 
 ## Performance Benchmarks
 

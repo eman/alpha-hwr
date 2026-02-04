@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Documentation site version now sourced from `pyproject.toml` and auto-
+  deployed via GitHub Actions to keep https://eman.github.io/alpha-hwr up
+  to date.
+
 ## [## [Unreleased]] - 2026-02-01
 
 ### Added
