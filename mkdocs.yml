@@ -99,6 +99,8 @@ nav:
   - Reference:
       - Hardware Details: reference/hardware.md
       - Data Models: reference/data_models.md
+  - Troubleshooting:
+      - Service Discovery: troubleshooting/service_discovery.md
   - Integrations:
       - ESPHome / ESP32: integrations/esphome.md
   - Development:
