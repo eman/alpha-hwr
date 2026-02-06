@@ -4,6 +4,8 @@ Thank you for your interest in contributing to alpha-hwr!
 
 ## Development Setup
 
+### Quick Setup (Recommended)
+
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/eman/alpha-hwr.git
@@ -20,7 +22,19 @@ Thank you for your interest in contributing to alpha-hwr!
    uv sync --all-extras
    ```
 
-   This creates a `.venv` virtual environment and installs all dependencies.
+   This creates a `.venv` virtual environment and installs all dependencies including dev tools.
+
+### Alternative: Without uv
+
+If you prefer not to use `uv`, use traditional pip:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -e ".[dev,docs]"
+```
+
+**Note:** We recommend `uv` for faster, more reliable dependency management and deterministic builds.
 
 ## Running Tests and Checks
 
