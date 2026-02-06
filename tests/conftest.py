@@ -29,7 +29,7 @@ def valid_frame_bytes(draw):
     payload = draw(st.binary(min_size=payload_len, max_size=payload_len))
 
     # Frame length = DST + SRC + rest of frame (excluding STX and CRC)
-    apdu_length = 4 + len(payload)  # Class + OpSpec + ObjID + SubID + Payload
+    apdu_length = 4 + len(payload)  # 4 bytes for ObjID (2) + SubID (2) plus payload
     length = 2 + apdu_length
 
     frame = stx + bytes([length]) + dst + src + bytes([0x0A]) + bytes([0x43])

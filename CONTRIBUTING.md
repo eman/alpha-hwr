@@ -58,6 +58,7 @@ This runs all environments:
 
 ```bash
 # Run tests only (parallel execution with pytest-xdist)
+# Replace py313 with py311 or py312 if using a different Python version
 tox -e py313
 
 # Run tests sequentially
@@ -99,6 +100,7 @@ tox -e security
 Tests run in parallel by default using `pytest-xdist` (`-n auto`). This significantly speeds up CI. To run sequentially:
 
 ```bash
+# Replace py313 with your Python version (py311, py312, etc.)
 tox -e py313 -- -n 0
 ```
 

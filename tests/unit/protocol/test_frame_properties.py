@@ -6,7 +6,7 @@ that parsing and building operations maintain invariants.
 
 from hypothesis import given, settings, Verbosity
 
-from conftest import valid_frame_bytes
+from tests.conftest import valid_frame_bytes
 
 
 class TestFrameProperties:
