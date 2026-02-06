@@ -2,6 +2,21 @@
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.uv]
+dev-dependencies = [
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+    "hypothesis>=6.0.0",
+    "tox>=4.0.0",
+    "bump2version>=1.0.0",
+    "basedpyright>=1.0.0",
+]
+
 [project]
 name = "alpha-hwr"
 version = "0.3.0"
@@ -60,6 +75,8 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-benchmark>=4.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+    "hypothesis>=6.0.0",
     "tox>=4.0.0",
     "bump2version>=1.0.0",
     "basedpyright>=1.0.0",
@@ -94,3 +111,15 @@ exclude = ["src/alpha_hwr/.*_baseline\\.py"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["tools", "dist", "build", ".tox"]
+addopts = "-ra --strict-markers"
+markers = [
+    "asyncio: marks tests as async (deselect with '-m \"not asyncio\"')",
+    "unit: marks tests as unit tests",
+    "integration: marks tests as integration tests",
+    "benchmark: marks tests as benchmarks (deselect with '-m \"not benchmark\"')",
+]
+
+[tool.hypothesis]
+database = false
+max_examples = 100
+suppress_health_check = ["too_slow"]

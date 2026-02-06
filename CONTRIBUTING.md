@@ -4,61 +4,124 @@ Thank you for your interest in contributing to alpha-hwr!
 
 ## Development Setup
 
+### Quick Setup (Recommended)
+
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/eman/alpha-hwr.git
    cd alpha-hwr
    ```
 
-2. **Create a virtual environment and install dependencies:**
+2. **Install uv (if not already installed):**
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -e ".[dev,docs]"
+   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
-## Running Tests Locally
+3. **Install dependencies:**
+   ```bash
+   uv sync --all-extras
+   ```
 
-We provide a convenient script to run all checks that will be executed in CI:
+   This creates a `.venv` virtual environment and installs all dependencies including dev tools.
+
+### Alternative: Without uv
+
+If you prefer not to use `uv`, use traditional pip:
 
 ```bash
-./scripts/check.sh
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -e ".[dev,docs]"
 ```
 
-This will run:
-- Ruff format check
-- Ruff lint
-- MyPy type checking
-- BasedPyright type checking
-- Pytest with coverage
+**Note:** We recommend `uv` for faster, more reliable dependency management and deterministic builds.
 
-### Running Individual Checks
+## Running Tests and Checks
+
+We use **tox** for all testing and validation. Tox automatically creates isolated environments and runs all checks consistently.
+
+### Run All Checks
 
 ```bash
-# Format code
-ruff format .
-
-# Check formatting
-ruff format --check .
-
-# Lint
-ruff check .
-
-# Type check with MyPy
-mypy src/alpha_hwr
-
-# Type check with BasedPyright
-basedpyright
-
-# Run tests
-pytest tests/ -v
-
-# Run tests with coverage
-pytest tests/ --cov=alpha_hwr --cov-report=term
-
-# Run all checks with tox
 tox
 ```
+
+This runs all environments:
+- `py313` - Tests with pytest (parallel via pytest-xdist)
+- `format` - Code formatting check with ruff
+- `lint` - Linting with ruff
+- `type` - Type checking with mypy
+- `basedpyright` - Type checking with basedpyright
+- `security` - Security checks with bandit and safety
+
+### Run Specific Checks
+
+```bash
+# Run tests only (parallel execution with pytest-xdist)
+# Replace py313 with py311 or py312 if using a different Python version
+tox -e py313
+
+# Run tests sequentially
+tox -e py313 -- -n 0
+
+# Run specific test file
+tox -e py313 -- tests/unit/protocol/test_frame_parser.py
+
+# Run tests with coverage
+tox -e py313 -- --cov=alpha_hwr --cov-report=term
+
+# Format code (auto-fix)
+tox -e format -- --fix
+
+# Check formatting (no auto-fix)
+tox -e format
+
+# Lint code
+tox -e lint
+
+# Type check with MyPy
+tox -e type
+
+# Type check with BasedPyright
+tox -e basedpyright
+
+# Security checks
+tox -e security
+```
+
+## Testing
+
+### Test Organization
+- **Unit Tests** (`tests/unit/`): Protocol logic, frame parsing, validators
+- **Integration Tests** (`tests/integration/`): End-to-end workflows with MockPump
+- **Property-Based Tests**: Using Hypothesis for edge case discovery
+
+### Parallel Test Execution
+Tests run in parallel by default using `pytest-xdist` (`-n auto`). This significantly speeds up CI. To run sequentially:
+
+```bash
+# Replace py313 with your Python version (py311, py312, etc.)
+tox -e py313 -- -n 0
+```
+
+### Property-Based Testing with Hypothesis
+We use Hypothesis to generate random test cases and find edge cases:
+
+```python
+from hypothesis import given
+from tests.conftest import valid_frame_bytes
+
+@given(valid_frame_bytes())
+def test_frame_parsing_handles_all_valid_frames(frame_bytes):
+    """Hypothesis generates 100+ variations of valid frames."""
+    frame = Frame.parse(frame_bytes)
+    assert frame is not None
+```
+
+Available Hypothesis strategies in `conftest.py`:
+- `valid_frame_bytes()` - Random but valid GENI protocol frames
+- `valid_telemetry_values()` - Realistic telemetry readings
+- `valid_pressure_values()` - Valid pump pressure setpoints
 
 ## Code Quality
 
@@ -123,7 +186,7 @@ All new features should include appropriate tests.
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Run `./scripts/check.sh` to ensure all checks pass
+4. Run `tox` to ensure all checks pass
 5. Update relevant documentation
 6. Commit your changes (`git commit -m 'Add amazing feature'`)
 7. Push to your fork (`git push origin feature/amazing-feature`)
