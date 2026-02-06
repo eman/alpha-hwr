@@ -10,12 +10,17 @@ Thank you for your interest in contributing to alpha-hwr!
    cd alpha-hwr
    ```
 
-2. **Create a virtual environment and install dependencies:**
+2. **Install uv (if not already installed):**
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -e ".[dev,docs]"
+   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
+
+3. **Install dependencies:**
+   ```bash
+   uv sync --all-extras
+   ```
+
+   This creates a `.venv` virtual environment and installs all dependencies.
 
 ## Running Tests and Checks
 
