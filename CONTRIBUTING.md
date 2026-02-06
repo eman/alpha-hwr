@@ -17,47 +17,50 @@ Thank you for your interest in contributing to alpha-hwr!
    pip install -e ".[dev,docs]"
    ```
 
-## Running Tests Locally
+## Running Tests and Checks
 
-We provide a convenient script to run all checks that will be executed in CI:
+We use **tox** for all testing and validation. Tox automatically creates isolated environments and runs all checks consistently.
+
+### Run All Checks
 
 ```bash
-./scripts/check.sh
+tox
 ```
 
-This will run:
-- Ruff format check
-- Ruff lint
-- MyPy type checking
-- BasedPyright type checking
-- Pytest with coverage
+This runs all environments:
+- `py313` - Tests with pytest
+- `format` - Code formatting check with ruff
+- `lint` - Linting with ruff
+- `type` - Type checking with mypy
+- `basedpyright` - Type checking with basedpyright
+- `security` - Security checks with bandit and safety
 
-### Running Individual Checks
+### Run Specific Checks
 
 ```bash
-# Format code
-ruff format .
+# Run tests only
+tox -e py313
 
-# Check formatting
-ruff format --check .
+# Format code (auto-fix)
+tox -e format -- --fix
 
-# Lint
-ruff check .
+# Check formatting (no auto-fix)
+tox -e format
+
+# Lint code
+tox -e lint
 
 # Type check with MyPy
-mypy src/alpha_hwr
+tox -e type
 
 # Type check with BasedPyright
-basedpyright
+tox -e basedpyright
 
-# Run tests
-pytest tests/ -v
+# Security checks
+tox -e security
 
 # Run tests with coverage
-pytest tests/ --cov=alpha_hwr --cov-report=term
-
-# Run all checks with tox
-tox
+tox -e py313 -- --cov=alpha_hwr --cov-report=term
 ```
 
 ## Code Quality
@@ -123,7 +126,7 @@ All new features should include appropriate tests.
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Run `./scripts/check.sh` to ensure all checks pass
+4. Run `tox` to ensure all checks pass
 5. Update relevant documentation
 6. Commit your changes (`git commit -m 'Add amazing feature'`)
 7. Push to your fork (`git push origin feature/amazing-feature`)

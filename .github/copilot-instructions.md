@@ -132,9 +132,7 @@ pytest tests/ --cov=alpha_hwr --cov-report=term
 pytest tests/test_telemetry_service.py -v
 
 # Run all checks (format, lint, type, test)
-./scripts/check.sh
-# OR
-make check
+tox
 ```
 
 ## Build and Lint Commands
@@ -142,42 +140,34 @@ make check
 ### Essential Commands
 ```bash
 # Format code (auto-fix)
-ruff format .
-make format
+tox -e format -- --fix
 
 # Check formatting (CI mode)
-ruff format --check .
+tox -e format
 
 # Lint (show issues)
-ruff check .
-make lint
+tox -e lint
 
 # Lint with auto-fix
 ruff check --fix .
-make lint-fix
 
 # Type check
-mypy src/alpha_hwr
-basedpyright
-make typecheck
+tox -e type && tox -e basedpyright
 
 # Build package
 python -m build
-make build
 
 # Build documentation
 mkdocs build
-make docs
 
 # Serve docs locally
 mkdocs serve
-make serve-docs
 ```
 
 ### Pre-commit Requirements
 Before committing, ALWAYS run:
 ```bash
-./scripts/check.sh
+tox
 ```
 This runs: ruff format check → ruff lint → mypy → basedpyright → pytest
 
@@ -310,12 +300,12 @@ When modifying features, update:
 ### Testing Workflow
 ```bash
 # Quick test iteration
-pytest tests/test_mymodule.py -v
+tox -e py313 -- tests/test_mymodule.py -v
 
 # Full check before commit
-./scripts/check.sh
+tox
 
 # Coverage check
-pytest tests/ --cov=alpha_hwr --cov-report=html
+tox -e py313 -- --cov=alpha_hwr --cov-report=html
 open htmlcov/index.html
 ```
