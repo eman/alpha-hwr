@@ -41,8 +41,7 @@ class TestFrameProperties:
         All frames must have at least: STX, LEN, DST, SRC, CRC_H, CRC_L
         """
         assert len(frame_bytes) >= 6, (
-            "Frame must have minimum structure "
-            "(STX+LEN+DST+SRC+CRC_H+CRC_L)"
+            "Frame must have minimum structure (STX+LEN+DST+SRC+CRC_H+CRC_L)"
         )
 
     @given(valid_frame_bytes())
