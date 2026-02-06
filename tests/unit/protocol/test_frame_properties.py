@@ -5,9 +5,7 @@ that parsing and building operations maintain invariants.
 """
 
 from hypothesis import given, settings, Verbosity
-import pytest
 
-from alpha_hwr.protocol.frame_parser import FrameParser
 from conftest import valid_frame_bytes
 
 
@@ -32,9 +30,6 @@ class TestFrameProperties:
         """
         if len(frame_bytes) >= 2:
             declared_length = frame_bytes[1]
-            # Frame structure: STX (1) + Length (1) + Payload + CRC (2)
-            # The declared_length includes everything after STX and before CRC
-            actual_payload_length = len(frame_bytes) - 4  # STX + LEN + CRC(2)
             assert declared_length <= 255, "Length must fit in single byte"
             assert declared_length >= 2, "Minimum length is 2 (DST+SRC)"
 
@@ -46,7 +41,8 @@ class TestFrameProperties:
         All frames must have at least: STX, LEN, DST, SRC, CRC_H, CRC_L
         """
         assert len(frame_bytes) >= 6, (
-            "Frame must have minimum structure (STX+LEN+DST+SRC+CRC_H+CRC_L)"
+            "Frame must have minimum structure "
+            "(STX+LEN+DST+SRC+CRC_H+CRC_L)"
         )
 
     @given(valid_frame_bytes())
@@ -57,8 +53,6 @@ class TestFrameProperties:
         Last two bytes should be CRC (even if not validated).
         """
         assert len(frame_bytes) >= 2
-        # Last two bytes are CRC (not validated in tests)
-        # Just verify they exist
         crc_h = frame_bytes[-2]
         crc_l = frame_bytes[-1]
         assert isinstance(crc_h, int)
