@@ -112,7 +112,7 @@ jobs:
         pip install -e ".[dev]"
     
     - name: Run tests with coverage
-      run: pytest tests/ -v --cov=alpha_hwr --cov-report=xml --cov-report=term
+      run: pytest tests/ -v -n auto --cov=alpha_hwr --cov-report=xml --cov-report=term
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
