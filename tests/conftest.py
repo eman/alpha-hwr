@@ -8,7 +8,75 @@ import asyncio
 import pytest_asyncio
 from unittest.mock import AsyncMock, patch
 
+from hypothesis import strategies as st
 from alpha_hwr.client import AlphaHWRClient
+
+
+@st.composite
+def valid_frame_bytes(draw):
+    """Generate valid GENI frame bytes for protocol testing.
+    
+    Generates random but valid frame structures for edge case testing.
+    Useful for hypothesis-based property testing of frame parsing.
+    """
+    # Frame header
+    stx = bytes([0x27])
+    dst = bytes([0xE7])
+    src = bytes([0xF8])
+    
+    # Random payload (0-100 bytes)
+    payload_len = draw(st.integers(min_value=0, max_value=100))
+    payload = draw(st.binary(min_size=payload_len, max_size=payload_len))
+    
+    # Frame length = DST + SRC + rest of frame (excluding STX and CRC)
+    apdu_length = 4 + len(payload)  # Class + OpSpec + ObjID + SubID + Payload
+    length = 2 + apdu_length
+    
+    frame = stx + bytes([length]) + dst + src + bytes([0x0A]) + bytes([0x43])
+    frame += bytes([0x00, 0x01, 0x00, 0x01])  # ObjectID and SubID
+    frame += payload
+    frame += bytes([0x00, 0x00])  # Dummy CRC
+    
+    return frame
+
+
+@st.composite
+def valid_telemetry_values(draw):
+    """Generate realistic telemetry values for testing.
+    
+    Generates flow, head, power values within realistic pump operating ranges.
+    """
+    return {
+        "flow_m3h": draw(st.floats(
+            min_value=0.0, 
+            max_value=10.0, 
+            allow_nan=False, 
+            allow_infinity=False
+        )),
+        "head_m": draw(st.floats(
+            min_value=0.0, 
+            max_value=10.0, 
+            allow_nan=False, 
+            allow_infinity=False
+        )),
+        "power_w": draw(st.floats(
+            min_value=0.0, 
+            max_value=500.0, 
+            allow_nan=False, 
+            allow_infinity=False
+        )),
+    }
+
+
+@st.composite
+def valid_pressure_values(draw):
+    """Generate valid pressure control setpoints."""
+    return draw(st.floats(
+        min_value=0.1,
+        max_value=6.0,
+        allow_nan=False,
+        allow_infinity=False
+    ))
 
 
 def build_class10_response(obj_id: int, sub_id: int, payload: bytes) -> bytes:

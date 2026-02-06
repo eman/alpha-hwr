@@ -33,7 +33,7 @@ tox
 ```
 
 This runs all environments:
-- `py313` - Tests with pytest
+- `py313` - Tests with pytest (parallel via pytest-xdist)
 - `format` - Code formatting check with ruff
 - `lint` - Linting with ruff
 - `type` - Type checking with mypy
@@ -43,8 +43,17 @@ This runs all environments:
 ### Run Specific Checks
 
 ```bash
-# Run tests only
+# Run tests only (parallel execution with pytest-xdist)
 tox -e py313
+
+# Run tests sequentially
+tox -e py313 -- -n 0
+
+# Run specific test file
+tox -e py313 -- tests/unit/protocol/test_frame_parser.py
+
+# Run tests with coverage
+tox -e py313 -- --cov=alpha_hwr --cov-report=term
 
 # Format code (auto-fix)
 tox -e format -- --fix
@@ -63,10 +72,40 @@ tox -e basedpyright
 
 # Security checks
 tox -e security
-
-# Run tests with coverage
-tox -e py313 -- --cov=alpha_hwr --cov-report=term
 ```
+
+## Testing
+
+### Test Organization
+- **Unit Tests** (`tests/unit/`): Protocol logic, frame parsing, validators
+- **Integration Tests** (`tests/integration/`): End-to-end workflows with MockPump
+- **Property-Based Tests**: Using Hypothesis for edge case discovery
+
+### Parallel Test Execution
+Tests run in parallel by default using `pytest-xdist` (`-n auto`). This significantly speeds up CI. To run sequentially:
+
+```bash
+tox -e py313 -- -n 0
+```
+
+### Property-Based Testing with Hypothesis
+We use Hypothesis to generate random test cases and find edge cases:
+
+```python
+from hypothesis import given
+from tests.conftest import valid_frame_bytes
+
+@given(valid_frame_bytes())
+def test_frame_parsing_handles_all_valid_frames(frame_bytes):
+    """Hypothesis generates 100+ variations of valid frames."""
+    frame = Frame.parse(frame_bytes)
+    assert frame is not None
+```
+
+Available Hypothesis strategies in `conftest.py`:
+- `valid_frame_bytes()` - Random but valid GENI protocol frames
+- `valid_telemetry_values()` - Realistic telemetry readings
+- `valid_pressure_values()` - Valid pump pressure setpoints
 
 ## Code Quality
 
