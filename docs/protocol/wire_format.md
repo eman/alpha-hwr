@@ -72,7 +72,7 @@ Used for the 10Hz high-frequency telemetry stream.
 *   **ObjID**: 2 bytes, Big-Endian. Identifies the specific parameter (e.g., `0x0057`).
 *   **Data**: The raw value data starts immediately at offset 10 (after the 4-byte ID header).
 
-### 2. Active Query Response Layout (OpSpecs 0x30, 0x2B, 0x14, etc.)
+### 2. Active Query Response Layout (OpSpecs 0x30, 0x2B, 0x14, 0x09, etc.)
 
 Used when the client explicitly requests a data object using an INFO query.
 
@@ -81,14 +81,21 @@ Used when the client explicitly requests a data object using an INFO query.
 [Class=0x0A] [OpSpec] [Seq (2B)] [ID (2B)] [Res (2B)] [DataLen (1B)] [Value Data...]
 ```
 
-*   **OpSpec**: Varies by data type (e.g., `0x30` for Motor State, `0x2B` for Flow).
+*   **OpSpec**: Varies by data type (e.g., `0x30` for Motor State, `0x2B` for Flow, `0x09` for Alarms/Warnings).
 *   **Seq**: 2-byte sequence number.
 *   **ID**: 2-byte Identifier.
 *   **Res**: 2-byte Reserved field (often `0x0000`).
 *   **DataLen**: 1-byte length of the following data array.
 *   **Data**: The raw value data starts at offset 13.
 
+**Data Type by OpSpec:**
+
+* **OpSpec 0x30, 0x2B, 0x14**: Data is an array of IEEE 754 floats (big-endian)
+* **OpSpec 0x09**: Data is an array of uint16 values (big-endian) for alarm/warning codes
+
 > **CRITICAL**: In query responses (OpSpec 0x2B), the data is often returned as a large array of floats. Flow rate is typically found at index 6 (offset 24 from the start of the array) rather than index 0.
+
+> **NOTE**: OpSpec 0x09 (alarms/warnings) uses uint16 codes instead of floats. A value of 0x0000 means "no alarms/warnings". See [Alarms and Warnings Packet Trace](packet_traces/06_alarms_warnings.md) for details.
 
 ## Data Encoding
 

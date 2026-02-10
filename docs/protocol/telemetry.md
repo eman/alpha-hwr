@@ -74,7 +74,54 @@ Contains thermal sensor readings from various points in the system.
 | **PCB Temp** | +4 | +4 | Float32 | °C |
 | **Ambient Temp** | +8 | +8 | Float32 | °C |
 
-### 4. Setpoint RPM
+### 4. Alarms and Warnings
+
+Contains active alarm and warning codes reported by the pump's diagnostic system.
+
+* **SubID**: `0x0000` (0) for Alarms, `0x000B` (11) for Warnings
+* **ObjID**: `0x0058` (88)
+
+**Query Method:**
+
+Unlike other telemetry that streams automatically, alarms and warnings must be queried explicitly using Class 10 READ operations:
+
+* **Query Alarms**: Register `0x580000`
+* **Query Warnings**: Register `0x58000B`
+
+**Response Format:**
+
+The pump responds with **OpSpec 0x09** (Active Query Response), containing an array of uint16 alarm/warning codes:
+
+| Offset | Type | Description |
+| :--- | :--- | :--- |
+| +0 | uint16[] | Array of active alarm/warning codes (big-endian) |
+
+**Data Interpretation:**
+
+* Each code is a 2-byte unsigned integer in big-endian format
+* A value of `0x0000` means "no active alarms/warnings" (normal state)
+* Non-zero values indicate specific alarm/warning conditions
+* Zero values in the array should be filtered out when parsing
+* The array is typically terminated with a trailing zero
+
+**Example Codes:**
+
+```
+0x0000 = No alarms/warnings (healthy state)
+0x002A = Alarm code 42
+0x0007 = Alarm code 7
+0x0005 = Warning code 5
+```
+
+**Polling Recommendations:**
+
+* Poll every 5-10 seconds for proactive monitoring
+* Poll immediately after mode changes or error indicators
+* Avoid polling faster than 1 second to prevent overwhelming the pump
+
+**See Also:** [Packet Trace: Alarms and Warnings](packet_traces/06_alarms_warnings.md) for detailed wire format and examples.
+
+### 5. Setpoint RPM
 
 Reserved for setpoint notifications (passive stream only, not actively queried).
 

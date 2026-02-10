@@ -510,19 +510,19 @@ class TelemetryDecoder:
     @staticmethod
     def decode_register_read_response(packet: bytes) -> dict[str, Any]:
         """
-        Decode register-read query responses (OpSpec 0x30, 0x2b, etc).
+        Decode register-read query responses (OpSpec 0x30, 0x2b, 0x09, etc).
 
         When querying telemetry using Class 10 READ operations (OpSpec 0x03),
         the pump responds with packets that have different OpSpec values
-        (0x30 for motor state, 0x2b for flow, 0x14 for temperature, etc).
+        (0x30 for motor state, 0x2b for flow, 0x14 for temperature, 0x09 for alarms/warnings, etc).
 
         These responses have a simpler format than standard notifications:
         - Bytes 0-11: Packet header (start, len, dest, src, class, opspec, counters)
         - Bytes 12+: Reserved/padding (1 byte)
-        - Bytes 13+: Packed array of IEEE 754 floats (big-endian)
+        - Bytes 13+: Packed array of IEEE 754 floats (big-endian) OR uint16 array (for OpSpec 0x09)
 
-        The data starts at offset 13 and contains sequential float values.
-        The meaning of each float depends on the OpSpec value.
+        The data starts at offset 13 and contains sequential values.
+        The meaning and type of each value depends on the OpSpec value.
 
         Args:
             packet: Full GENI response packet bytes
@@ -538,6 +538,10 @@ class TelemetryDecoder:
             >>> # Flow response (OpSpec 0x2b)
             >>> data = TelemetryDecoder.decode_register_read_response(flow_packet)
             >>> print(data['flow_m3h'], data['head_m'])
+
+            >>> # Alarm response (OpSpec 0x09)
+            >>> data = TelemetryDecoder.decode_register_read_response(alarm_packet)
+            >>> print(data['active_alarms'])
         """
         data: dict[str, Any] = {}
 
@@ -620,6 +624,34 @@ class TelemetryDecoder:
             # This OpSpec already handled by legacy decoder patterns
             # But we can add explicit support here too
             pass
+
+        elif opspec == 0x09:  # Alarm/Warning response
+            # Active Query Response format for Obj 88 (alarms/warnings)
+            # Data is uint16 array, not float array
+            # Parse the ID field to determine if it's alarms or warnings
+            # ID format: [Obj-H][Sub-L] where Obj=88 (0x58), Sub=0 (alarms) or 11 (warnings)
+
+            if len(packet) >= 13:
+                # Extract ID bytes at offset 8-9: [ID-H][ID-L]
+                # For alarms: ID = 0x5800 (Obj 88, Sub 0)
+                # For warnings: ID = 0x580B (Obj 88, Sub 11)
+                id_high = packet[8]  # Object ID high byte
+                id_low = packet[9]  # Sub ID
+
+                if id_high == 0x58:  # Object 88
+                    # Parse uint16 array from payload (starts at offset 13)
+                    codes: list[int] = []
+                    offset = 13
+                    while offset + 2 <= len(packet) - 2:  # Leave room for CRC
+                        code = (packet[offset] << 8) | packet[offset + 1]
+                        if code != 0:  # Filter out zero codes
+                            codes.append(code)
+                        offset += 2
+
+                    if id_low == 0:  # Sub 0 = Alarms
+                        data["active_alarms"] = codes
+                    elif id_low == 11:  # Sub 11 = Warnings
+                        data["active_warnings"] = codes
 
         return data
 
