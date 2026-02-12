@@ -98,7 +98,10 @@ def test_parse_alarms_warnings():
     packet = bytearray(
         [
             0x24,  # STX
-            13 + len(alarm_data),  # Length (total from STX through DataLen + Data, excluding CRC)
+            13
+            + len(
+                alarm_data
+            ),  # Length (total from STX through DataLen + Data, excluding CRC)
             0xF8,
             0xE7,  # Dst, Src
             0x0A,  # Class 10
@@ -126,7 +129,10 @@ def test_parse_alarms_warnings():
     packet = bytearray(
         [
             0x24,  # STX
-            13 + len(warning_data),  # Length (total from STX through DataLen + Data, excluding CRC)
+            13
+            + len(
+                warning_data
+            ),  # Length (total from STX through DataLen + Data, excluding CRC)
             0xF8,
             0xE7,  # Dst, Src
             0x0A,  # Class 10
