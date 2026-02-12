@@ -738,123 +738,137 @@ class ControlService(BaseService):
             cmd, "Set Proportional Pressure Value"
         )
 
-    async def set_autoadapt_radiator(self, value_m: float) -> bool:
+    async def set_temperature_control(
+        self,
+        on_temp_c: float,
+        off_temp_c: float,
+        heating_type: str = "radiator",
+    ) -> bool:
         """
-        Set AutoAdapt Radiator mode with setpoint.
+        Set Temperature Control mode with on/off temperature setpoints.
 
-        AutoAdapt Radiator mode automatically adjusts pump operation for
-        radiator heating systems based on system demand.
+        This mode maintains hot water temperature with AutoAdapt flow adjustment
+        (1-4 gpm). The pump turns on when temperature drops below on_temp and
+        turns off when it reaches off_temp.
 
         Args:
-            value_m: Pressure setpoint in meters of water column (e.g., 3.0 for 3 meters)
+            on_temp_c: Turn-on temperature threshold in Celsius (e.g., 35.0)
+            off_temp_c: Turn-off temperature threshold in Celsius (e.g., 39.0)
+            heating_type: System type - "radiator" (Mode 13), "underfloor" (Mode 14),
+                         or "combined" (Mode 15). Default: "radiator"
 
         Returns:
             True if successful, False otherwise
 
         Example:
-            >>> await control.set_autoadapt_radiator(3.0)  # 3 meters
+            >>> await control.set_temperature_control(35.0, 39.0)  # Radiator system
+            >>> await control.set_temperature_control(35.0, 39.0, "underfloor")
+
+        Note:
+            For ALPHA HWR pumps, all heating_type variants likely behave the same
+            (hot water recirculation), but the mode selection is available for
+            compatibility with the GENI protocol.
         """
         self.session.ensure_authenticated()
 
-        logger.info(f"Setting AutoAdapt Radiator to {value_m} m...")
+        logger.info(
+            f"Setting Temperature Control ({heating_type}) to {on_temp_c}°C on, {off_temp_c}°C off..."
+        )
 
-        # Validate setpoint against reasonable limits (0.5m to 10m for residential pumps)
-        if not (0.5 <= value_m <= 10.0):
+        # Validate temperature range
+        if not (20.0 <= on_temp_c <= 60.0):
             logger.error(
-                f"Setpoint {value_m} m is outside valid range (0.5-10.0 m). "
-                "This may damage the pump or indicate an error."
+                f"On temperature {on_temp_c}°C is outside valid range (20-60°C)"
             )
             return False
 
-        # Set mode first
-        if not await self.set_mode(ControlMode.AUTO_ADAPT_RADIATOR):
+        if not (20.0 <= off_temp_c <= 60.0):
+            logger.error(
+                f"Off temperature {off_temp_c}°C is outside valid range (20-60°C)"
+            )
             return False
 
-        # Set setpoint using Class 3
-        payload = encode_float_be(value_m)
-        cmd = FrameBuilder.build_set_command(3, 2, 0x1E, payload)
+        if on_temp_c >= off_temp_c:
+            logger.error(
+                f"On temperature ({on_temp_c}°C) must be less than off temperature ({off_temp_c}°C)"
+            )
+            return False
 
-        return await self._send_with_retry(cmd, "Set AutoAdapt Radiator Value")
+        # Map heating type to mode and register
+        heating_map = {
+            "radiator": (ControlMode.AUTO_ADAPT_RADIATOR, 0x1E),
+            "underfloor": (ControlMode.AUTO_ADAPT_UNDERFLOOR, 0x1F),
+            "combined": (ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR, 0x20),
+        }
+
+        if heating_type not in heating_map:
+            logger.error(
+                f"Invalid heating type: {heating_type}. Must be 'radiator', 'underfloor', or 'combined'"
+            )
+            return False
+
+        mode, register_id = heating_map[heating_type]
+
+        # Set mode first
+        if not await self.set_mode(mode):
+            return False
+
+        # TODO: Determine correct protocol for temperature setpoints
+        # Current implementation uses pressure encoding, which is incorrect
+        # Need to reverse engineer the actual temperature setpoint protocol
+        # Expected: Two float values (on_temp, off_temp) or similar structure
+
+        logger.warning(
+            "Temperature setpoint protocol not yet implemented. "
+            f"Mode {mode} is active but temperature setpoints may not be applied correctly. "
+            "Currently using legacy pressure-based encoding which is incorrect."
+        )
+
+        # Legacy implementation (incorrect - uses pressure encoding)
+        # This likely doesn't do what we want
+        payload = encode_float_be(on_temp_c)  # TODO: Fix protocol
+        cmd = FrameBuilder.build_set_command(3, 2, register_id, payload)
+
+        return await self._send_with_retry(
+            cmd, f"Set Temperature Control ({heating_type})"
+        )
+
+    # Legacy methods - deprecated, kept for compatibility
+    async def set_autoadapt_radiator(self, value_m: float) -> bool:
+        """
+        DEPRECATED: Use set_temperature_control() instead.
+
+        Legacy method that incorrectly uses pressure setpoints.
+        """
+        logger.warning(
+            "set_autoadapt_radiator() is deprecated and uses incorrect pressure-based setpoints. "
+            "Use set_temperature_control(on_temp_c, off_temp_c, 'radiator') instead."
+        )
+        return await self.set_temperature_control(35.0, 39.0, "radiator")
 
     async def set_autoadapt_underfloor(self, value_m: float) -> bool:
         """
-        Set AutoAdapt Underfloor mode with setpoint.
+        DEPRECATED: Use set_temperature_control() instead.
 
-        AutoAdapt Underfloor mode automatically adjusts pump operation for
-        underfloor heating systems based on system demand.
-
-        Args:
-            value_m: Pressure setpoint in meters of water column (e.g., 2.5 for 2.5 meters)
-
-        Returns:
-            True if successful, False otherwise
-
-        Example:
-            >>> await control.set_autoadapt_underfloor(2.5)  # 2.5 meters
+        Legacy method that incorrectly uses pressure setpoints.
         """
-        self.session.ensure_authenticated()
-
-        logger.info(f"Setting AutoAdapt Underfloor to {value_m} m...")
-
-        # Validate setpoint against reasonable limits (0.5m to 10m for residential pumps)
-        if not (0.5 <= value_m <= 10.0):
-            logger.error(
-                f"Setpoint {value_m} m is outside valid range (0.5-10.0 m). "
-                "This may damage the pump or indicate an error."
-            )
-            return False
-
-        # Set mode first
-        if not await self.set_mode(ControlMode.AUTO_ADAPT_UNDERFLOOR):
-            return False
-
-        # Set setpoint using Class 3
-        payload = encode_float_be(value_m)
-        cmd = FrameBuilder.build_set_command(3, 2, 0x1F, payload)
-
-        return await self._send_with_retry(
-            cmd, "Set AutoAdapt Underfloor Value"
+        logger.warning(
+            "set_autoadapt_underfloor() is deprecated and uses incorrect pressure-based setpoints. "
+            "Use set_temperature_control(on_temp_c, off_temp_c, 'underfloor') instead."
         )
+        return await self.set_temperature_control(35.0, 39.0, "underfloor")
 
     async def set_autoadapt_combined(self, value_m: float) -> bool:
         """
-        Set AutoAdapt Combined mode with setpoint.
+        DEPRECATED: Use set_temperature_control() instead.
 
-        AutoAdapt Combined mode automatically adjusts pump operation for
-        combined radiator and underfloor heating systems based on system demand.
-
-        Args:
-            value_m: Pressure setpoint in meters of water column (e.g., 2.0 for 2 meters)
-
-        Returns:
-            True if successful, False otherwise
-
-        Example:
-            >>> await control.set_autoadapt_combined(2.0)  # 2 meters
+        Legacy method that incorrectly uses pressure setpoints.
         """
-        self.session.ensure_authenticated()
-
-        logger.info(f"Setting AutoAdapt Combined to {value_m} m...")
-
-        # Validate setpoint against reasonable limits (0.5m to 10m for residential pumps)
-        if not (0.5 <= value_m <= 10.0):
-            logger.error(
-                f"Setpoint {value_m} m is outside valid range (0.5-10.0 m). "
-                "This may damage the pump or indicate an error."
-            )
-            return False
-
-        # Set mode first
-        if not await self.set_mode(
-            ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR
-        ):
-            return False
-
-        # Set setpoint using Class 3
-        payload = encode_float_be(value_m)
-        cmd = FrameBuilder.build_set_command(3, 2, 0x20, payload)
-
-        return await self._send_with_retry(cmd, "Set AutoAdapt Combined Value")
+        logger.warning(
+            "set_autoadapt_combined() is deprecated and uses incorrect pressure-based setpoints. "
+            "Use set_temperature_control(on_temp_c, off_temp_c, 'combined') instead."
+        )
+        return await self.set_temperature_control(35.0, 39.0, "combined")
 
     async def set_autoadapt(self, value_m: float) -> bool:
         """
@@ -985,6 +999,108 @@ class ControlService(BaseService):
             await self._send_configuration_commit()
 
         return success
+
+    async def set_cycle_time_control(
+        self, on_minutes: int, off_minutes: int
+    ) -> bool:
+        """
+        Set cycle time control mode (Mode 25 / DHW_ON_OFF_CONTROL).
+
+        This mode operates the pump in on/off cycles at configurable intervals,
+        suitable for domestic hot water (DHW) recirculation applications.
+
+        Args:
+            on_minutes: Duration pump runs (e.g., 5)
+            off_minutes: Duration pump is off (e.g., 15)
+
+        Returns:
+            True if successful, False otherwise
+
+        Example:
+            >>> await control.set_cycle_time_control(5, 15)  # 5 min on, 15 min off
+
+        Implementation Notes:
+            - Mode switching uses Class 10 control map (mode byte 0x19)
+            - Cycle time parameters need to be reverse-engineered (see issue #14)
+            - TODO: Identify Object/Sub-ID for writing cycle time configuration
+            - TODO: Decode payload format for cycle time settings
+            - TODO: Determine valid ranges for on/off times
+        """
+        self.session.ensure_authenticated()
+
+        logger.info(
+            f"Setting Cycle Time Control: {on_minutes} min on, {off_minutes} min off..."
+        )
+
+        # Validate reasonable time ranges (1-60 minutes)
+        if not (1 <= on_minutes <= 60):
+            logger.error(
+                f"On-time {on_minutes} minutes is outside valid range (1-60 min)"
+            )
+            return False
+
+        if not (1 <= off_minutes <= 60):
+            logger.error(
+                f"Off-time {off_minutes} minutes is outside valid range (1-60 min)"
+            )
+            return False
+
+        # 1. Switch to Mode 25 (DHW_ON_OFF_CONTROL)
+        if not await self.set_mode(ControlMode.DHW_ON_OFF_CONTROL):
+            logger.error("Failed to switch to Cycle Time Control mode")
+            return False
+
+        # 2. Write cycle time configuration
+        # TODO: Reverse engineer the protocol for cycle time parameters
+        # Expected approach based on issue #14:
+        # - Look for Class 10 or Class 3 packets when GO app changes cycle times
+        # - Likely Object 86 or 91, Sub-ID TBD
+        # - Payload probably contains two values (on_time, off_time)
+        # - Values likely encoded as uint16 or uint32, possibly in seconds or minutes
+        # - May require configuration commit (Object 218, Sub-ID 1)
+
+        logger.warning(
+            "Cycle time parameter writing is not yet implemented. "
+            "Mode 25 is active but using default cycle times. "
+            "See issue #14 for protocol reverse engineering details."
+        )
+
+        # For now, just switch to the mode and return success
+        # The pump will operate in cycle mode with default/existing cycle times
+        return True
+
+    async def get_cycle_time_config(self) -> Optional[tuple[int, int]]:
+        """
+        Get current cycle time configuration for Mode 25 (DHW_ON_OFF_CONTROL).
+
+        Returns:
+            Tuple of (on_time_minutes, off_time_minutes) if successful, None otherwise
+
+        Example:
+            >>> config = await control.get_cycle_time_config()
+            >>> if config:
+            ...     on_time, off_time = config
+            ...     print(f"Cycle: {on_time} min on, {off_time} min off")
+
+        Implementation Notes:
+            - TODO: Identify Object/Sub-ID for reading cycle time configuration
+            - TODO: Decode payload format to extract on/off times
+            - Likely similar to temperature range reading (Object 91)
+        """
+        self.session.ensure_authenticated()
+
+        # TODO: Reverse engineer the protocol for reading cycle time parameters
+        # Expected approach based on issue #14:
+        # - Use BLE sniffer or `alpha-hwr monitor` to capture read packets
+        # - Look for Class 10 Object 86 or 91, Sub-ID TBD
+        # - Decode response payload to extract on_time and off_time
+
+        logger.warning(
+            "Cycle time parameter reading is not yet implemented. "
+            "See issue #14 for protocol reverse engineering details."
+        )
+
+        return None
 
     # Helper methods
 

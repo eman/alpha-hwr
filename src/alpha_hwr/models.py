@@ -201,6 +201,9 @@ class SetpointInfo(BaseModel):
             ControlMode.CONSTANT_TEMPERATURE,
             ControlMode.CONSTANT_DIFF_TEMP,
             ControlMode.TEMPERATURE_RANGE_CONTROL,
+            ControlMode.AUTO_ADAPT_RADIATOR,
+            ControlMode.AUTO_ADAPT_UNDERFLOOR,
+            ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
         ):
             return (self.setpoint, "°C")
 
@@ -250,6 +253,9 @@ class SetpointInfo(BaseModel):
             ControlMode.CONSTANT_TEMPERATURE,
             ControlMode.CONSTANT_DIFF_TEMP,
             ControlMode.TEMPERATURE_RANGE_CONTROL,
+            ControlMode.AUTO_ADAPT_RADIATOR,
+            ControlMode.AUTO_ADAPT_UNDERFLOOR,
+            ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
         ):
             return ((self.min_setpoint, "°C"), (self.max_setpoint, "°C"))
 

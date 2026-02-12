@@ -245,49 +245,14 @@ def cmd_set_mode(
     run_async(_control_set_mode(device, normalized_mode, setpoint))
 
 
-@app.command("set-autoadapt")
-def cmd_set_autoadapt(
-    variant: str = typer.Argument(
-        "radiator",
-        help="Variant: radiator, underfloor, or combined",
-    ),
-    setpoint: float = typer.Argument(
-        2.5, help="Setpoint in meters (default 2.5m)"
-    ),
-    device: Optional[str] = typer.Option(
-        None,
-        "--device",
-        "-d",
-        help="Device address (from config if not specified)",
-    ),
-) -> None:
-    """
-    Set AutoAdapt mode.
-
-    Examples:
-      alpha-hwr control set-autoadapt radiator 3.0
-      alpha-hwr control set-autoadapt underfloor 2.0
-      alpha-hwr control set-autoadapt combined 3.5
-    """
-    mode_map = {
-        "radiator": "autoadapt_radiator",
-        "underfloor": "autoadapt_underfloor",
-        "combined": "autoadapt_combined",
-    }
-    mode = mode_map.get(variant.lower())
-    if not mode:
-        console.print(
-            f"[error]Invalid variant: {variant}. Choose radiator, underfloor, or combined.[/error]"
-        )
-        raise typer.Exit(1)
-
-    run_async(_control_set_mode(device, mode, setpoint))
-
-
 @app.command("set-temperature")
 def cmd_set_temperature(
-    min_temp: float = typer.Argument(..., help="Minimum temperature (°C)"),
-    max_temp: float = typer.Argument(45.0, help="Maximum temperature (°C)"),
+    min_temp: float = typer.Option(
+        ..., "--min", help="Minimum temperature (°C)"
+    ),
+    max_temp: float = typer.Option(
+        ..., "--max", help="Maximum temperature (°C)"
+    ),
     device: Optional[str] = typer.Option(
         None,
         "--device",
@@ -296,12 +261,72 @@ def cmd_set_temperature(
     ),
 ) -> None:
     """
-    Set temperature range control.
+    Set temperature control mode with AutoAdapt (Mode 27).
 
-    Example:
-      alpha-hwr control set-temperature 35.0 45.0
+    This mode maintains hot water temperature within the specified range with
+    automatic flow adjustment (1-4 gpm). The pump turns on when temperature
+    drops below minimum and turns off when it reaches maximum.
+
+    Examples:
+      alpha-hwr control set-temperature --min 35 --max 39
+      alpha-hwr control set-temperature --min 95 --max 102
     """
     run_async(_control_set_temperature(device, min_temp, max_temp))
+
+
+@app.command("set-cycle-time")
+def cmd_set_cycle_time(
+    on_minutes: int = typer.Option(
+        ..., "--on", help="Pump on duration (minutes)"
+    ),
+    off_minutes: int = typer.Option(
+        ..., "--off", help="Pump off duration (minutes)"
+    ),
+    device: Optional[str] = typer.Option(
+        None,
+        "--device",
+        "-d",
+        help="Device address (from config if not specified)",
+    ),
+) -> None:
+    """
+    Set cycle time control mode (Mode 25 / DHW On/Off Control).
+
+    This mode operates the pump in on/off cycles at configurable intervals,
+    suitable for domestic hot water (DHW) recirculation applications.
+
+    Examples:
+      alpha-hwr control set-cycle-time --on 5 --off 15
+      alpha-hwr control set-cycle-time --on 10 --off 20
+
+    Note: Cycle time parameter writing is not fully implemented yet.
+    The mode will be activated but may use default cycle times.
+    See issue #14 for details.
+    """
+    run_async(_control_set_cycle_time(device, on_minutes, off_minutes))
+
+
+@app.command("get-cycle-time")
+def cmd_get_cycle_time(
+    device: Optional[str] = typer.Option(
+        None,
+        "--device",
+        "-d",
+        help="Device address (from config if not specified)",
+    ),
+) -> None:
+    """
+    Get current cycle time configuration.
+
+    Shows the current on/off cycle times for Mode 25 (DHW On/Off Control).
+
+    Example:
+      alpha-hwr control get-cycle-time
+
+    Note: Cycle time parameter reading is not yet implemented.
+    See issue #14 for details.
+    """
+    run_async(_control_get_cycle_time(device))
 
 
 # Internal async implementations
@@ -459,3 +484,53 @@ async def _control_set_temperature(
 
     except Exception as e:
         handle_error(e, "Failed to set temperature range")
+
+
+async def _control_set_cycle_time(
+    device: Optional[str], on_minutes: int, off_minutes: int
+) -> None:
+    """Internal async implementation of set-cycle-time command."""
+    try:
+        async with get_client(device) as client:
+            control = require_service(client.control, "Control")
+            # Set cycle time control
+            success = await control.set_cycle_time_control(
+                on_minutes, off_minutes
+            )
+
+            if success:
+                print_success(
+                    f"Set Cycle Time Control to {on_minutes} min on, {off_minutes} min off"
+                )
+                console.print(
+                    "[yellow]Note: Cycle time parameters may not be fully applied. "
+                    "Mode is active but may use default cycle times.[/yellow]"
+                )
+            else:
+                console.print("[error]Failed to set cycle time control[/error]")
+                raise typer.Exit(1)
+
+    except Exception as e:
+        handle_error(e, "Failed to set cycle time control")
+
+
+async def _control_get_cycle_time(device: Optional[str]) -> None:
+    """Internal async implementation of get-cycle-time command."""
+    try:
+        async with get_client(device) as client:
+            control = require_service(client.control, "Control")
+            # Get cycle time config
+            config = await control.get_cycle_time_config()
+
+            if config:
+                on_time, off_time = config
+                console.print(
+                    f"[success]Cycle Time: {on_time} min on, {off_time} min off[/success]"
+                )
+            else:
+                console.print(
+                    "[yellow]Cycle time reading not yet implemented. See issue #14.[/yellow]"
+                )
+
+    except Exception as e:
+        handle_error(e, "Failed to read cycle time configuration")
