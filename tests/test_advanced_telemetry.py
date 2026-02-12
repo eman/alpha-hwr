@@ -88,25 +88,67 @@ def test_parse_detailed_temperatures():
 
 def test_parse_alarms_warnings():
     # Obj 88, Sub 0 (Alarms)
-    # Order: [Sub=0][Obj=88 (0x58)]
-    payload = struct.pack(">HHH", 42, 7, 0)  # 2 alarms (42, 7)
+    # Active Query Response Format: [Class][OpSpec][Seq(2)][ID(2)][Res(2)][DataLen][Data...]
+    # OpSpec 0x09 (validated on real hardware - ESPHome implementation)
+    alarm_data = struct.pack(
+        ">HHH", 42, 7, 0
+    )  # 2 alarms (42, 7), zero filtered
+
+    # Build response: [STX][Len][Dst][Src][Class=10][OpSpec=0x09][Seq(2)][ID(2)][Res(2)][DataLen][Data...][CRC(2)]
     packet = bytearray(
-        [0x24, len(payload) + 8, 0xF8, 0xE7, 0x0A, 0x13, 0x00, 0x00, 0x00, 0x58]
+        [
+            0x24,  # STX
+            13
+            + len(
+                alarm_data
+            ),  # Length (total from STX through DataLen + Data, excluding CRC)
+            0xF8,
+            0xE7,  # Dst, Src
+            0x0A,  # Class 10
+            0x09,  # OpSpec (Active Query Response for alarms/warnings)
+            0x00,
+            0x01,  # Sequence number
+            0x58,
+            0x00,  # ID (Register 0x5800 = Obj 88, Sub 0)
+            0x00,
+            0x00,  # Reserved
+            len(alarm_data),  # DataLen
+        ]
     )
-    packet.extend(payload)
-    packet.extend([0, 0])
+    packet.extend(alarm_data)
+    packet.extend([0, 0])  # Mock CRC
+
     frame = FrameParser.parse_frame(bytes(packet))
     updates = TelemetryDecoder.decode(frame)
     assert updates["active_alarms"] == [42, 7]
 
     # Obj 88, Sub 11 (Warnings)
-    # Order: [Sub=11][Obj=88]
-    payload = struct.pack(">HH", 5, 0)  # 1 warning (5)
+    # Same Active Query Response format
+    warning_data = struct.pack(">HH", 5, 0)  # 1 warning (5)
+
     packet = bytearray(
-        [0x24, len(payload) + 8, 0xF8, 0xE7, 0x0A, 0x13, 0x00, 11, 0x00, 0x58]
+        [
+            0x24,  # STX
+            13
+            + len(
+                warning_data
+            ),  # Length (total from STX through DataLen + Data, excluding CRC)
+            0xF8,
+            0xE7,  # Dst, Src
+            0x0A,  # Class 10
+            0x09,  # OpSpec
+            0x00,
+            0x02,  # Sequence number
+            0x58,
+            0x0B,  # ID (Register 0x580B = Obj 88, Sub 11)
+            0x00,
+            0x00,  # Reserved
+            len(warning_data),  # DataLen
+        ]
     )
-    packet.extend(payload)
-    packet.extend([0, 0])
+    packet.extend(warning_data)
+    packet.extend([0, 0])  # Mock CRC
+
     frame = FrameParser.parse_frame(bytes(packet))
     updates = TelemetryDecoder.decode(frame)
     assert updates["active_warnings"] == [5]

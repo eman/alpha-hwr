@@ -277,9 +277,9 @@ class FrameParser:
         # Parse based on class
         if result.class_byte == CLASS_10 and len(data) > 5:
             opspec = data[5]
-            # OpSpecs for register-read responses: 0x30 (motor), 0x2b (flow), 0x14 (temp), etc.
+            # OpSpecs for register-read responses: 0x30 (motor), 0x2b (flow), 0x14 (temp), 0x09 (alarms/warnings), etc.
             # Format: [Class][OpSpec][Seq(2)][Id(2)][Res(2)][DataLen][Data...]
-            if opspec in (0x30, 0x2B, 0x14, 0x2E, 0x2D):
+            if opspec in (0x30, 0x2B, 0x14, 0x2E, 0x2D, 0x09):
                 if len(data) > 12:
                     result.payload = data[13:-2]  # Data starts at offset 13
                     # We can store the ID as obj_id for routing if needed,
