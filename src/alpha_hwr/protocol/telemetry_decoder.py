@@ -635,10 +635,10 @@ class TelemetryDecoder:
                 # Extract ID bytes at offset 8-9: [ID-H][ID-L]
                 # For alarms: ID = 0x5800 (Obj 88, Sub 0)
                 # For warnings: ID = 0x580B (Obj 88, Sub 11)
-                id_high = packet[8]  # Object ID high byte
-                id_low = packet[9]  # Sub ID
+                obj_id_high = packet[8]  # Object ID (High byte of register ID)
+                sub_id = packet[9]  # Sub-index (Low byte of register ID)
 
-                if id_high == 0x58:  # Object 88
+                if obj_id_high == 0x58:  # Object 88
                     # Parse uint16 array from payload (starts at offset 13)
                     codes: list[int] = []
                     offset = 13
@@ -648,9 +648,9 @@ class TelemetryDecoder:
                             codes.append(code)
                         offset += 2
 
-                    if id_low == 0:  # Sub 0 = Alarms
+                    if sub_id == 0:  # Sub 0 = Alarms
                         data["active_alarms"] = codes
-                    elif id_low == 11:  # Sub 11 = Warnings
+                    elif sub_id == 11:  # Sub 11 = Warnings
                         data["active_warnings"] = codes
 
         return data

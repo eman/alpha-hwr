@@ -162,7 +162,8 @@ packet = bytes.fromhex("24 0D F8 E7 0A 09 00 02 3A 01 00 00 02 00 00 DC 50")
 print(parse_alarm_response(packet))  # Output: []
 
 # Example: Active alarms 42 and 7
-packet = bytes.fromhex("24 11 F8 E7 0A 09 00 03 58 00 00 00 06 00 2A 00 07 00 00 XX XX")
+# Final two bytes are CRC placeholders for this example and are ignored
+packet = bytes.fromhex("24 11 F8 E7 0A 09 00 03 58 00 00 00 06 00 2A 00 07 00 00 00 00")
 print(parse_alarm_response(packet))  # Output: [42, 7]
 ```
 
@@ -174,8 +175,8 @@ The OpSpec byte `0x09` can be decoded as follows:
 
 ```
 0x09 = 0b00001001
-       ││     └─┴─ Bits 0-4: Data length indicator (9)
-       │└──────── Bit 5: Reserved
+       │││    └─┴─ Bits 0-4: Data length indicator (9)
+       ││└──────── Bit 5: Reserved
        │└───────── Bit 6: Error flag (0 = success)
        └────────── Bit 7: Reserved
 ```
