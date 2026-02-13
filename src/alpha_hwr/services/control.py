@@ -184,7 +184,7 @@ class ControlService(BaseService):
         # Resolve target mode
         if mode is not None:
             self._current_mode = mode
-        
+
         mode_val = (
             self._current_mode.value
             if isinstance(self._current_mode, ControlMode)
@@ -218,30 +218,35 @@ class ControlService(BaseService):
 
         return await self._send_control_request(mode_val, start=False)
 
-    async def _send_control_request(self, mode_val: int, start: bool = True, setpoint: float = 0.0) -> bool:
+    async def _send_control_request(
+        self, mode_val: int, start: bool = True, setpoint: float = 0.0
+    ) -> bool:
         """
         Send a control request using trace-verified identifiers and format.
-        
+
         Payload Structure (12 bytes):
         [2F 01 00 00 07 00][Flag][Mode][Setpoint(4)]
         """
         mode_byte = self._MODE_BYTE_MAP.get(mode_val, 0x02)
-        
+
         # Build payload
         payload = bytearray([0x2F, 0x01, 0x00, 0x00, 0x07, 0x00])
-        payload.append(0x00 if start else 0x01) # 0=Start, 1=Stop
+        payload.append(0x00 if start else 0x01)  # 0=Start, 1=Stop
         payload.append(mode_byte)
         payload.extend(encode_float_be(setpoint))
-        
+
         # OpSpec 0x90 = SET + 16 bytes (4 IDs + 12 payload)
         apdu = bytearray([0x0A, 0x90])
         apdu.extend(encode_uint16_be(self.SUB_CONTROL))
         apdu.extend(encode_uint16_be(self.OBJ_CONTROL))
         apdu.extend(payload)
-        
+
         req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
-        
-        if await self._send_with_retry(req, f"Control Request (mode={mode_val}, start={start}, set={setpoint:.2f})"):
+
+        if await self._send_with_retry(
+            req,
+            f"Control Request (mode={mode_val}, start={start}, set={setpoint:.2f})",
+        ):
             await self._send_configuration_commit()
             return True
         return False
@@ -384,7 +389,10 @@ class ControlService(BaseService):
 
                     # Convert pressure setpoints from Pascals back to meters (standard for ALPHA HWR)
                     # Modes: CONSTANT_PRESSURE (0), PROPORTIONAL_PRESSURE (2)
-                    if control_mode in (ControlMode.CONSTANT_PRESSURE, ControlMode.PROPORTIONAL_PRESSURE):
+                    if control_mode in (
+                        ControlMode.CONSTANT_PRESSURE,
+                        ControlMode.PROPORTIONAL_PRESSURE,
+                    ):
                         setpoint = setpoint / 9806.65
 
                     logger.debug(
@@ -502,18 +510,24 @@ class ControlService(BaseService):
 
         # Validate setpoint against reasonable limits (0.5m to 10m)
         if not (0.5 <= value_m <= 10.0):
-            logger.error(f"Setpoint {value_m} m is outside valid range (0.5-10.0 m)")
+            logger.error(
+                f"Setpoint {value_m} m is outside valid range (0.5-10.0 m)"
+            )
             return False
 
         # Convert meters to Pascals
         value_pa = value_m * 9806.65
 
         # 1. Update overall operation request (Sub 6)
-        if not await self._send_control_request(ControlMode.CONSTANT_PRESSURE, setpoint=value_pa):
+        if not await self._send_control_request(
+            ControlMode.CONSTANT_PRESSURE, setpoint=value_pa
+        ):
             return False
 
         # 2. Update specific pressure setpoint (Sub 15)
-        return await self._set_class10_setpoint(value_pa, self.SUB_PRESSURE_SETPOINT)
+        return await self._set_class10_setpoint(
+            value_pa, self.SUB_PRESSURE_SETPOINT
+        )
 
     async def set_constant_speed(self, value_rpm: float) -> bool:
         """
@@ -531,15 +545,21 @@ class ControlService(BaseService):
 
         # Validate setpoint against reasonable limits (500 to 4500 RPM)
         if not (500 <= value_rpm <= 4500):
-            logger.error(f"Setpoint {value_rpm} RPM is outside valid range (500-4500 RPM)")
+            logger.error(
+                f"Setpoint {value_rpm} RPM is outside valid range (500-4500 RPM)"
+            )
             return False
 
         # 1. Update overall operation request (Sub 6)
-        if not await self._send_control_request(ControlMode.CONSTANT_SPEED, setpoint=value_rpm):
+        if not await self._send_control_request(
+            ControlMode.CONSTANT_SPEED, setpoint=value_rpm
+        ):
             return False
 
         # 2. Update specific speed setpoint (Sub 13)
-        return await self._set_class10_setpoint(value_rpm, self.SUB_SPEED_SETPOINT)
+        return await self._set_class10_setpoint(
+            value_rpm, self.SUB_SPEED_SETPOINT
+        )
 
     async def set_constant_flow(self, value_m3h: float) -> bool:
         """
@@ -557,15 +577,21 @@ class ControlService(BaseService):
 
         # Validate setpoint against reasonable limits (0.1 to 10.0 m³/h)
         if not (0.1 <= value_m3h <= 10.0):
-            logger.error(f"Setpoint {value_m3h} m³/h is outside valid range (0.1-10.0 m³/h)")
+            logger.error(
+                f"Setpoint {value_m3h} m³/h is outside valid range (0.1-10.0 m³/h)"
+            )
             return False
 
         # 1. Update overall operation request (Sub 6)
-        if not await self._send_control_request(ControlMode.CONSTANT_FLOW, setpoint=value_m3h):
+        if not await self._send_control_request(
+            ControlMode.CONSTANT_FLOW, setpoint=value_m3h
+        ):
             return False
 
         # 2. Update specific flow setpoint (Sub 39)
-        return await self._set_class10_setpoint(value_m3h, self.SUB_FLOW_SETPOINT)
+        return await self._set_class10_setpoint(
+            value_m3h, self.SUB_FLOW_SETPOINT
+        )
 
     async def set_proportional_pressure(self, value_m: float) -> bool:
         """
@@ -583,18 +609,24 @@ class ControlService(BaseService):
 
         # Validate setpoint against reasonable limits (0.5m to 10m)
         if not (0.5 <= value_m <= 10.0):
-            logger.error(f"Setpoint {value_m} m is outside valid range (0.5-10.0 m)")
+            logger.error(
+                f"Setpoint {value_m} m is outside valid range (0.5-10.0 m)"
+            )
             return False
 
         # Convert meters to Pascals
         value_pa = value_m * 9806.65
 
         # 1. Update overall operation request (Sub 6)
-        if not await self._send_control_request(ControlMode.PROPORTIONAL_PRESSURE, setpoint=value_pa):
+        if not await self._send_control_request(
+            ControlMode.PROPORTIONAL_PRESSURE, setpoint=value_pa
+        ):
             return False
 
         # 2. Update specific pressure setpoint (Sub 15)
-        return await self._set_class10_setpoint(value_pa, self.SUB_PRESSURE_SETPOINT)
+        return await self._set_class10_setpoint(
+            value_pa, self.SUB_PRESSURE_SETPOINT
+        )
 
     async def set_temperature_control(
         self,
@@ -850,7 +882,9 @@ class ControlService(BaseService):
         )
 
         # 1. Switch mode and set baseline (Sub 6)
-        if not await self._send_control_request(ControlMode.TEMPERATURE_RANGE_CONTROL, setpoint=min_temp):
+        if not await self._send_control_request(
+            ControlMode.TEMPERATURE_RANGE_CONTROL, setpoint=min_temp
+        ):
             logger.error("Failed to switch to Temperature Range Control mode")
             return False
 
@@ -858,17 +892,21 @@ class ControlService(BaseService):
         # Payload format (Type 1012):
         # [DeltaTempEnabled(1)][MinTemp(4)][MaxTemp(4)][TimeLimits(4)]
         # Total size 13 bytes
-        
+
         # Build 13-byte structure data
         struct_data = bytearray()
         struct_data.append(0x01 if autoadapt else 0x00)  # DeltaTempEnabled
         struct_data.extend(encode_float_be(min_temp))
         struct_data.extend(encode_float_be(max_temp))
-        struct_data.extend(bytes([0x05, 0x3C, 0x01, 0x1E])) # Default time limits
+        struct_data.extend(
+            bytes([0x05, 0x3C, 0x01, 0x1E])
+        )  # Default time limits
 
         # Build APDU: [Class][OpSpec][ObjID][SubH][SubL][Reserved][Type(2)][Size(2)][Data...]
         # Using Object 91, Sub 430
-        apdu = bytearray([0x0A, 0xB3, 91, 0x01, 0xAE, 0x00, 0xF4, 0x03, 0x00, 0x00, 0x0D])
+        apdu = bytearray(
+            [0x0A, 0xB3, 91, 0x01, 0xAE, 0x00, 0xF4, 0x03, 0x00, 0x00, 0x0D]
+        )
         apdu.extend(struct_data)
 
         req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
@@ -890,12 +928,17 @@ class ControlService(BaseService):
         self.session.ensure_authenticated()
 
         from ..constants import FACTOR_M3H_TO_GPM
+
         value_m3h = value_gpm * FACTOR_M3H_TO_GPM
 
-        logger.info(f"Setting flow limit to {value_gpm} GPM ({value_m3h:.3f} m³/h)...")
+        logger.info(
+            f"Setting flow limit to {value_gpm} GPM ({value_m3h:.3f} m³/h)..."
+        )
 
         # Set flow limit using Object 86, Sub 39 (Max Flow Limit)
-        return await self._set_class10_setpoint(value_m3h, self.SUB_FLOW_LIMIT, self.PUMP_OBJ)
+        return await self._set_class10_setpoint(
+            value_m3h, self.SUB_FLOW_LIMIT, self.PUMP_OBJ
+        )
 
     async def set_cycle_time_control(
         self, on_minutes: int, off_minutes: int
@@ -956,7 +999,7 @@ class ControlService(BaseService):
             # Use FrameBuilder to handle OpSpec, Length, and CRC correctly
             # SubID: 430 (0x01AE), ObjID: 91 (0x5B)
             packet = FrameBuilder.build_data_object_set(
-                sub_id=0x01AE, obj_id=91, data=data, source=0xF8
+                sub_id=0x01AE, obj_id=91, data=bytes(data), source=0xF8
             )
 
             success = await self._send_with_retry(packet, "Set Cycle Time")
@@ -992,7 +1035,9 @@ class ControlService(BaseService):
             data = await self._read_class10_object(91, 430)
 
             if not data or len(data) < 16:
-                logger.error(f"Invalid cycle time data: {data.hex() if data else 'None'}")
+                logger.error(
+                    f"Invalid cycle time data: {data.hex() if data else 'None'}"
+                )
                 return None
 
             # Extract cycle times from payload (verified via trace analysis)
@@ -1002,7 +1047,9 @@ class ControlService(BaseService):
             off_time = data[12]
             on_time = data[15]
 
-            logger.info(f"Read cycle times: {on_time} min ON, {off_time} min OFF")
+            logger.info(
+                f"Read cycle times: {on_time} min ON, {off_time} min OFF"
+            )
             return (on_time, off_time)
 
         except Exception as e:
@@ -1011,7 +1058,9 @@ class ControlService(BaseService):
 
     # Helper methods
 
-    async def _set_class10_setpoint(self, value: float, sub_id: int, obj_id: int = 86) -> bool:
+    async def _set_class10_setpoint(
+        self, value: float, sub_id: int, obj_id: int = 86
+    ) -> bool:
         """
         Set the setpoint value using Class 10 DataObject method (SET).
 
@@ -1034,7 +1083,9 @@ class ControlService(BaseService):
         req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
 
         # Send with retry
-        if await self._send_with_retry(req, f"Set Setpoint {value:.2f} (Sub={sub_id}, Obj={obj_id})"):
+        if await self._send_with_retry(
+            req, f"Set Setpoint {value:.2f} (Sub={sub_id}, Obj={obj_id})"
+        ):
             # Send configuration commit
             await self._send_configuration_commit()
             return True
