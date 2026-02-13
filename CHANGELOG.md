@@ -20,6 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added comprehensive integration tests using `MockPump`.
   - Updated `MockPump` to simulate Mode 25 protocol behavior.
 
+### Changed
+
+- **Test Infrastructure and Dependencies**:
+  - Refactored `pyproject.toml` to use a dedicated `test` optional dependency group.
+  - Updated GitHub Actions CI to install test extras and ensure all required plugins are present.
+  - Improved `tests/conftest.py` to explicitly load `pytest-benchmark`, ensuring fixture availability during parallel execution.
+  - Unified `_send_configuration_commit` implementation in `BaseService` for all service modules.
+
+### Fixed
+
+- **Control Mode Setpoints**: Fixed floating-point precision issues in integration tests by using `pytest.approx`.
+- **MockPump Reliability**: Fixed missing logger definitions and improved OpSpec 0xB3 ID parsing.
+- **CI Test Failures**: Resolved "fixture not found" errors by properly managing benchmark plugin loading.
+
 ### Documentation
 
 - Documentation site version now sourced from `pyproject.toml` and auto-
