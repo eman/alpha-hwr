@@ -165,11 +165,13 @@ mkdocs serve
 ```
 
 ### Pre-commit Requirements
-Before committing, ALWAYS run:
+Before committing, and MANDATORY before claiming a task is done:
 ```bash
 tox
 ```
 This runs: ruff format check → ruff lint → mypy → basedpyright → pytest
+
+**MANDATE**: Never claim a task is "complete" or "ready" until `tox` has passed locally. If CI fails after local tests pass, you MUST investigate the environment differences (e.g., parallel execution with `-n auto`, plugin availability, or dependency versions) and reproduce the failure locally before attempting a fix.
 
 ## Documentation Requirements
 
