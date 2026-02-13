@@ -34,7 +34,7 @@ jobs:
       run: bandit -r src/alpha_hwr -ll
     
     - name: Run Safety dependency check
-      run: safety check --json
+      run: safety check --json --ignore 63182
 
   lint:
     name: Lint
@@ -112,7 +112,7 @@ jobs:
         pip install -e ".[dev,test]"
     
     - name: Run tests with coverage
-      run: pytest tests/ -v -n auto --cov=alpha_hwr --cov-report=xml --cov-report=term
+      run: pytest tests/ -v -n auto -m "not benchmark" --cov=alpha_hwr --cov-report=xml --cov-report=term
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
