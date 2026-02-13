@@ -462,6 +462,7 @@ class ControlService(BaseService):
                                 is_remote=is_remote,
                                 is_running=is_running,
                                 schedule_enabled=schedule_active,
+                                delta_temp_enabled=delta_enabled,
                             )
                         else:
                             logger.warning(

@@ -221,10 +221,28 @@ def format_setpoint_panel(info: SetpointInfo) -> Panel:
         Rich Panel object
     """
     lines = []
+    from ...constants import ControlMode
 
-    # Current setpoint
-    value, unit = info.get_display_value()
-    lines.append(f"[bold]Current Setpoint:[/bold] {value:.2f} {unit}")
+    # Special handling for Temperature Range Control (Mode 27)
+    if info.control_mode == ControlMode.TEMPERATURE_RANGE_CONTROL:
+        lines.append(
+            f"[bold]On Temperature (Low):[/bold] {info.min_setpoint:.2f} °C"
+        )
+        lines.append(
+            f"[bold]Off Temperature (High):[/bold] {info.max_setpoint:.2f} °C"
+        )
+
+        if info.delta_temp_enabled is not None:
+            aa_str = (
+                "[green]Enabled (1-4 GPM)[/green]"
+                if info.delta_temp_enabled
+                else "[yellow]Disabled (Fixed Flow)[/yellow]"
+            )
+            lines.append(f"[bold]AutoAdapt:[/bold] {aa_str}")
+    else:
+        # Current setpoint for other modes
+        value, unit = info.get_display_value()
+        lines.append(f"[bold]Current Setpoint:[/bold] {value:.2f} {unit}")
 
     # Operational Status
     if info.is_running is not None:
@@ -251,14 +269,15 @@ def format_setpoint_panel(info: SetpointInfo) -> Panel:
         )
         lines.append(f"[bold]Internal Schedule:[/bold] {sched_str}")
 
-    # Limits
-    if info.min_setpoint is not None and info.max_setpoint is not None:
-        limits = info.get_limits_display()
-        if limits:
-            (min_val, min_unit), (max_val, max_unit) = limits
-            lines.append(
-                f"[bold]Range:[/bold] {min_val:.2f} - {max_val:.2f} {max_unit}"
-            )
+    # Limits - Hide for Mode 27 as they are already shown as On/Off temperatures
+    if info.control_mode != ControlMode.TEMPERATURE_RANGE_CONTROL:
+        if info.min_setpoint is not None and info.max_setpoint is not None:
+            limits = info.get_limits_display()
+            if limits:
+                (min_val, min_unit), (max_val, max_unit) = limits
+                lines.append(
+                    f"[bold]Range:[/bold] {min_val:.2f} - {max_val:.2f} {max_unit}"
+                )
 
     # Mode-specific info
     if info.control_mode is not None:

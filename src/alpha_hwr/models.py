@@ -156,6 +156,10 @@ class SetpointInfo(BaseModel):
     schedule_enabled: bool | None = Field(
         default=None, description="True if internal schedule is active"
     )
+    delta_temp_enabled: bool | None = Field(
+        default=None,
+        description="True if Delta Temperature control (AutoAdapt) is enabled",
+    )
 
     def get_display_value(self) -> tuple[float, str]:
         """
