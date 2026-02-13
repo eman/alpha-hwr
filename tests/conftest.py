@@ -5,11 +5,22 @@ This module provides common fixtures that can be used across all test files.
 """
 
 import asyncio
+import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, patch
 
 from hypothesis import strategies as st
 from alpha_hwr.client import AlphaHWRClient
+
+@pytest.fixture
+def benchmark():
+    """
+    Fallback benchmark fixture when pytest-benchmark is not installed.
+    Simply executes the function once and returns the result.
+    """
+    def _benchmark(func, *args, **kwargs):
+        return func(*args, **kwargs)
+    return _benchmark
 
 
 @st.composite

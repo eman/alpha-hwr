@@ -23,14 +23,7 @@ from mocks.mock_pump import MockPump  # noqa: E402
 from alpha_hwr.protocol.codec import encode_float_be, decode_float_be  # noqa: E402
 from alpha_hwr.protocol import FrameBuilder, FrameParser  # noqa: E402
 
-# Check if pytest-benchmark is available
-try:
-    import pytest_benchmark  # noqa: F401
-    HAS_BENCHMARK = True
-except ImportError:
-    HAS_BENCHMARK = False
 
-@pytest.mark.skipif(not HAS_BENCHMARK, reason="pytest-benchmark not installed")
 class TestCodecPerformance:
     """Benchmark protocol encoding/decoding operations."""
 
@@ -56,7 +49,6 @@ class TestCodecPerformance:
         assert len(result) == 20  # 5 floats * 4 bytes
 
 
-@pytest.mark.skipif(not HAS_BENCHMARK, reason="pytest-benchmark not installed")
 class TestFrameBuilderPerformance:
     """Benchmark frame construction."""
 
@@ -80,7 +72,6 @@ class TestFrameBuilderPerformance:
         assert len(result) > 0
 
 
-@pytest.mark.skipif(not HAS_BENCHMARK, reason="pytest-benchmark not installed")
 class TestFrameParserPerformance:
     """Benchmark frame parsing."""
 
@@ -111,7 +102,6 @@ class TestFrameParserPerformance:
         assert "voltage_ac_v" in result
 
 
-@pytest.mark.skipif(not HAS_BENCHMARK, reason="pytest-benchmark not installed")
 class TestMockPumpPerformance:
     """Benchmark mock pump operations."""
 
@@ -164,7 +154,6 @@ class TestMockPumpPerformance:
         )
 
 
-@pytest.mark.skipif(not HAS_BENCHMARK, reason="pytest-benchmark not installed")
 class TestEndToEndPerformance:
     """Benchmark complete workflows."""
 
