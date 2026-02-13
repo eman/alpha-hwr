@@ -10,22 +10,9 @@ from unittest.mock import AsyncMock, patch
 
 from hypothesis import strategies as st
 from alpha_hwr.client import AlphaHWRClient
-import pytest
 
-@pytest.fixture
-def benchmark_fixture(request):
-    """
-    Fixture that provides the real benchmark fixture if available,
-    otherwise a fallback that just executes the function.
-    """
-    # Check if 'benchmark' is available in the fixture names
-    if "benchmark" in request.fixturenames:
-        return request.getfixturevalue("benchmark")
-    
-    # Fallback implementation
-    def _benchmark(func, *args, **kwargs):
-        return func(*args, **kwargs)
-    return _benchmark
+# Explicitly load the benchmark plugin to ensure the fixture is available
+pytest_plugins = ["pytest_benchmark"]
 
 
 @st.composite
