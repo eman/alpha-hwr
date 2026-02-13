@@ -4,11 +4,10 @@ This document provides a comprehensive overview of all 32 control modes defined 
 
 ## Executive Summary
 
-The ALPHA HWR is a **domestic hot water recirculation pump** designed for residential heating systems. Hardware testing reveals it supports **5 out of 32 control modes** - those specifically related to hot water recirculation applications.
+The ALPHA HWR is a **domestic hot water recirculation pump** designed for residential heating systems. Hardware testing reveals it supports **6 out of 32 control modes** - those specifically related to hot water recirculation applications.
 
 **Support Statistics:**
--  **Fully Supported:** 5 modes (16%)
--   **Limited Support:** 1 mode (3%)
+-  **Fully Supported:** 6 modes (19%)
 -  **Not Supported:** 26 modes (81%)
 
 ---
@@ -50,7 +49,7 @@ The ALPHA HWR is a **domestic hot water recirculation pump** designed for reside
 
 ---
 
-## Supported Modes (5 modes)
+## Supported Modes (6 modes)
 
 ### 1. Constant Pressure (Mode 0) -  Full Support
 
