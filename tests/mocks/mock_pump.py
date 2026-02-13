@@ -9,6 +9,7 @@ the GENI protocol specification.
 """
 
 import asyncio
+import logging
 import struct
 from datetime import datetime
 from typing import Optional, Callable
@@ -18,6 +19,8 @@ from alpha_hwr.protocol import FrameParser
 from alpha_hwr.protocol.codec import encode_float_be, encode_uint16_be
 from alpha_hwr.constants import ControlMode
 from alpha_hwr.utils import calc_crc16
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -218,9 +221,14 @@ class MockPump:
         opspec = raw_data[5]
 
         # Standard GENI Class 10 SET: bit 7 set, bits 0-5 = length
-        # Standard ID order: SubID(2B) then ObjID(2B)
-        sub_id = (raw_data[6] << 8) | raw_data[7]
-        obj_id = (raw_data[8] << 8) | raw_data[9]
+        # Standard ID order for standard length: SubID(2B) then ObjID(2B)
+        # BUT for OpSpec 0xB3 (Long SET), the order is ObjID(1B) then SubID(2B)
+        if opspec == 0xB3:
+            obj_id = raw_data[6]
+            sub_id = (raw_data[7] << 8) | raw_data[8]
+        else:
+            sub_id = (raw_data[6] << 8) | raw_data[7]
+            obj_id = (raw_data[8] << 8) | raw_data[9]
 
         # Control operations (Sub 0x5600, Obj 0x0601)
         if sub_id == 0x5600 and obj_id == 0x0601:
@@ -239,9 +247,11 @@ class MockPump:
         # Schedule overview enable/disable (Obj 84, Sub 1)
         # Note: ObjID 84=0x0054, SubID 1=0x0001
         if obj_id == 0x0054 and sub_id == 0x0001:
-            if len(raw_data) >= 16:
-                # Enabled flag is byte 4 of 10-byte structure (offset 11+4=15)
-                self.state.schedule_enabled = raw_data[15] != 0
+            # APDU structure for 10-byte data: [Type(3)][Size(2)][Data(5)]
+            # enabled is Byte 4 of 5-byte data (index 9 of 10-byte block)
+            # Plus 10 bytes for GENI/APDU headers = 19
+            if len(raw_data) >= 20:
+                self.state.schedule_enabled = raw_data[19] != 0
             return self._build_ack_response()
 
         # Schedule write (Obj 84, Sub 1000-1004)
@@ -267,16 +277,18 @@ class MockPump:
     def _handle_schedule_write(self, sub_id: int, raw_data: bytes) -> bytes:
         """Handle schedule layer write."""
         # OpSpec 0xB3: SET with long payload
-        # Structure: [Header(11)][Type(3)][Size(2)][Data(42)]
-        # Total offset to data = 11 + 3 + 2 = 16
-        if len(raw_data) >= 16 + 42:
-            data = raw_data[16 : 16 + 42]
+        # Structure: [Header(9)][Reserved(1)][Type(3)][Size(2)][Data(42)]
+        # Total offset to data = 15
+        if len(raw_data) >= 15 + 42:
+            data = raw_data[15 : 15 + 42]
             layer = sub_id - 1000
-            self.state.schedule_entries[layer] = data
-        else:
-            pass
-
-        return self._build_ack_response()
+            if 0 <= layer < 5:
+                self.state.schedule_entries[layer] = data
+                logger.debug(f"MockPump: Written schedule layer {layer}: {data.hex()[:20]}...")
+                return self._build_ack_response()
+        
+        logger.warning(f"MockPump: Invalid schedule write: len={len(raw_data)}")
+        return self._build_error_response()
 
     async def _handle_class10(self, frame) -> bytes:
         """Handle Class 10 DataObject operations."""
@@ -419,12 +431,13 @@ class MockPump:
 
     def _handle_control_command(self, frame) -> bytes:
         """Handle pump control commands (start/stop/mode change)."""
+        from alpha_hwr.protocol.codec import decode_float_be
         payload = frame.payload
 
         if len(payload) < 8:
             return self._build_error_response()
 
-        # Parse control payload: [Header(6 bytes)][Flag][Mode][Suffix]
+        # Parse control payload: [Header(6 bytes)][Flag][Mode][Setpoint(4)]
         # From ControlService: [0x2F, 0x01, 0x00, 0x00, 0x07, 0x00, Flag, Mode]
         flag = payload[6]  # 0x00 = start, 0x01 = stop
         mode = payload[7]
@@ -433,6 +446,11 @@ class MockPump:
             # Start command
             self.state.running = True
             self.state.control_mode = mode
+            
+            # Extract setpoint if available (12-byte payload)
+            if len(payload) >= 12:
+                self.state.setpoint = decode_float_be(payload, 8)
+            
             self.state.speed_rpm = 1500.0  # Simulate running
             self.state.flow_m3h = 2.5
             self.state.current = 1.5

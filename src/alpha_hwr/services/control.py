@@ -382,6 +382,11 @@ class ControlService(BaseService):
                         ">f", data[offset + 3 : offset + 7]
                     )[0]
 
+                    # Convert pressure setpoints from Pascals back to meters (standard for ALPHA HWR)
+                    # Modes: CONSTANT_PRESSURE (0), PROPORTIONAL_PRESSURE (2)
+                    if control_mode in (ControlMode.CONSTANT_PRESSURE, ControlMode.PROPORTIONAL_PRESSURE):
+                        setpoint = setpoint / 9806.65
+
                     logger.debug(
                         f"Parsed setpoint: mode={control_mode}, op_mode={operation_mode}, "
                         f"setpoint={setpoint:.2f}, source={control_source}"
@@ -1082,15 +1087,4 @@ class ControlService(BaseService):
                     await asyncio.sleep(0.2)
 
         return False
-
-    async def _send_configuration_commit(self) -> None:
-        """Send configuration commit packet."""
-        # Sub 0x5400, Obj 0xDA01
-        conf_apdu = bytearray.fromhex(
-            "0A9354000100DA0100000A02050005000100000000"
-        )
-        cmd = self._build_geni_packet(0xF8, 0xE7, bytes(conf_apdu))
-        await self.transport.write(cmd)
-        if not getattr(self.session, "fast_mode", False):
-            await asyncio.sleep(0.2)
         logger.debug("Configuration commit sent")

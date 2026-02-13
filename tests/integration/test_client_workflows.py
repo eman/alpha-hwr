@@ -151,7 +151,7 @@ class TestClientWorkflows:
         mode_info = await mock_client.control.get_mode()
         assert mode_info is not None
         assert mode_info.control_mode == 0  # CONSTANT_PRESSURE
-        assert mode_info.setpoint == setpoint
+        assert mode_info.setpoint == pytest.approx(setpoint)
 
     @pytest.mark.asyncio
     async def test_set_constant_flow_mode(self, mock_client):
