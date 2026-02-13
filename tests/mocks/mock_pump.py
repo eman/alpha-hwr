@@ -284,9 +284,11 @@ class MockPump:
             layer = sub_id - 1000
             if 0 <= layer < 5:
                 self.state.schedule_entries[layer] = data
-                logger.debug(f"MockPump: Written schedule layer {layer}: {data.hex()[:20]}...")
+                logger.debug(
+                    f"MockPump: Written schedule layer {layer}: {data.hex()[:20]}..."
+                )
                 return self._build_ack_response()
-        
+
         logger.warning(f"MockPump: Invalid schedule write: len={len(raw_data)}")
         return self._build_error_response()
 
@@ -432,6 +434,7 @@ class MockPump:
     def _handle_control_command(self, frame) -> bytes:
         """Handle pump control commands (start/stop/mode change)."""
         from alpha_hwr.protocol.codec import decode_float_be
+
         payload = frame.payload
 
         if len(payload) < 8:
@@ -446,11 +449,11 @@ class MockPump:
             # Start command
             self.state.running = True
             self.state.control_mode = mode
-            
+
             # Extract setpoint if available (12-byte payload)
             if len(payload) >= 12:
                 self.state.setpoint = decode_float_be(payload, 8)
-            
+
             self.state.speed_rpm = 1500.0  # Simulate running
             self.state.flow_m3h = 2.5
             self.state.current = 1.5
@@ -565,17 +568,17 @@ class MockPump:
     def _build_user_settings_response(self) -> bytes:
         """
         Build Class 10 User Settings response (Obj 91, Sub 430).
-        
+
         Format: [00 00 0E][01 42 0C][00 00 42 1E DE 4C][OFF][3C 02][ON][01]
         """
-        payload = bytearray([0x00, 0x00, 0x0E]) # Header
-        payload.extend([0x01, 0x42, 0x0C]) # Magic
-        payload.extend([0x00, 0x00, 0x42, 0x1E, 0xDE, 0x4C]) # Magic
-        payload.append(self.state.cycle_off_minutes) # Offset 12
-        payload.extend([0x3C, 0x02]) # Magic
+        payload = bytearray([0x00, 0x00, 0x0E])  # Header
+        payload.extend([0x01, 0x42, 0x0C])  # Magic
+        payload.extend([0x00, 0x00, 0x42, 0x1E, 0xDE, 0x4C])  # Magic
+        payload.append(self.state.cycle_off_minutes)  # Offset 12
+        payload.extend([0x3C, 0x02])  # Magic
         payload.append(self.state.cycle_on_minutes)  # Offset 15
-        payload.append(0x01) # Suffix
-        
+        payload.append(0x01)  # Suffix
+
         return self._build_class10_response(430, 91, bytes(payload))
 
     def _build_setpoint_info_response(self) -> bytes:

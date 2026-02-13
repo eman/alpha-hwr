@@ -79,9 +79,10 @@ async def test_set_constant_pressure(control_service, mock_transport):
     assert success is True
     # Verify set mode called (Class 10)
     mock_transport.query.assert_called()
-    
+
     # Check conversion
     from alpha_hwr.protocol.codec import decode_float_be
+
     call_args = mock_transport.query.call_args_list[0][0][0]
     # Setpoint is at offset 10 (APDU) + 8 (Header) = 18
     actual_pa = decode_float_be(call_args, 18)

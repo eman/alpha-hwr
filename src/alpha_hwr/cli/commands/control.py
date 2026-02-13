@@ -260,7 +260,9 @@ def cmd_set_temperature(
         ..., "--max", help="Maximum temperature (°C)"
     ),
     autoadapt: bool = typer.Option(
-        True, "--autoadapt/--no-autoadapt", help="Enable/disable AutoAdapt flow adjustment"
+        True,
+        "--autoadapt/--no-autoadapt",
+        help="Enable/disable AutoAdapt flow adjustment",
     ),
     flow_limit: Optional[float] = typer.Option(
         None, "--flow-limit", "-f", help="Maximum flow limit in GPM (e.g. 1.5)"
@@ -283,7 +285,11 @@ def cmd_set_temperature(
       alpha-hwr control set-temperature --min 35 --max 39
       alpha-hwr control set-temperature --min 45 --max 50 --no-autoadapt --flow-limit 1.5
     """
-    run_async(_control_set_temperature(device, min_temp, max_temp, autoadapt, flow_limit))
+    run_async(
+        _control_set_temperature(
+            device, min_temp, max_temp, autoadapt, flow_limit
+        )
+    )
 
 
 @app.command("set-cycle-time")
@@ -522,7 +528,9 @@ async def _control_set_temperature(
                     if await control.set_flow_limit(flow_limit):
                         msg += f" with {flow_limit} GPM flow limit"
                     else:
-                        console.print("[yellow]Warning: Mode set, but flow limit failed[/yellow]")
+                        console.print(
+                            "[yellow]Warning: Mode set, but flow limit failed[/yellow]"
+                        )
                 print_success(msg)
             else:
                 console.print("[error]Failed to set temperature range[/error]")
@@ -594,7 +602,9 @@ async def _control_set_speed(
                     if await control.set_flow_limit(flow_limit):
                         msg += f" with {flow_limit} GPM flow limit"
                     else:
-                        console.print("[yellow]Warning: Speed set, but flow limit failed[/yellow]")
+                        console.print(
+                            "[yellow]Warning: Speed set, but flow limit failed[/yellow]"
+                        )
                 print_success(msg)
             else:
                 console.print("[error]Failed to set constant speed[/error]")
@@ -604,7 +614,9 @@ async def _control_set_speed(
         handle_error(e, "Failed to set constant speed")
 
 
-async def _control_set_flow_limit(device: Optional[str], limit_gpm: float) -> None:
+async def _control_set_flow_limit(
+    device: Optional[str], limit_gpm: float
+) -> None:
     """Internal async implementation of set-flow-limit command."""
     try:
         async with get_client(device) as client:

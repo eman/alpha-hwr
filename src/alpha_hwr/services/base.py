@@ -225,9 +225,9 @@ class BaseService:
         """
         # Complex APDU format verified from ALPHA HWR traffic
         # Class 10, SET (0x93), Sub 0x5400, Obj 0xDA01
-        conf_apdu = bytes.fromhex(
-            "0A9354000100DA0100000A02050005000100000000"
-        )
+        conf_apdu = bytes.fromhex("0A9354000100DA0100000A02050005000100000000")
         # Use query/send depending on implementation, but write is safe here
-        await self.transport.write(self._build_geni_packet(0xF8, 0xE7, conf_apdu))
+        await self.transport.write(
+            self._build_geni_packet(0xF8, 0xE7, conf_apdu)
+        )
         return True
