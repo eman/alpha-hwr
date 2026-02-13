@@ -269,7 +269,7 @@ def cmd_set_temperature(
 
     Examples:
       alpha-hwr control set-temperature --min 35 --max 39
-      alpha-hwr control set-temperature --min 95 --max 102
+      alpha-hwr control set-temperature --min 45 --max 50
     """
     run_async(_control_set_temperature(device, min_temp, max_temp))
 

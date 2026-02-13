@@ -813,25 +813,16 @@ class ControlService(BaseService):
         if not await self.set_mode(mode):
             return False
 
-        # TODO: Determine correct protocol for temperature setpoints
-        # Current implementation uses pressure encoding, which is incorrect
-        # Need to reverse engineer the actual temperature setpoint protocol
-        # Expected: Two float values (on_temp, off_temp) or similar structure
-
-        logger.warning(
-            "Temperature setpoint protocol not yet implemented. "
-            f"Mode {mode} is active but temperature setpoints may not be applied correctly. "
-            "Currently using legacy pressure-based encoding which is incorrect."
+        # Protocol for temperature setpoints on modes 13/14/15 is not yet implemented.
+        # These modes are for heating systems, while ALPHA HWR uses Mode 27 for
+        # primary temperature control.
+        logger.error(
+            f"Temperature setpoints for Mode {mode} are not yet implemented. "
+            "The mode has been switched, but temperatures were not applied. "
+            "Use set_temperature_range_control() for ALPHA HWR temperature control."
         )
 
-        # Legacy implementation (incorrect - uses pressure encoding)
-        # This likely doesn't do what we want
-        payload = encode_float_be(on_temp_c)  # TODO: Fix protocol
-        cmd = FrameBuilder.build_set_command(3, 2, register_id, payload)
-
-        return await self._send_with_retry(
-            cmd, f"Set Temperature Control ({heating_type})"
-        )
+        return False
 
     # Legacy methods - deprecated, kept for compatibility
     async def set_autoadapt_radiator(self, value_m: float) -> bool:
@@ -849,7 +840,15 @@ class ControlService(BaseService):
             logger.error(f"Legacy setpoint {value_m} m is outside valid range")
             return False
 
-        return await self.set_temperature_control(35.0, 39.0, "radiator")
+        # Set mode first
+        if not await self.set_mode(ControlMode.AUTO_ADAPT_RADIATOR):
+            return False
+
+        # Set setpoint using Class 3
+        payload = encode_float_be(value_m)
+        cmd = FrameBuilder.build_set_command(3, 2, 0x1E, payload)
+
+        return await self._send_with_retry(cmd, "Set AutoAdapt Radiator Value")
 
     async def set_autoadapt_underfloor(self, value_m: float) -> bool:
         """
@@ -866,7 +865,17 @@ class ControlService(BaseService):
             logger.error(f"Legacy setpoint {value_m} m is outside valid range")
             return False
 
-        return await self.set_temperature_control(35.0, 39.0, "underfloor")
+        # Set mode first
+        if not await self.set_mode(ControlMode.AUTO_ADAPT_UNDERFLOOR):
+            return False
+
+        # Set setpoint using Class 3
+        payload = encode_float_be(value_m)
+        cmd = FrameBuilder.build_set_command(3, 2, 0x1F, payload)
+
+        return await self._send_with_retry(
+            cmd, "Set AutoAdapt Underfloor Value"
+        )
 
     async def set_autoadapt_combined(self, value_m: float) -> bool:
         """
@@ -883,7 +892,17 @@ class ControlService(BaseService):
             logger.error(f"Legacy setpoint {value_m} m is outside valid range")
             return False
 
-        return await self.set_temperature_control(35.0, 39.0, "combined")
+        # Set mode first
+        if not await self.set_mode(
+            ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR
+        ):
+            return False
+
+        # Set setpoint using Class 3
+        payload = encode_float_be(value_m)
+        cmd = FrameBuilder.build_set_command(3, 2, 0x20, payload)
+
+        return await self._send_with_retry(cmd, "Set AutoAdapt Combined Value")
 
     async def set_autoadapt(self, value_m: float) -> bool:
         """

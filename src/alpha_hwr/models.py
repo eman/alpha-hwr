@@ -180,6 +180,9 @@ class SetpointInfo(BaseModel):
             ControlMode.PROPORTIONAL_PRESSURE,
             ControlMode.CONSTANT_DIFF_PRESSURE,
             ControlMode.PROPORTIONAL_DIFF_PRESSURE,
+            ControlMode.AUTO_ADAPT_RADIATOR,
+            ControlMode.AUTO_ADAPT_UNDERFLOOR,
+            ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
         ):
             # Convert Pascals to meters of water column (1 m H2O ≈ 9806.65 Pa)
             meters = self.setpoint / 9806.65
@@ -201,9 +204,6 @@ class SetpointInfo(BaseModel):
             ControlMode.CONSTANT_TEMPERATURE,
             ControlMode.CONSTANT_DIFF_TEMP,
             ControlMode.TEMPERATURE_RANGE_CONTROL,
-            ControlMode.AUTO_ADAPT_RADIATOR,
-            ControlMode.AUTO_ADAPT_UNDERFLOOR,
-            ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
         ):
             return (self.setpoint, "°C")
 
@@ -235,6 +235,9 @@ class SetpointInfo(BaseModel):
             ControlMode.PROPORTIONAL_PRESSURE,
             ControlMode.CONSTANT_DIFF_PRESSURE,
             ControlMode.PROPORTIONAL_DIFF_PRESSURE,
+            ControlMode.AUTO_ADAPT_RADIATOR,
+            ControlMode.AUTO_ADAPT_UNDERFLOOR,
+            ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
         ):
             min_val = self.min_setpoint / 9806.65
             max_val = self.max_setpoint / 9806.65
@@ -253,9 +256,6 @@ class SetpointInfo(BaseModel):
             ControlMode.CONSTANT_TEMPERATURE,
             ControlMode.CONSTANT_DIFF_TEMP,
             ControlMode.TEMPERATURE_RANGE_CONTROL,
-            ControlMode.AUTO_ADAPT_RADIATOR,
-            ControlMode.AUTO_ADAPT_UNDERFLOOR,
-            ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
         ):
             return ((self.min_setpoint, "°C"), (self.max_setpoint, "°C"))
 
