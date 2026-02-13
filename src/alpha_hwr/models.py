@@ -403,10 +403,12 @@ class ScheduleEntry(BaseModel):
     @field_validator("day")
     @classmethod
     def validate_day(cls, v: str) -> str:
-        """Validate day name is one of the valid weekdays."""
-        if v not in cls.VALID_DAYS:
+        """Validate day name is one of the valid weekdays (case-insensitive)."""
+        # Normalize to Title Case (e.g. 'monday' -> 'Monday')
+        normalized = v.capitalize()
+        if normalized not in cls.VALID_DAYS:
             raise ValueError(f"Day must be one of {cls.VALID_DAYS}, got '{v}'")
-        return v
+        return normalized
 
     @property
     def day_index(self) -> int:
