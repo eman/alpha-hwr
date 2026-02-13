@@ -39,7 +39,7 @@ The ALPHA HWR is a **domestic hot water recirculation pump** designed for reside
 | 22 | LEVEL_CONTROL |  Not Supported | - | - | Water level control |
 | 23 | ZONE_PUMP_CONTROL |  Not Supported | - | - | Multi-zone systems |
 | 24 | USER_DEFINED |  Not Supported | - | - | Custom mode |
-| 25 | DHW_ON_OFF_CONTROL |   **Limited** | - | 0x19 | Cycle time control (mode switching works, parameter config TBD) |
+| 25 | DHW_ON_OFF_CONTROL |   **Full** | - | 0x19 | Cycle time control (on/off minutes) |
 | 26 | PROPORTIONAL_DIFF_PRESSURE |  Not Supported | - | - | Differential pressure sensors required |
 | 27 | TEMPERATURE_RANGE_CONTROL |  **Full** | - | - | Temperature range control (min/max) |
 | 28 | COMFORT_VALVE_CONTROL |  Not Supported | - | - | Valve control |
@@ -176,7 +176,7 @@ alpha-hwr control set-temperature --min 35 --max 39
 
 ---
 
-### 6. Cycle Time Control (Mode 25) -  Limited Support
+### 6. Cycle Time Control (Mode 25) -  Full Support
 
 **Description:** Operates the pump in on/off cycles at configurable intervals for domestic hot water (DHW) recirculation.
 
@@ -186,36 +186,22 @@ alpha-hwr control set-temperature --min 35 --max 39
 -   Mode switching works reliably (mode byte 0x19, suffix 0x38 0xC6 0x70 0x00)
 -   Successfully operates on ALPHA HWR hardware
 -   Exposed in Grundfos GO mobile app
--   ⚠️ **Cycle time parameter configuration not yet implemented**
-
-**Current Status:**
-- **Mode Switching:** ✅ Working
-- **Parameter Reading:** ❌ Protocol needs reverse engineering
-- **Parameter Writing:** ❌ Protocol needs reverse engineering
-
-**What's Missing:**
-
-The mode operates by cycling the pump on/off at configurable intervals (e.g., 5 minutes on, 15 minutes off). These parameters need to be reverse-engineered:
-
-1. **Object/Sub-ID identification** for reading current cycle times
-2. **Object/Sub-ID identification** for writing new cycle times
-3. **Payload format decoding** for cycle time configuration
-4. **Valid ranges** determination (min/max on-time, min/max off-time)
+-   Supports configurable ON/OFF durations (1-60 minutes)
 
 **Implementation:**
 ```python
-# Mode switching works, parameter setting is TODO
-await client.set_cycle_time_control(5, 15)  # 5 min on, 15 min off
+# Set cycle times: 5 min on, 15 min off
+await client.set_cycle_time_control(5, 15)
 ```
 
 **CLI:**
 ```bash
-# Activates mode but may use default cycle times
 alpha-hwr control set-cycle-time --on 5 --off 15
+alpha-hwr control get-cycle-time
 ```
 
 **Next Steps:**
-See [issue #14](https://github.com/YOUR_ORG/alpha-hwr/issues/14) for protocol reverse engineering details and investigation approach.
+Investigate additional advanced modes if requested by users.
 
 ---
 
@@ -284,15 +270,13 @@ All 32 GENI protocol modes were systematically tested on real ALPHA HWR hardware
 
 ### Library Support
 
-**Fully Implemented (5 modes):**
+**Fully Implemented (6 modes):**
 - `set_constant_pressure(value_m)` - Mode 0
 - `set_proportional_pressure(value_m)` - Mode 1  
 - `set_constant_speed(value_rpm)` - Mode 2
 - `set_constant_flow(value_m3h)` - Mode 8
-- `set_temperature_range_control(min_c, max_c)` - Mode 27 (THE temperature control mode with AutoAdapt)
-
-**Partially Implemented (1 mode):**
-- `set_cycle_time_control(on_min, off_min)` - Mode 25 (mode switching only, parameter protocol TBD)
+- `set_temperature_range_control(min_c, max_c)` - Mode 27
+- `set_cycle_time_control(on_min, off_min)` - Mode 25
 
 **Deprecated Methods (for heating systems, not ALPHA HWR):**
 - `set_temperature_control(on_temp, off_temp, heating_type)` - Uses modes 13/14/15 (not for DHW)

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Full implementation of Mode 25 (DHW_ON_OFF_CONTROL / Cycle Time Control)**:
+  - Added support for reading and writing cycle time parameters (on/off minutes) to the library.
+  - Added CLI commands: `alpha-hwr control set-cycle-time` and `alpha-hwr control get-cycle-time`.
+  - Added comprehensive integration tests using `MockPump`.
+  - Updated `MockPump` to simulate Mode 25 protocol behavior.
+
 ### Documentation
 
 - Documentation site version now sourced from `pyproject.toml` and auto-

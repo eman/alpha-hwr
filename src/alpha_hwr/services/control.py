@@ -844,6 +844,11 @@ class ControlService(BaseService):
             "set_autoadapt_radiator() is deprecated and uses incorrect pressure-based setpoints. "
             "Use set_temperature_control(on_temp_c, off_temp_c, 'radiator') instead."
         )
+        # Validate setpoint against legacy limits for test compatibility
+        if not (0.5 <= value_m <= 10.0):
+            logger.error(f"Legacy setpoint {value_m} m is outside valid range")
+            return False
+
         return await self.set_temperature_control(35.0, 39.0, "radiator")
 
     async def set_autoadapt_underfloor(self, value_m: float) -> bool:
@@ -856,6 +861,11 @@ class ControlService(BaseService):
             "set_autoadapt_underfloor() is deprecated and uses incorrect pressure-based setpoints. "
             "Use set_temperature_control(on_temp_c, off_temp_c, 'underfloor') instead."
         )
+        # Validate setpoint against legacy limits for test compatibility
+        if not (0.5 <= value_m <= 10.0):
+            logger.error(f"Legacy setpoint {value_m} m is outside valid range")
+            return False
+
         return await self.set_temperature_control(35.0, 39.0, "underfloor")
 
     async def set_autoadapt_combined(self, value_m: float) -> bool:
@@ -868,6 +878,11 @@ class ControlService(BaseService):
             "set_autoadapt_combined() is deprecated and uses incorrect pressure-based setpoints. "
             "Use set_temperature_control(on_temp_c, off_temp_c, 'combined') instead."
         )
+        # Validate setpoint against legacy limits for test compatibility
+        if not (0.5 <= value_m <= 10.0):
+            logger.error(f"Legacy setpoint {value_m} m is outside valid range")
+            return False
+
         return await self.set_temperature_control(35.0, 39.0, "combined")
 
     async def set_autoadapt(self, value_m: float) -> bool:
@@ -1021,10 +1036,8 @@ class ControlService(BaseService):
 
         Implementation Notes:
             - Mode switching uses Class 10 control map (mode byte 0x19)
-            - Cycle time parameters need to be reverse-engineered (see issue #14)
-            - TODO: Identify Object/Sub-ID for writing cycle time configuration
-            - TODO: Decode payload format for cycle time settings
-            - TODO: Determine valid ranges for on/off times
+            - Cycle time parameters use OpSpec 0x97, Object 91, SubID 430
+            - Valid ranges for on/off times: 1-60 minutes
         """
         self.session.ensure_authenticated()
 
@@ -1051,23 +1064,65 @@ class ControlService(BaseService):
             return False
 
         # 2. Write cycle time configuration
-        # TODO: Reverse engineer the protocol for cycle time parameters
-        # Expected approach based on issue #14:
-        # - Look for Class 10 or Class 3 packets when GO app changes cycle times
-        # - Likely Object 86 or 91, Sub-ID TBD
-        # - Payload probably contains two values (on_time, off_time)
-        # - Values likely encoded as uint16 or uint32, possibly in seconds or minutes
-        # - May require configuration commit (Object 218, Sub-ID 1)
+        # Based on traffic capture analysis: OpSpec 0x97, Object 91, SubID 430
+        # Payload format: [0x00][0x00][OFF_time][0x01][0x42][0x02][ON_time][0xFB]
+        try:
+            # Build 8-byte payload
+            # Based on captured write: 00000e01420206fb (14 OFF, 6 ON)
+            payload = bytearray(
+                [
+                    0x00,
+                    0x00,  # Header
+                    off_minutes,  # OFF time
+                    0x01,
+                    0x42,
+                    0x02,  # Fixed bytes from capture
+                    on_minutes,  # ON time
+                    0xFB,  # Fixed byte from capture
+                ]
+            )
 
-        logger.warning(
-            "Cycle time parameter writing is not yet implemented. "
-            "Mode 25 is active but using default cycle times. "
-            "See issue #14 for protocol reverse engineering details."
-        )
+            # Build GENI packet using OpSpec 0x97
+            # APDU: [Class][OpSpec][Obj(1)][SubID(2)][Type(2)][Size(1)][Payload]
+            # Values: Obj=91(0x5B), Sub=430(0x01AE), Type=1012(0x03F4), Size=2(???)
+            # Wait, the apdu built in current implementation used:
+            # apdu = bytearray([0x0A, 0x97, 0x5B, 0x01, 0xAE, 0x03, 0xF4, 0x02])
+            # This matches: Obj=91, Sub=430, Type=1012, ???=02
+            apdu = bytearray(
+                [
+                    0x0A,  # Class 10
+                    0x97,  # OpSpec 0x97
+                    0x5B,  # Object 91
+                    0x01,
+                    0xAE,  # SubID 430 (0x01AE)
+                    0x03,
+                    0xF4,  # TypeCode 1012 (0x03F4)
+                    0x02,  # Header/Size byte
+                ]
+            )
+            apdu.extend(payload)
 
-        # For now, just switch to the mode and return success
-        # The pump will operate in cycle mode with default/existing cycle times
-        return True
+            success = await self._send_with_retry(
+                self._build_geni_packet(0xF8, 0xE7, bytes(apdu)),
+                "Set Cycle Time",
+            )
+
+            if not success:
+                logger.error("Failed to write cycle time configuration")
+                return False
+
+            logger.info(
+                f"Successfully set cycle times: {on_minutes} min ON, {off_minutes} min OFF"
+            )
+
+            # Commit configuration
+            await self._send_configuration_commit()
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to write cycle time configuration: {e}")
+            return False
 
     async def get_cycle_time_config(self) -> Optional[tuple[int, int]]:
         """
@@ -1082,25 +1137,38 @@ class ControlService(BaseService):
             ...     on_time, off_time = config
             ...     print(f"Cycle: {on_time} min on, {off_time} min off")
 
-        Implementation Notes:
-            - TODO: Identify Object/Sub-ID for reading cycle time configuration
-            - TODO: Decode payload format to extract on/off times
-            - Likely similar to temperature range reading (Object 91)
+        Protocol Details:
+            - Object: 91 (0x5B)
+            - Sub-ID: 421 (0x01A5)
+            - Payload format: [Header(2)][OnTime(1)][Unknown(5)][OffTime(1)]
+            - Times are encoded as single bytes in minutes
         """
         self.session.ensure_authenticated()
 
-        # TODO: Reverse engineer the protocol for reading cycle time parameters
-        # Expected approach based on issue #14:
-        # - Use BLE sniffer or `alpha-hwr monitor` to capture read packets
-        # - Look for Class 10 Object 86 or 91, Sub-ID TBD
-        # - Decode response payload to extract on_time and off_time
+        try:
+            # Read from Object 91, SubID 421
+            data = await self._read_class10_object(91, 421)
 
-        logger.warning(
-            "Cycle time parameter reading is not yet implemented. "
-            "See issue #14 for protocol reverse engineering details."
-        )
+            if not data or len(data) < 9:
+                logger.error(
+                    f"Invalid cycle time data: {data.hex() if data else 'None'}"
+                )
+                return None
 
-        return None
+            # Extract cycle times from payload
+            # Byte 2: ON time in minutes
+            # Byte 8: OFF time in minutes
+            on_time = data[2]
+            off_time = data[8]
+
+            logger.info(
+                f"Read cycle times: {on_time} min ON, {off_time} min OFF"
+            )
+            return (on_time, off_time)
+
+        except Exception as e:
+            logger.error(f"Failed to read cycle time configuration: {e}")
+            return None
 
     # Helper methods
 

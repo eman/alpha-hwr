@@ -62,6 +62,10 @@ class MockPumpState:
     # Clock
     last_synced_time: Optional[datetime] = None
 
+    # Cycle time parameters (Mode 25)
+    cycle_on_minutes: int = 5
+    cycle_off_minutes: int = 15
+
     # Response callback
     notification_callback: Optional[Callable[[bytes], None]] = None
 
@@ -171,7 +175,7 @@ class MockPump:
         if frame.class_byte == 10:
             raw_data = frame.raw_data
             opspec = raw_data[5] if len(raw_data) > 5 else 0
-            if opspec in (0x93, 0xB3, 0x90):
+            if opspec in (0x93, 0xB3, 0x90, 0x97):
                 return await self._handle_class10_set(frame)
             return await self._handle_class10(frame)
         elif frame.class_byte == 7:
@@ -208,23 +212,36 @@ class MockPump:
         return self._build_error_response()
 
     async def _handle_class10_set(self, frame) -> bytes:
-        """Handle Class 10 SET operations (OpSpec 0x93, 0xB3, 0x90)."""
+        """Handle Class 10 SET operations (OpSpec 0x93, 0xB3, 0x90, 0x97)."""
         raw_data = frame.raw_data
         opspec = raw_data[5]
 
-        # OpSpec 0xB3 uses a different header format than 0x90/0x93
+        # OpSpec 0xB3 uses ObjID(1B) + SubID(2B)
         if opspec == 0xB3:
-            # [0A][B3][ObjID][SubH][SubL][...]
             obj_id = raw_data[6]
             sub_id = (raw_data[7] << 8) | raw_data[8]
+        # OpSpec 0x90, 0x93, 0x97 use SubID(2B) + ObjID(2B) in FrameParser standard
+        # but ControlService implementation for 0x97 specifically sends certain bytes.
         else:
-            # Standard Class 10 identifier offsets for 0x90/0x93: SubID (6-7), ObjID (8-9)
             sub_id = (raw_data[6] << 8) | raw_data[7]
             obj_id = (raw_data[8] << 8) | raw_data[9]
 
         # Control operations (Sub 0x5600, Obj 0x0601)
         if sub_id == 0x5600 and obj_id == 0x0601:
             return self._handle_control_command(frame)
+
+        # Mode 25 Cycle Time Write (OpSpec 0x97, Sub 0x5B01, Obj 0xAE03)
+        if (
+            opspec == 0x97
+            and sub_id == 0x5B01
+            and obj_id == 0xAE03
+            and len(raw_data) >= 20
+        ):
+            # Frame: [27][Len][E7][F8][0A][97][5B][01][AE][03][F4][02][00][00][OFF][01][42][02][ON][FB]
+            # Offsets:  0   1    2   3   4   5   6   7   8   9   10  11  12  13  14   15  16  17  18  19
+            self.state.cycle_off_minutes = raw_data[14]
+            self.state.cycle_on_minutes = raw_data[18]
+            return self._build_ack_response()
 
         # Schedule overview enable/disable (Obj 84, Sub 1)
         # Note: ObjID 84=0x0054, SubID 1=0x0001
@@ -318,6 +335,17 @@ class MockPump:
         # Clock read (Obj 94, Sub 101)
         if obj_id == 0x005E and sub_id == 0x0065:
             return self._build_clock_response()
+
+        # Mode 25 Cycle Time Config (Obj 91, Sub 421)
+        if obj_id == 91 and sub_id == 421:
+            # Format: [Header(2)][OnTime(1)][Unknown(5)][OffTime(1)]
+            payload = bytearray([0x00, 0x00])
+            payload.append(self.state.cycle_on_minutes)
+            payload.extend(
+                bytes([0x38, 0x84, 0x4F, 0x30, 0x05])
+            )  # Unknowns from capture
+            payload.append(self.state.cycle_off_minutes)
+            return self._build_class10_response(sub_id, obj_id, bytes(payload))
 
         # Timestamp map (Obj 88, Sub 13300/13301)
         if obj_id == 88 and sub_id in (13300, 13301):

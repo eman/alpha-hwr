@@ -298,10 +298,6 @@ def cmd_set_cycle_time(
     Examples:
       alpha-hwr control set-cycle-time --on 5 --off 15
       alpha-hwr control set-cycle-time --on 10 --off 20
-
-    Note: Cycle time parameter writing is not fully implemented yet.
-    The mode will be activated but may use default cycle times.
-    See issue #14 for details.
     """
     run_async(_control_set_cycle_time(device, on_minutes, off_minutes))
 
@@ -322,9 +318,6 @@ def cmd_get_cycle_time(
 
     Example:
       alpha-hwr control get-cycle-time
-
-    Note: Cycle time parameter reading is not yet implemented.
-    See issue #14 for details.
     """
     run_async(_control_get_cycle_time(device))
 
@@ -502,10 +495,6 @@ async def _control_set_cycle_time(
                 print_success(
                     f"Set Cycle Time Control to {on_minutes} min on, {off_minutes} min off"
                 )
-                console.print(
-                    "[yellow]Note: Cycle time parameters may not be fully applied. "
-                    "Mode is active but may use default cycle times.[/yellow]"
-                )
             else:
                 console.print("[error]Failed to set cycle time control[/error]")
                 raise typer.Exit(1)
@@ -529,7 +518,7 @@ async def _control_get_cycle_time(device: Optional[str]) -> None:
                 )
             else:
                 console.print(
-                    "[yellow]Cycle time reading not yet implemented. See issue #14.[/yellow]"
+                    "[error]Failed to read cycle time configuration[/error]"
                 )
 
     except Exception as e:
