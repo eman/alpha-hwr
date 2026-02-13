@@ -392,8 +392,14 @@ async def _control_start(device: Optional[str]) -> None:
     try:
         async with get_client(device) as client:
             control = require_service(client.control, "Control")
-            # Start pump
-            success = await control.start()
+            # Read current mode so the start command doesn't
+            # accidentally switch the pump to a different mode.
+            info = await control.get_mode()
+            mode_val: int | None = None
+            if info is not None:
+                mode_val = int(info.control_mode)
+
+            success = await control.start(mode=mode_val)
 
             if success:
                 print_success("Pump started successfully")
@@ -410,8 +416,14 @@ async def _control_stop(device: Optional[str]) -> None:
     try:
         async with get_client(device) as client:
             control = require_service(client.control, "Control")
-            # Stop pump
-            success = await control.stop()
+            # Read current mode so the stop command doesn't
+            # accidentally switch the pump to a different mode.
+            info = await control.get_mode()
+            mode_val: int | None = None
+            if info is not None:
+                mode_val = int(info.control_mode)
+
+            success = await control.stop(mode=mode_val)
 
             if success:
                 print_success("Pump stopped successfully")

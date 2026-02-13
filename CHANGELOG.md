@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Start/Stop Commands**: Fixed start and stop commands silently failing.
+  The control payload now uses the correct mode-specific suffix bytes
+  instead of encoding `0.0` (which the pump firmware rejected). The CLI
+  also reads the pump's current control mode before sending start/stop to
+  avoid accidentally switching modes.
 - **Control Mode Setpoints**: Fixed floating-point precision issues in integration tests by using `pytest.approx`.
 - **MockPump Reliability**: Fixed missing logger definitions and improved OpSpec 0xB3 ID parsing.
 - **CI Test Failures**: Resolved "fixture not found" errors by properly managing benchmark plugin loading.

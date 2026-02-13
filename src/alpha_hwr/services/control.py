@@ -150,6 +150,17 @@ class ControlService(BaseService):
         27: 0x1B,  # TEMPERATURE_RANGE_CONTROL
     }
 
+    # Default suffix bytes per mode, used for start/stop when no
+    # explicit setpoint is given.  Values come from the Grundfos GO
+    # app traffic captures.
+    _MODE_SUFFIX_MAP: dict[int, bytes] = {
+        0x00: bytes([0x45, 0x65, 0x70, 0x00]),  # Pressure
+        0x02: bytes([0x45, 0x65, 0x70, 0x00]),  # Speed
+        0x08: bytes([0x45, 0x65, 0x70, 0x00]),  # Flow
+        0x19: bytes([0x38, 0xC6, 0x76, 0xEF]),  # DHW
+        0x1B: bytes([0x39, 0x67, 0x70, 0x00]),  # Temp Range
+    }
+
     def __init__(
         self,
         transport: Transport,
@@ -219,13 +230,26 @@ class ControlService(BaseService):
         return await self._send_control_request(mode_val, start=False)
 
     async def _send_control_request(
-        self, mode_val: int, start: bool = True, setpoint: float = 0.0
+        self,
+        mode_val: int,
+        start: bool = True,
+        setpoint: float | None = None,
     ) -> bool:
         """
         Send a control request using trace-verified identifiers and format.
 
         Payload Structure (12 bytes):
-        [2F 01 00 00 07 00][Flag][Mode][Setpoint(4)]
+        [2F 01 00 00 07 00][Flag][Mode][Suffix(4)]
+
+        Args:
+            mode_val: Control mode ID (from ControlMode enum).
+            start: True to start/run, False to stop.
+            setpoint: Optional setpoint value in native units.
+                When provided, the suffix carries this float32.
+                When None, uses the mode's default suffix bytes.
+
+        Returns:
+            True if the command was acknowledged.
         """
         mode_byte = self._MODE_BYTE_MAP.get(mode_val, 0x02)
 
@@ -233,7 +257,14 @@ class ControlService(BaseService):
         payload = bytearray([0x2F, 0x01, 0x00, 0x00, 0x07, 0x00])
         payload.append(0x00 if start else 0x01)  # 0=Start, 1=Stop
         payload.append(mode_byte)
-        payload.extend(encode_float_be(setpoint))
+
+        if setpoint is not None:
+            payload.extend(encode_float_be(setpoint))
+        else:
+            suffix = self._MODE_SUFFIX_MAP.get(
+                mode_byte, bytes([0x45, 0x65, 0x70, 0x00])
+            )
+            payload.extend(suffix)
 
         # OpSpec 0x90 = SET + 16 bytes (4 IDs + 12 payload)
         apdu = bytearray([0x0A, 0x90])
@@ -245,7 +276,7 @@ class ControlService(BaseService):
 
         if await self._send_with_retry(
             req,
-            f"Control Request (mode={mode_val}, start={start}, set={setpoint:.2f})",
+            f"Control Request (mode={mode_val}, start={start})",
         ):
             await self._send_configuration_commit()
             return True
