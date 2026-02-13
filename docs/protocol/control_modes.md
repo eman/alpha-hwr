@@ -269,13 +269,14 @@ All 32 GENI protocol modes were systematically tested on real ALPHA HWR hardware
 
 ### Library Support
 
-**Fully Implemented (6 modes):**
+**Fully Implemented (6 modes via Class 10):**
 - `set_constant_pressure(value_m)` - Mode 0
 - `set_proportional_pressure(value_m)` - Mode 1  
 - `set_constant_speed(value_rpm)` - Mode 2
 - `set_constant_flow(value_m3h)` - Mode 8
-- `set_temperature_range_control(min_c, max_c)` - Mode 27
+- `set_temperature_range_control(min_c, max_c, autoadapt=True)` - Mode 27
 - `set_cycle_time_control(on_min, off_min)` - Mode 25
+- `set_flow_limit(value_gpm)` - Sub 39 limitation
 
 **Deprecated Methods (for heating systems, not ALPHA HWR):**
 - `set_temperature_control(on_temp, off_temp, heating_type)` - Uses modes 13/14/15 (not for DHW)
@@ -291,11 +292,12 @@ All 32 GENI protocol modes were systematically tested on real ALPHA HWR hardware
 **Available Commands:**
 ```bash
 alpha-hwr control set-pressure <meters>
-alpha-hwr control set-mode proportional-pressure <meters>
-alpha-hwr control set-speed <rpm>
+alpha-hwr control set-proportional <meters>
+alpha-hwr control set-speed <rpm> [--flow-limit <gpm>]
 alpha-hwr control set-flow <m3h>
-alpha-hwr control set-temperature --min <temp_c> --max <temp_c>
+alpha-hwr control set-temperature --min <temp_c> --max <temp_c> [--autoadapt/--no-autoadapt] [--flow-limit <gpm>]
 alpha-hwr control set-cycle-time --on <minutes> --off <minutes>
+alpha-hwr control set-flow-limit <gpm>
 alpha-hwr control get-cycle-time
 ```
 

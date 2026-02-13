@@ -63,8 +63,8 @@ class MockPumpState:
     last_synced_time: Optional[datetime] = None
 
     # Cycle time parameters (Mode 25)
-    cycle_on_minutes: int = 5
-    cycle_off_minutes: int = 15
+    cycle_on_minutes: int = 6
+    cycle_off_minutes: int = 14
 
     # Response callback
     notification_callback: Optional[Callable[[bytes], None]] = None
@@ -175,7 +175,8 @@ class MockPump:
         if frame.class_byte == 10:
             raw_data = frame.raw_data
             opspec = raw_data[5] if len(raw_data) > 5 else 0
-            if opspec in (0x93, 0xB3, 0x90, 0x97):
+            # Any OpSpec with bit 7 set is a SET operation
+            if opspec & 0x80:
                 return await self._handle_class10_set(frame)
             return await self._handle_class10(frame)
         elif frame.class_byte == 7:
@@ -212,36 +213,28 @@ class MockPump:
         return self._build_error_response()
 
     async def _handle_class10_set(self, frame) -> bytes:
-        """Handle Class 10 SET operations (OpSpec 0x93, 0xB3, 0x90, 0x97)."""
+        """Handle Class 10 SET operations."""
         raw_data = frame.raw_data
         opspec = raw_data[5]
 
-        # OpSpec 0xB3 uses ObjID(1B) + SubID(2B)
-        if opspec == 0xB3:
-            obj_id = raw_data[6]
-            sub_id = (raw_data[7] << 8) | raw_data[8]
-        # OpSpec 0x90, 0x93, 0x97 use SubID(2B) + ObjID(2B) in FrameParser standard
-        # but ControlService implementation for 0x97 specifically sends certain bytes.
-        else:
-            sub_id = (raw_data[6] << 8) | raw_data[7]
-            obj_id = (raw_data[8] << 8) | raw_data[9]
+        # Standard GENI Class 10 SET: bit 7 set, bits 0-5 = length
+        # Standard ID order: SubID(2B) then ObjID(2B)
+        sub_id = (raw_data[6] << 8) | raw_data[7]
+        obj_id = (raw_data[8] << 8) | raw_data[9]
 
         # Control operations (Sub 0x5600, Obj 0x0601)
         if sub_id == 0x5600 and obj_id == 0x0601:
             return self._handle_control_command(frame)
 
-        # Mode 25 Cycle Time Write (OpSpec 0x97, Sub 0x5B01, Obj 0xAE03)
-        if (
-            opspec == 0x97
-            and sub_id == 0x5B01
-            and obj_id == 0xAE03
-            and len(raw_data) >= 20
-        ):
-            # Frame: [27][Len][E7][F8][0A][97][5B][01][AE][03][F4][02][00][00][OFF][01][42][02][ON][FB]
-            # Offsets:  0   1    2   3   4   5   6   7   8   9   10  11  12  13  14   15  16  17  18  19
-            self.state.cycle_off_minutes = raw_data[14]
-            self.state.cycle_on_minutes = raw_data[18]
-            return self._build_ack_response()
+        # Mode 25 Cycle Time Write (Sub 0x01AE, Obj 0x005B)
+        if (opspec & 0x80) and sub_id == 0x01AE and obj_id == 0x005B:
+            # Payload structure: [Type(2)][Size(1)][0x00, 0x00, OFF, 0x01, 0x42, 0x02, ON, 0xFB]
+            # Offset to OFF = 4 (GENI) + 6 (APDU) + 3 (Type/Size) + 2 (Header) = 15
+            # Offset to ON = 15 + 4 = 19
+            if len(raw_data) >= 20:
+                self.state.cycle_off_minutes = raw_data[15]
+                self.state.cycle_on_minutes = raw_data[19]
+                return self._build_ack_response()
 
         # Schedule overview enable/disable (Obj 84, Sub 1)
         # Note: ObjID 84=0x0054, SubID 1=0x0001
@@ -346,6 +339,10 @@ class MockPump:
             )  # Unknowns from capture
             payload.append(self.state.cycle_off_minutes)
             return self._build_class10_response(sub_id, obj_id, bytes(payload))
+
+        # Main User Settings (Obj 91, Sub 430)
+        if obj_id == 91 and sub_id == 430:
+            return self._build_user_settings_response()
 
         # Timestamp map (Obj 88, Sub 13300/13301)
         if obj_id == 88 and sub_id in (13300, 13301):
@@ -546,6 +543,22 @@ class MockPump:
         payload.append(dt.second)
 
         return self._build_class10_response(101, 94, bytes(payload))
+
+    def _build_user_settings_response(self) -> bytes:
+        """
+        Build Class 10 User Settings response (Obj 91, Sub 430).
+        
+        Format: [00 00 0E][01 42 0C][00 00 42 1E DE 4C][OFF][3C 02][ON][01]
+        """
+        payload = bytearray([0x00, 0x00, 0x0E]) # Header
+        payload.extend([0x01, 0x42, 0x0C]) # Magic
+        payload.extend([0x00, 0x00, 0x42, 0x1E, 0xDE, 0x4C]) # Magic
+        payload.append(self.state.cycle_off_minutes) # Offset 12
+        payload.extend([0x3C, 0x02]) # Magic
+        payload.append(self.state.cycle_on_minutes)  # Offset 15
+        payload.append(0x01) # Suffix
+        
+        return self._build_class10_response(430, 91, bytes(payload))
 
     def _build_setpoint_info_response(self) -> bytes:
         """

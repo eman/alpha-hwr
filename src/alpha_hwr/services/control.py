@@ -83,7 +83,7 @@ from typing import TYPE_CHECKING, Optional
 
 from ..models import SetpointInfo
 from ..constants import ControlMode
-from ..protocol.codec import encode_float_be
+from ..protocol.codec import encode_float_be, encode_uint16_be
 from ..protocol import FrameBuilder
 from .base import BaseService
 
@@ -128,20 +128,26 @@ class ControlService(BaseService):
         >>> await control.stop()
     """
 
-    # Control Mode Payloads (Class 10, Sub 0x5600, Obj 0x0601)
-    # Payload format: 2F 01 00 00 07 00 [Flag] [Mode] [Suffix bytes]
-    # Flag: 00=Start/Run, 01=Stop
-    # Suffix is invariant to Flag
-    # Map: ControlMode.Value -> (ModeByte, SuffixBytes)
-    # Based on protocol specification
-    _CLASS10_CONTROL_MAP = {
-        0: (0x00, bytes([0x45, 0x65, 0x70, 0x00])),  # Constant Pressure
-        2: (0x02, bytes([0x45, 0x65, 0x70, 0x00])),  # Constant Speed
-        13: (0x0D, bytes([0x45, 0x65, 0x70, 0x00])),  # AutoAdapt Radiator
-        14: (0x0E, bytes([0x45, 0x65, 0x70, 0x00])),  # AutoAdapt Underfloor
-        15: (0x0F, bytes([0x45, 0x65, 0x70, 0x00])),  # AutoAdapt Combined
-        25: (0x19, bytes([0x38, 0xC6, 0x70, 0x00])),  # DHW
-        27: (0x1B, bytes([0x39, 0x67, 0x70, 0x00])),  # Temp Range
+    # Control Object Identifiers (from trace)
+    # These seem to be shifted or non-standard, but they work on ALPHA HWR
+    SUB_CONTROL = 0x5600
+    OBJ_CONTROL = 0x0601
+
+    # ALPHA HWR Specific SubIDs for individual setpoints (optional backup)
+    SUB_SPEED_SETPOINT = 13
+    SUB_PRESSURE_SETPOINT = 15
+    SUB_FLOW_SETPOINT = 39
+    SUB_FLOW_LIMIT = 39
+    PUMP_OBJ = 86
+
+    # Control Mode Mapping for ALPHA HWR
+    # Value -> Mode Byte used in control payload
+    _MODE_BYTE_MAP = {
+        0: 0x00,  # CONSTANT_PRESSURE
+        2: 0x02,  # CONSTANT_SPEED
+        8: 0x08,  # CONSTANT_FLOW
+        25: 0x19,  # DHW_ON_OFF_CONTROL
+        27: 0x1B,  # TEMPERATURE_RANGE_CONTROL
     }
 
     def __init__(
@@ -166,99 +172,38 @@ class ControlService(BaseService):
         """
         Start the pump.
 
-        Sends the start command using Class 10 DataObject method.
-        Optionally switches to a different mode before starting.
-
         Args:
             mode: Optional control mode to use (defaults to current mode)
 
         Returns:
-            True if pump started successfully, False otherwise
-
-        Raises:
-            ConnectionError: If not connected or not authenticated
-
-        Example:
-            >>> # Start with current mode
-            >>> await control.start()
-            >>>
-            >>> # Start with specific mode
-            >>> await control.start(mode=ControlMode.CONSTANT_PRESSURE)
-
-        Implementation Notes:
-            - Uses Class 10 Sub 0x5600, Obj 0x0601
-            - Sends configuration commit after start
-            - Requires authentication
-            - Uses transaction lock to prevent conflicts
+            True if successful, False otherwise
         """
         self.session.ensure_authenticated()
-
         logger.info("Starting pump...")
 
         # Resolve target mode
         if mode is not None:
-            mode_val = mode
             self._current_mode = mode
-        else:
-            mode_val = (
-                self._current_mode.value
-                if isinstance(self._current_mode, ControlMode)
-                else self._current_mode
-            )
+        
+        mode_val = (
+            self._current_mode.value
+            if isinstance(self._current_mode, ControlMode)
+            else self._current_mode
+        )
 
-        if mode_val in self._CLASS10_CONTROL_MAP:
-            mode_byte, suffix = self._CLASS10_CONTROL_MAP[mode_val]
-
-            # Build payload: [Header] [00=Run] [Mode] [Suffix]
-            payload = bytearray(
-                [0x2F, 0x01, 0x00, 0x00, 0x07, 0x00, 0x00, mode_byte]
-            )
-            payload.extend(suffix)
-
-            # Build Class 10 SET packet
-            apdu = bytearray([0x0A, 0x90, 0x56, 0x00, 0x06, 0x01])
-            apdu.extend(payload)
-
-            # Build GENI frame
-            req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
-
-            # Send with retry
-            if await self._send_with_retry(req, "Start Pump"):
-                # Send configuration commit (required to persist state)
-                await self._send_configuration_commit()
-                logger.info("Pump started successfully")
-                return True
-        else:
-            logger.error(f"Mode {mode_val} not supported for Class 10 start")
-
-        return False
+        return await self._send_control_request(mode_val, start=True)
 
     async def stop(self, mode: Optional[int] = None) -> bool:
         """
         Stop the pump.
 
-        Sends the stop command using Class 10 DataObject method.
-
         Args:
             mode: Optional control mode (defaults to current mode)
 
         Returns:
-            True if pump stopped successfully, False otherwise
-
-        Raises:
-            ConnectionError: If not connected or not authenticated
-
-        Example:
-            >>> await control.stop()
-
-        Implementation Notes:
-            - Uses Class 10 Sub 0x5600, Obj 0x0601
-            - Sets Flag=0x01 for stop operation
-            - Sends configuration commit
-            - Resets telemetry stream flags (stream may pause when stopped)
+            True if successful, False otherwise
         """
         self.session.ensure_authenticated()
-
         logger.info("Stopping pump...")
 
         # Resolve target mode
@@ -271,35 +216,34 @@ class ControlService(BaseService):
                 else self._current_mode
             )
 
-        if mode_val in self._CLASS10_CONTROL_MAP:
-            mode_byte, suffix = self._CLASS10_CONTROL_MAP[mode_val]
+        return await self._send_control_request(mode_val, start=False)
 
-            # Build payload: [Header] [01=Stop] [Mode] [Suffix]
-            payload = bytearray(
-                [0x2F, 0x01, 0x00, 0x00, 0x07, 0x00, 0x01, mode_byte]
-            )
-            payload.extend(suffix)
-
-            # Build Class 10 SET packet
-            apdu = bytearray([0x0A, 0x90, 0x56, 0x00, 0x06, 0x01])
-            apdu.extend(payload)
-
-            # Build GENI frame
-            req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
-
-            # Send with retry
-            if await self._send_with_retry(req, "Stop Pump"):
-                # Send configuration commit
-                await self._send_configuration_commit()
-                logger.info("Pump stopped successfully")
-
-                # Note: Telemetry stream may pause when stopped
-                # Services should re-enable polling if needed
-
-                return True
-        else:
-            logger.error(f"Mode {mode_val} not supported for Class 10 stop")
-
+    async def _send_control_request(self, mode_val: int, start: bool = True, setpoint: float = 0.0) -> bool:
+        """
+        Send a control request using trace-verified identifiers and format.
+        
+        Payload Structure (12 bytes):
+        [2F 01 00 00 07 00][Flag][Mode][Setpoint(4)]
+        """
+        mode_byte = self._MODE_BYTE_MAP.get(mode_val, 0x02)
+        
+        # Build payload
+        payload = bytearray([0x2F, 0x01, 0x00, 0x00, 0x07, 0x00])
+        payload.append(0x00 if start else 0x01) # 0=Start, 1=Stop
+        payload.append(mode_byte)
+        payload.extend(encode_float_be(setpoint))
+        
+        # OpSpec 0x90 = SET + 16 bytes (4 IDs + 12 payload)
+        apdu = bytearray([0x0A, 0x90])
+        apdu.extend(encode_uint16_be(self.SUB_CONTROL))
+        apdu.extend(encode_uint16_be(self.OBJ_CONTROL))
+        apdu.extend(payload)
+        
+        req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
+        
+        if await self._send_with_retry(req, f"Control Request (mode={mode_val}, start={start}, set={setpoint:.2f})"):
+            await self._send_configuration_commit()
+            return True
         return False
 
     async def enable_remote_mode(self) -> bool:
@@ -370,64 +314,13 @@ class ControlService(BaseService):
 
         Returns:
             True if mode set successfully, False otherwise
-
-        Example:
-            >>> await control.set_mode(ControlMode.CONSTANT_PRESSURE)
-            >>> await control.set_mode(ControlMode.CONSTANT_SPEED)
-
-        Implementation Notes:
-            - Tries Class 10 method first (preferred)
-            - Falls back to Class 3 for unsupported modes
-            - Updates internal mode tracking
         """
         self.session.ensure_authenticated()
 
         mode_val = mode.value if isinstance(mode, ControlMode) else mode
         logger.info(f"Setting control mode to {mode_val}...")
 
-        # Try Class 10 first
-        if mode_val in self._CLASS10_CONTROL_MAP:
-            mode_byte, suffix = self._CLASS10_CONTROL_MAP[mode_val]
-
-            # Build payload: [Header] [00=Run] [Mode] [Suffix]
-            payload = bytearray(
-                [0x2F, 0x01, 0x00, 0x00, 0x07, 0x00, 0x00, mode_byte]
-            )
-            payload.extend(suffix)
-
-            # Build Class 10 SET packet
-            apdu = bytearray([0x0A, 0x90, 0x56, 0x00, 0x06, 0x01])
-            apdu.extend(payload)
-
-            req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
-
-            if await self._send_with_retry(req, f"Set Mode {mode_val}"):
-                self._current_mode = (
-                    mode if isinstance(mode, ControlMode) else mode_val
-                )
-                return True
-
-        # Fallback to Class 3
-        logger.debug(f"Mode {mode_val} not in Class 10 map, trying Class 3...")
-
-        CMD_MAP = {
-            0: 0x18,  # Const Pressure
-            1: 0x17,  # Prop Pressure
-            2: 0x04,  # Const Speed
-            5: 0x06,  # AutoAdapt (generic)
-            8: 0x15,  # Const Flow
-            13: 0x1E,  # AutoAdapt Radiator
-            14: 0x1F,  # AutoAdapt Underfloor
-            15: 0x20,  # AutoAdapt Combined (Radiator + Underfloor)
-        }
-
-        cmd_id = CMD_MAP.get(mode_val)
-        if cmd_id is None:
-            logger.error(f"Unsupported control mode: {mode_val}")
-            return False
-
-        cmd = FrameBuilder.build_command_info(3, cmd_id)
-        if await self._send_with_retry(cmd, f"Set Mode {mode_val} (Class 3)"):
+        if await self._send_control_request(mode_val, start=True):
             self._current_mode = (
                 mode if isinstance(mode, ControlMode) else mode_val
             )
@@ -597,36 +490,25 @@ class ControlService(BaseService):
 
         Returns:
             True if successful, False otherwise
-
-        Example:
-            >>> await control.set_constant_pressure(1.5)  # 1.5 meters
-
-        Implementation Notes:
-            - Converts meters to Pascals (value_m * 9806.65)
-            - Validates against min/max limits
-            - Uses Class 3 register write
         """
         self.session.ensure_authenticated()
 
         logger.info(f"Setting constant pressure to {value_m} m...")
 
-        # Validate setpoint against reasonable limits (0.5m to 10m for residential pumps)
+        # Validate setpoint against reasonable limits (0.5m to 10m)
         if not (0.5 <= value_m <= 10.0):
-            logger.error(
-                f"Setpoint {value_m} m is outside valid range (0.5-10.0 m). "
-                "This may damage the pump or indicate an error."
-            )
+            logger.error(f"Setpoint {value_m} m is outside valid range (0.5-10.0 m)")
             return False
 
-        # Set mode first
-        if not await self.set_mode(ControlMode.CONSTANT_PRESSURE):
+        # Convert meters to Pascals
+        value_pa = value_m * 9806.65
+
+        # 1. Update overall operation request (Sub 6)
+        if not await self._send_control_request(ControlMode.CONSTANT_PRESSURE, setpoint=value_pa):
             return False
 
-        # Set setpoint using Class 3
-        payload = encode_float_be(value_m)
-        cmd = FrameBuilder.build_set_command(3, 2, 0x18, payload)
-
-        return await self._send_with_retry(cmd, "Set Constant Pressure Value")
+        # 2. Update specific pressure setpoint (Sub 15)
+        return await self._set_class10_setpoint(value_pa, self.SUB_PRESSURE_SETPOINT)
 
     async def set_constant_speed(self, value_rpm: float) -> bool:
         """
@@ -637,31 +519,22 @@ class ControlService(BaseService):
 
         Returns:
             True if successful, False otherwise
-
-        Example:
-            >>> await control.set_constant_speed(2500)  # 2500 RPM
         """
         self.session.ensure_authenticated()
 
         logger.info(f"Setting constant speed to {value_rpm} RPM...")
 
-        # Validate setpoint against reasonable limits (500 to 4500 RPM for residential pumps)
+        # Validate setpoint against reasonable limits (500 to 4500 RPM)
         if not (500 <= value_rpm <= 4500):
-            logger.error(
-                f"Setpoint {value_rpm} RPM is outside valid range (500-4500 RPM). "
-                "This may damage the pump or indicate an error."
-            )
+            logger.error(f"Setpoint {value_rpm} RPM is outside valid range (500-4500 RPM)")
             return False
 
-        # Set mode first
-        if not await self.set_mode(ControlMode.CONSTANT_SPEED):
+        # 1. Update overall operation request (Sub 6)
+        if not await self._send_control_request(ControlMode.CONSTANT_SPEED, setpoint=value_rpm):
             return False
 
-        # Set setpoint using Class 3
-        payload = encode_float_be(value_rpm)
-        cmd = FrameBuilder.build_set_command(3, 2, 0x04, payload)
-
-        return await self._send_with_retry(cmd, "Set Constant Speed Value")
+        # 2. Update specific speed setpoint (Sub 13)
+        return await self._set_class10_setpoint(value_rpm, self.SUB_SPEED_SETPOINT)
 
     async def set_constant_flow(self, value_m3h: float) -> bool:
         """
@@ -672,71 +545,51 @@ class ControlService(BaseService):
 
         Returns:
             True if successful, False otherwise
-
-        Example:
-            >>> await control.set_constant_flow(2.5)  # 2.5 m³/h
         """
         self.session.ensure_authenticated()
 
         logger.info(f"Setting constant flow to {value_m3h} m³/h...")
 
-        # Validate setpoint against reasonable limits (0.1 to 10.0 m³/h for residential pumps)
+        # Validate setpoint against reasonable limits (0.1 to 10.0 m³/h)
         if not (0.1 <= value_m3h <= 10.0):
-            logger.error(
-                f"Setpoint {value_m3h} m³/h is outside valid range (0.1-10.0 m³/h). "
-                "This may damage the pump or indicate an error."
-            )
+            logger.error(f"Setpoint {value_m3h} m³/h is outside valid range (0.1-10.0 m³/h)")
             return False
 
-        # Set mode first
-        if not await self.set_mode(ControlMode.CONSTANT_FLOW):
+        # 1. Update overall operation request (Sub 6)
+        if not await self._send_control_request(ControlMode.CONSTANT_FLOW, setpoint=value_m3h):
             return False
 
-        # Set setpoint using Class 3
-        payload = encode_float_be(value_m3h)
-        cmd = FrameBuilder.build_set_command(3, 2, 0x15, payload)
-
-        return await self._send_with_retry(cmd, "Set Constant Flow Value")
+        # 2. Update specific flow setpoint (Sub 39)
+        return await self._set_class10_setpoint(value_m3h, self.SUB_FLOW_SETPOINT)
 
     async def set_proportional_pressure(self, value_m: float) -> bool:
         """
         Set proportional pressure mode with setpoint.
 
-        In Proportional Pressure mode, the pump adjusts pressure based on flow,
-        maintaining a linear relationship between flow and pressure.
-
         Args:
-            value_m: Pressure setpoint in meters of water column (e.g., 1.0 for 1 meter)
+            value_m: Pressure setpoint in meters of water column
 
         Returns:
             True if successful, False otherwise
-
-        Example:
-            >>> await control.set_proportional_pressure(1.5)  # 1.5 meters
         """
         self.session.ensure_authenticated()
 
         logger.info(f"Setting proportional pressure to {value_m} m...")
 
-        # Validate setpoint against reasonable limits (0.5m to 10m for residential pumps)
+        # Validate setpoint against reasonable limits (0.5m to 10m)
         if not (0.5 <= value_m <= 10.0):
-            logger.error(
-                f"Setpoint {value_m} m is outside valid range (0.5-10.0 m). "
-                "This may damage the pump or indicate an error."
-            )
+            logger.error(f"Setpoint {value_m} m is outside valid range (0.5-10.0 m)")
             return False
 
-        # Set mode first
-        if not await self.set_mode(ControlMode.PROPORTIONAL_PRESSURE):
+        # Convert meters to Pascals
+        value_pa = value_m * 9806.65
+
+        # 1. Update overall operation request (Sub 6)
+        if not await self._send_control_request(ControlMode.PROPORTIONAL_PRESSURE, setpoint=value_pa):
             return False
 
-        # Set setpoint using Class 3
-        payload = encode_float_be(value_m)
-        cmd = FrameBuilder.build_set_command(3, 2, 0x17, payload)
-
-        return await self._send_with_retry(
-            cmd, "Set Proportional Pressure Value"
-        )
+        # 2. Update specific pressure setpoint (Sub 15)
+        return await self._set_class10_setpoint(value_pa, self.SUB_PRESSURE_SETPOINT)
 
     async def set_temperature_control(
         self,
@@ -965,7 +818,10 @@ class ControlService(BaseService):
         return False
 
     async def set_temperature_range_control(
-        self, min_temp: float, max_temp: float
+        self,
+        min_temp: float,
+        max_temp: float,
+        autoadapt: bool = True,
     ) -> bool:
         """
         Set temperature range control mode (Mode 27) with min/max setpoints.
@@ -973,66 +829,68 @@ class ControlService(BaseService):
         Args:
             min_temp: Minimum temperature in Celsius
             max_temp: Maximum temperature in Celsius
+            autoadapt: If True, enables automatic flow adjustment (1-4 gpm).
+                      If False, uses fixed flow limits.
 
         Returns:
             True if successful, False otherwise
 
         Example:
-            >>> await control.set_temperature_range_control(35.0, 45.0)
+            >>> await control.set_temperature_range_control(35.0, 45.0, autoadapt=True)
         """
         self.session.ensure_authenticated()
 
         logger.info(
-            f"Setting Temperature Range Control: {min_temp}°C - {max_temp}°C..."
+            f"Setting Temperature Range Control: {min_temp}°C - {max_temp}°C (autoadapt={autoadapt})..."
         )
 
-        # 1. Switch to Mode 27
-        if not await self.set_mode(ControlMode.TEMPERATURE_RANGE_CONTROL):
+        # 1. Switch mode and set baseline (Sub 6)
+        if not await self._send_control_request(ControlMode.TEMPERATURE_RANGE_CONTROL, setpoint=min_temp):
             logger.error("Failed to switch to Temperature Range Control mode")
             return False
 
         # 2. Write temperature range to Object 91, Sub-ID 430
         # Payload format (Type 1012):
         # [DeltaTempEnabled(1)][MinTemp(4)][MaxTemp(4)][TimeLimits(4)]
-        # Total size usually 13 bytes including 3-byte header
-
-        # Build 9-byte structure data (without header)
+        # Total size 13 bytes
+        
+        # Build 13-byte structure data
         struct_data = bytearray()
-        struct_data.append(0x01)  # DeltaTempEnabled = True
+        struct_data.append(0x01 if autoadapt else 0x00)  # DeltaTempEnabled
         struct_data.extend(encode_float_be(min_temp))
         struct_data.extend(encode_float_be(max_temp))
+        struct_data.extend(bytes([0x05, 0x3C, 0x01, 0x1E])) # Default time limits
 
-        # Add 4 bytes of time limits (typically seen as 05 3C 01 1E in captures)
-        struct_data.extend(bytes([0x05, 0x3C, 0x01, 0x1E]))
-
-        # Build APDU: [Class][OpSpec][Obj][SubH][SubL][Reserved][Type(3)][Size(2)][Data...]
-        # Using OpSpec 0xB3 (OpSpec 5, Length 19) similar to schedules
-        apdu = bytearray(
-            [
-                0x0A,
-                0xB3,
-                91,  # Object 91
-                0x01,
-                0xAE,  # Sub-ID 430 (0x01AE)
-                0x00,  # Reserved
-                0xF4,
-                0x03,
-                0x00,  # Type 1012 header (0x03F4 = 1012)
-                0x00,
-                0x09,  # Size = 9 bytes
-            ]
-        )
+        # Build APDU: [Class][OpSpec][ObjID][SubH][SubL][Reserved][Type(2)][Size(2)][Data...]
+        # Using Object 91, Sub 430
+        apdu = bytearray([0x0A, 0xB3, 91, 0x01, 0xAE, 0x00, 0xF4, 0x03, 0x00, 0x00, 0x0D])
         apdu.extend(struct_data)
 
-        success = await self._send_with_retry(
-            self._build_geni_packet(0xF8, 0xE7, bytes(apdu)),
-            "Set Temperature Range",
-        )
-
-        if success:
+        req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
+        if await self._send_with_retry(req, "Set Temperature Range (Obj 91)"):
             await self._send_configuration_commit()
+            return True
+        return False
 
-        return success
+    async def set_flow_limit(self, value_gpm: float) -> bool:
+        """
+        Set the maximum flow limit to prevent noise and corrosion.
+
+        Args:
+            value_gpm: Maximum flow limit in GPM.
+
+        Returns:
+            True if successful, False otherwise
+        """
+        self.session.ensure_authenticated()
+
+        from ..constants import FACTOR_M3H_TO_GPM
+        value_m3h = value_gpm * FACTOR_M3H_TO_GPM
+
+        logger.info(f"Setting flow limit to {value_gpm} GPM ({value_m3h:.3f} m³/h)...")
+
+        # Set flow limit using Object 86, Sub 39 (Max Flow Limit)
+        return await self._set_class10_setpoint(value_m3h, self.SUB_FLOW_LIMIT, self.PUMP_OBJ)
 
     async def set_cycle_time_control(
         self, on_minutes: int, off_minutes: int
@@ -1040,23 +898,12 @@ class ControlService(BaseService):
         """
         Set cycle time control mode (Mode 25 / DHW_ON_OFF_CONTROL).
 
-        This mode operates the pump in on/off cycles at configurable intervals,
-        suitable for domestic hot water (DHW) recirculation applications.
-
         Args:
-            on_minutes: Duration pump runs (e.g., 5)
-            off_minutes: Duration pump is off (e.g., 15)
+            on_minutes: Duration pump runs (1-60)
+            off_minutes: Duration pump is off (1-60)
 
         Returns:
             True if successful, False otherwise
-
-        Example:
-            >>> await control.set_cycle_time_control(5, 15)  # 5 min on, 15 min off
-
-        Implementation Notes:
-            - Mode switching uses Class 10 control map (mode byte 0x19)
-            - Cycle time parameters use OpSpec 0x97, Object 91, SubID 430
-            - Valid ranges for on/off times: 1-60 minutes
         """
         self.session.ensure_authenticated()
 
@@ -1064,67 +911,50 @@ class ControlService(BaseService):
             f"Setting Cycle Time Control: {on_minutes} min on, {off_minutes} min off..."
         )
 
-        # Validate reasonable time ranges (1-60 minutes)
-        if not (1 <= on_minutes <= 60):
-            logger.error(
-                f"On-time {on_minutes} minutes is outside valid range (1-60 min)"
-            )
+        # Validate ranges
+        if not (1 <= on_minutes <= 60 and 1 <= off_minutes <= 60):
+            logger.error("Cycle times must be between 1 and 60 minutes")
             return False
 
-        if not (1 <= off_minutes <= 60):
-            logger.error(
-                f"Off-time {off_minutes} minutes is outside valid range (1-60 min)"
-            )
+        # 1. Switch mode (Sub 6)
+        if not await self._send_control_request(ControlMode.DHW_ON_OFF_CONTROL):
             return False
 
-        # 1. Switch to Mode 25 (DHW_ON_OFF_CONTROL)
-        if not await self.set_mode(ControlMode.DHW_ON_OFF_CONTROL):
-            logger.error("Failed to switch to Cycle Time Control mode")
-            return False
-
-        # 2. Write cycle time configuration
-        # Based on traffic capture analysis: OpSpec 0x97, Object 91, SubID 430
-        # Payload format: [0x00][0x00][OFF_time][0x01][0x42][0x02][ON_time][0xFB]
+        # 2. Write configuration (Obj 91, Sub 430)
         try:
-            # Build 8-byte payload
-            # Based on captured write: 00000e01420206fb (14 OFF, 6 ON)
-            payload = bytearray(
+            # Payload construction (8 bytes)
+            # 00 00 [OFF] 01 42 02 [ON] FB
+            struct_payload = bytearray(
                 [
                     0x00,
                     0x00,  # Header
-                    off_minutes,  # OFF time
+                    off_minutes,  # Byte 2: OFF time
                     0x01,
                     0x42,
-                    0x02,  # Fixed bytes from capture
-                    on_minutes,  # ON time
-                    0xFB,  # Fixed byte from capture
+                    0x02,  # Fixed magic bytes
+                    on_minutes,  # Byte 6: ON time
+                    0xFB,  # Fixed suffix
                 ]
             )
 
-            # Build GENI packet using OpSpec 0x97
-            # APDU: [Class][OpSpec][Obj(1)][SubID(2)][Type(2)][Size(1)][Payload]
-            # Values: Obj=91(0x5B), Sub=430(0x01AE), Type=1012(0x03F4), Size=2(???)
-            # Wait, the apdu built in current implementation used:
-            # apdu = bytearray([0x0A, 0x97, 0x5B, 0x01, 0xAE, 0x03, 0xF4, 0x02])
-            # This matches: Obj=91, Sub=430, Type=1012, ???=02
-            apdu = bytearray(
+            # Prepend Type (1012 = 0x03F4) and Size (0x08)
+            # This 'data' block is what FrameBuilder wraps with IDs and OpSpec
+            data = bytearray(
                 [
-                    0x0A,  # Class 10
-                    0x97,  # OpSpec 0x97
-                    0x5B,  # Object 91
-                    0x01,
-                    0xAE,  # SubID 430 (0x01AE)
                     0x03,
-                    0xF4,  # TypeCode 1012 (0x03F4)
-                    0x02,  # Header/Size byte
+                    0xF4,  # Type: 1012
+                    len(struct_payload),  # Size: 8
                 ]
             )
-            apdu.extend(payload)
+            data.extend(struct_payload)
 
-            success = await self._send_with_retry(
-                self._build_geni_packet(0xF8, 0xE7, bytes(apdu)),
-                "Set Cycle Time",
+            # Use FrameBuilder to handle OpSpec, Length, and CRC correctly
+            # SubID: 430 (0x01AE), ObjID: 91 (0x5B)
+            packet = FrameBuilder.build_data_object_set(
+                sub_id=0x01AE, obj_id=91, data=data, source=0xF8
             )
+
+            success = await self._send_with_retry(packet, "Set Cycle Time")
 
             if not success:
                 logger.error("Failed to write cycle time configuration")
@@ -1149,40 +979,25 @@ class ControlService(BaseService):
 
         Returns:
             Tuple of (on_time_minutes, off_time_minutes) if successful, None otherwise
-
-        Example:
-            >>> config = await control.get_cycle_time_config()
-            >>> if config:
-            ...     on_time, off_time = config
-            ...     print(f"Cycle: {on_time} min on, {off_time} min off")
-
-        Protocol Details:
-            - Object: 91 (0x5B)
-            - Sub-ID: 421 (0x01A5)
-            - Payload format: [Header(2)][OnTime(1)][Unknown(5)][OffTime(1)]
-            - Times are encoded as single bytes in minutes
         """
         self.session.ensure_authenticated()
 
         try:
-            # Read from Object 91, SubID 421
-            data = await self._read_class10_object(91, 421)
+            # Read from Object 91, SubID 430 (0x01AE) - Main user settings block
+            data = await self._read_class10_object(91, 430)
 
-            if not data or len(data) < 9:
-                logger.error(
-                    f"Invalid cycle time data: {data.hex() if data else 'None'}"
-                )
+            if not data or len(data) < 16:
+                logger.error(f"Invalid cycle time data: {data.hex() if data else 'None'}")
                 return None
 
-            # Extract cycle times from payload
-            # Byte 2: ON time in minutes
-            # Byte 8: OFF time in minutes
-            on_time = data[2]
-            off_time = data[8]
+            # Extract cycle times from payload (verified via trace analysis)
+            # Structure: 00 00 0e 01 42 0c 00 00 42 1e de 4c [OFF] 3c 02 [ON] 01
+            # Byte 12: OFF time
+            # Byte 15: ON time
+            off_time = data[12]
+            on_time = data[15]
 
-            logger.info(
-                f"Read cycle times: {on_time} min ON, {off_time} min OFF"
-            )
+            logger.info(f"Read cycle times: {on_time} min ON, {off_time} min OFF")
             return (on_time, off_time)
 
         except Exception as e:
@@ -1190,6 +1005,36 @@ class ControlService(BaseService):
             return None
 
     # Helper methods
+
+    async def _set_class10_setpoint(self, value: float, sub_id: int, obj_id: int = 86) -> bool:
+        """
+        Set the setpoint value using Class 10 DataObject method (SET).
+
+        Args:
+            value: Setpoint value (float)
+            sub_id: Sub-ID to write to
+            obj_id: Object ID to write to (default 86)
+
+        Returns:
+            True if successful, False otherwise
+        """
+        # Build Class 10 SET packet (OpSpec 0x84 = SET + 4 bytes)
+        # APDU: [Class][OpSpec][SubH][SubL][ObjH][ObjL][Data(4)]
+        apdu = bytearray([0x0A, 0x84])
+        apdu.extend(encode_uint16_be(sub_id))
+        apdu.extend(encode_uint16_be(obj_id))
+        apdu.extend(encode_float_be(value))
+
+        # Build GENI frame
+        req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
+
+        # Send with retry
+        if await self._send_with_retry(req, f"Set Setpoint {value:.2f} (Sub={sub_id}, Obj={obj_id})"):
+            # Send configuration commit
+            await self._send_configuration_commit()
+            return True
+
+        return False
 
     async def _send_with_retry(
         self, packet: bytes, description: str, retries: int = 3

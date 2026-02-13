@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Refactored Control Modes and Setpoints**:
+  - Implementation of the 5 primary ALPHA HWR control modes using Class 10 (Object 0x0601) for improved reliability.
+  - Added support for **AUTOADAPT toggle** in Temperature Range Control (Mode 27).
+  - New CLI command `set-proportional` for proportional pressure mode.
+  - Enhanced CLI `set-mode` with aliases and better help text.
 - **Full implementation of Mode 25 (DHW_ON_OFF_CONTROL / Cycle Time Control)**:
   - Added support for reading and writing cycle time parameters (on/off minutes) to the library.
   - Added CLI commands: `alpha-hwr control set-cycle-time` and `alpha-hwr control get-cycle-time`.
@@ -65,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **New `client` facade**: `AlphaHWRClient` delegates to specialized services.
   - **New `cli` structure**: CLI commands organized by domain using Typer.
 - **Control Service - Enhanced Safety and Reliability**
+  - Migrated primary control modes (Constant Pressure, Speed, Flow, Proportional Pressure) from Class 3 to **Class 10 (Object 0x0601)** for better hardware compatibility.
   - Added setpoint validation to all control mode setters
   - Improved error messages for out-of-range setpoints
   - Now uses `transport.query()` for reliable request/response transactions

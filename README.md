@@ -73,15 +73,17 @@ asyncio.run(main())
 
 ## Supported Control Modes
 
-| Mode | Setpoint Range | Status |
-|------|---------------|--------|
-| Constant Pressure | 0-6 m | Fully Supported |
-| Proportional Pressure | 0-6 m | Fully Supported |
-| Constant Speed | 1000-4200 RPM | Fully Supported |
-| Constant Flow | 0-4.5 m³/h | Fully Supported |
-| AutoAdapt Radiator | 0-6 m | Fully Supported |
-| AutoAdapt Underfloor | 0-6 m | Fully Supported |
-| AutoAdapt Combined | 0-6 m | Fully Supported |
+The ALPHA HWR supports 5 primary modes optimized for domestic hot water recirculation:
+
+| Mode | Setpoint Range | Notes |
+|------|---------------|-------|
+| **Temperature Control** | 20-60°C | Dual setpoints (min/max), AUTOADAPT flow adjustment, optional Flow Limit |
+| **Cycle Time Control** | 1-60 min | Configurable ON/OFF durations |
+| **Constant Curve** | 1000-4500 RPM | Fixed speed with optional Flow Limit |
+| **Constant Pressure** | 0.5-6.0 m | Fixed head pressure |
+| **Constant Flow** | 0.1-3.0 m³/h | Fixed flow rate |
+
+Proportional Pressure (0.5-6.0 m) is also fully supported.
 
 ## Documentation
 

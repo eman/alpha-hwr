@@ -90,109 +90,115 @@ async with AlphaHWRClient("AA:BB:CC:DD:EE:FF") as client:
 
 ## Control Modes Available via Bluetooth Interface
 
-### Cycle Time Control
+The ALPHA HWR supports 5 primary control modes specifically optimized for hot water recirculation.
 
-**Description:** Pump operates at maximum curve with time-based start/stop cycles.
+### 1. Temperature Control (Mode 27)
 
-**Default Parameters:**
+**Description:** Controls pump operation to maintain water temperature within a specified range. This is the recommended mode for most DHW applications.
 
-- On time: 5 minutes
-- Off time: 15 minutes
-- Adjustable via the client application
-
-**Use Case:** Energy-efficient operation with predictable hot water availability
-
-### Constant Curve (Constant Speed)
-
-**Description:** Pump runs at constant speed or power, following the selected constant curve.
-
-**Setpoint:** RPM (revolutions per minute)
-
-**Use Case:** Replacing old three-speed circulators where required performance is known
+**Features:**
+- **Min/Max Temperature:** Configurable range (default 35-39°C).
+- **AUTOADAPT:** Automatic flow adjustment (1-4 gpm) to maintain comfort and efficiency.
+- **Flow Limits:** Can be limited based on pipe diameter to prevent corrosion.
 
 **Example:**
-
 ```bash
-# Set constant speed to 2500 RPM
-alpha-hwr control set-speed --value 2500
+# Set range 35-39°C with AUTOADAPT enabled
+alpha-hwr control set-temperature --min 35 --max 39 --autoadapt
+
+# Set range 40-45°C with AUTOADAPT disabled and 1.5 GPM limit
+alpha-hwr control set-temperature --min 40 --max 45 --no-autoadapt --flow-limit 1.5
 ```
 
-### Constant Pressure
+### 2. Cycle Time Control (Mode 25)
 
-**Description:** Head is kept constant regardless of system changes.
+**Description:** Pump operates at maximum curve with configurable on/off cycles.
 
-**Setpoint:** Pressure in Pascals (displayed as meters of water column)
-
-**Typical Range:** 0.5-6.0 m (approximately 5-60 kPa)
-
-**Use Case:** Systems with multiple risers and thermally actuated balancing valves
+**Parameters:**
+- **On time:** 1-60 minutes
+- **Off time:** 1-60 minutes
 
 **Example:**
-
 ```bash
-# Set constant pressure to 3.0 meters
-alpha-hwr control set-pressure --value 3.0
+# Set 5 minutes ON, 15 minutes OFF
+alpha-hwr control set-cycle-time --on 5 --off 15
 ```
 
-### Proportional Pressure
+### 3. Constant Curve / Constant Speed (Mode 2)
 
-**Description:** Similar to constant pressure but with proportional adjustment.
+**Description:** Pump runs at a fixed rotational speed (RPM).
 
-**Setpoint:** Pressure in Pascals (displayed as meters of water column)
-
-**Use Case:** Advanced pressure control applications
-
-### Constant Flow
-
-**Description:** Maintains constant flow regardless of head.
-
-**Setpoint:** Flow rate in m³/h
-
-**Typical Range:** 0.1-3.0 m³/h
-
-**Use Case:** Systems with external control (e.g., aquastat)
+**Features:**
+- **Setpoint:** 1000-4500 RPM.
+- **Flow Limits:** Optional GPM limit to prevent noise and corrosion.
 
 **Example:**
-
 ```bash
-# Set constant flow to 2.0 m³/h
-alpha-hwr control set-flow --value 2.0
+# Set to 2500 RPM with 2.3 GPM limit (3/4" pipe)
+alpha-hwr control set-speed 2500 --flow-limit 2.3
 ```
 
-### AutoAdapt Modes
+### 4. Constant Pressure (Mode 0)
 
-The pump supports several AutoAdapt modes for automatic system optimization:
+**Description:** Maintains a fixed head pressure regardless of flow.
 
-#### AutoAdapt (Generic)
-
-**Mode ID:** 5  
-**Setpoint Format:** uint16 (Pascals)  
-**Use Case:** General adaptive control
-
-#### AutoAdapt Radiator
-
-**Mode ID:** 13  
-**Setpoint Format:** float32 (Pascals)  
-**Use Case:** Radiator heating systems
-
-#### AutoAdapt Underfloor
-
-**Mode ID:** 14  
-**Setpoint Format:** float32 (Pascals)  
-**Use Case:** Underfloor heating systems
-
-#### AutoAdapt Combined (Radiator + Underfloor)
-
-**Mode ID:** 15  
-**Setpoint Format:** float32 (Pascals)  
-**Use Case:** Mixed radiator and underfloor heating
+**Setpoint:** 0.5-6.0 meters.
 
 **Example:**
-
 ```bash
-# Set AutoAdapt radiator mode with 3.0m setpoint
-alpha-hwr control set-autoadapt-radiator --value 3.0
+alpha-hwr control set-pressure 1.5
 ```
+
+### 5. Constant Flow (Mode 8)
+
+**Description:** Maintains a fixed flow rate regardless of head pressure.
+
+**Setpoint:** 0.1-3.0 m³/h.
+
+**Example:**
+```bash
+alpha-hwr control set-flow 0.5
+```
+
+---
+
+## Flow Limitation and Pipe Diameters
+
+The ALPHA HWR allows setting a maximum flow limit to prevent **flow-accelerated corrosion (FAC)** and noise in the system. Limits are typically chosen based on pipe diameter:
+
+| Pipe Diameter | Recommended Limit |
+|---------------|-------------------|
+| 1/2"          | 1.5 GPM           |
+| 3/4"          | 2.3 GPM           |
+| 1"            | 3.8 GPM           |
+
+**CLI:**
+```bash
+alpha-hwr control set-flow-limit 1.5
+```
+
+---
+
+## Proportional Pressure (Mode 1)
+
+Proportional pressure mode is also fully supported and adjusts pressure along a curve based on flow.
+
+**CLI:**
+```bash
+alpha-hwr control set-proportional 1.2
+```
+
+---
+
+## Deprecated/Unsupported Modes
+
+The following modes are defined in the GENI protocol but are **not recommended** for ALPHA HWR as they are designed for heating systems (radiators/underfloor heating) rather than DHW recirculation:
+- AUTOADAPT Radiator (Mode 13)
+- AUTOADAPT Underfloor (Mode 14)
+- AUTOADAPT Combined (Mode 15)
+- AUTOADAPT Generic (Mode 5)
+
+Use **Temperature Control (Mode 27)** with the `--autoadapt` flag instead.
 
 ## Temperature Range Control
 
