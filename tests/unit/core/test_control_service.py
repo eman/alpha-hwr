@@ -86,6 +86,7 @@ async def test_set_constant_pressure(control_service, mock_transport):
     call_args = mock_transport.query.call_args_list[0][0][0]
     # Setpoint is at offset 10 (APDU) + 8 (Header) = 18
     actual_pa = decode_float_be(call_args, 18)
+    assert actual_pa is not None
     expected_pa = 1.5 * 9806.65
     assert abs(actual_pa - expected_pa) < 1.0
 

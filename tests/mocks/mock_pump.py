@@ -34,7 +34,7 @@ class MockPumpState:
     # Control state
     running: bool = False
     control_mode: int = ControlMode.CONSTANT_SPEED
-    setpoint: float = 0.0
+    setpoint: float | None = 0.0
 
     # Telemetry values
     voltage: float = 230.0
@@ -592,7 +592,9 @@ class MockPump:
         payload.append(0x01)  # control_source (local=1)
         payload.append(0x01)  # operation_mode (normal=1)
         payload.append(self.state.control_mode)  # control_mode
-        payload.extend(encode_float_be(self.state.setpoint))  # setpoint value
+        payload.extend(
+            encode_float_be(self.state.setpoint or 0.0)
+        )  # setpoint value
 
         return self._build_class10_response(6, 86, bytes(payload))
 
