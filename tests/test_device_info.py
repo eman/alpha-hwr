@@ -45,7 +45,13 @@ async def test_read_device_info_from_advertisement():
         }
 
     # After connection, device_info service will use cached data
-    with patch("alpha_hwr.client.BleakClient", autospec=True) as mock_bleak:
+    with (
+        patch("alpha_hwr.client.BleakClient", autospec=True) as mock_bleak,
+        patch(
+            "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
+            new_callable=AsyncMock,
+        ),
+    ):
         mock_instance = AsyncMock()
         mock_instance.is_connected = True
         mock_bleak.return_value = mock_instance

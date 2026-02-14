@@ -422,7 +422,7 @@ TEST_VECTORS = {
             "frame_type": "response",
             "class_byte": 10,
             "sub_id": 290,  # 0x0122 (big-endian: 01 22)
-            "obj_id": 93,  # 0x005D (little-endian: 5D 00)
+            "obj_id": 93,  # 0x005D (big-endian: 00 5D)
             "payload_len": 14,
             "crc_valid": True,
         },

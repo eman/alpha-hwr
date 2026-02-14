@@ -72,6 +72,7 @@ from __future__ import annotations
 
 import logging
 import struct
+import warnings
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
@@ -270,30 +271,26 @@ class EventLogService(BaseService):
 
     async def get_cycle_timestamps(
         self, count: int = 10
-    ) -> Optional[list[datetime]]:
+    ) -> list[datetime] | None:
         """
         Get timestamps of recent pump cycles from cycle timestamp map.
 
-        This is an alias for history.get_cycle_timestamps() for convenience.
-        The cycle timestamp map is technically part of trend data, not event logs.
+        .. deprecated::
+            Use ``client.history.get_cycle_timestamps(count)`` instead.
+            This method will be removed in a future release.
 
         Args:
             count: Number of timestamps to retrieve (10 or 100)
 
         Returns:
             List of datetime objects, or None if read failed
-
-        Note:
-            For full trend data functionality, use the HistoryService.
-
-        Example:
-            >>> timestamps = await event_log.get_cycle_timestamps(10)
-            >>> if timestamps:
-            ...     print(f"Last 10 cycle timestamps:")
-            ...     for i, ts in enumerate(timestamps):
-            ...         print(f"  Cycle -{i}: {ts}")
         """
-        # Import here to avoid circular dependency
+        warnings.warn(
+            "EventLogService.get_cycle_timestamps() is deprecated. "
+            "Use HistoryService.get_cycle_timestamps() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from .history import HistoryService
 
         history = HistoryService(self.transport, self.session)

@@ -22,18 +22,18 @@ Payload format: `2F 01 00 00 07 00 [Flag] [ModeByte] [Suffix(4)]`
 
 **Example: Set Constant Pressure Mode**
 ```
-27 12 E7 F8 0A 90 56 00 06 01 2F 01 00 00 07 00 00 00 45 65 70 00 [CRC]
+27 14 E7 F8 0A 90 56 00 06 01 2F 01 00 00 07 00 00 00 45 65 70 00 [CRC]
 ```
 
 ### Step 2: Set Setpoint
 
 **Example: Set Constant Pressure to 1.5 meters**
 1. Convert meters to Pascals: `1.5 m * 9806.65 ≈ 14710.0 Pa`
-2. Encode as Float (Big-Endian): `14710.0 -> 0x46 E5 B0 00`
+2. Encode as Float (Big-Endian): `14710.0 -> 0x46 65 D7 E6`
 
 **Packet:**
 ```
-27 10 E7 F8 0A 84 56 00 06 01 46 E5 B0 00 [CRC]
+27 0C E7 F8 0A 88 56 00 06 01 46 65 D7 E6 [CRC]
 ```
 
 ### Step 3: Receive Acknowledgment
@@ -41,7 +41,7 @@ Payload format: `2F 01 00 00 07 00 [Flag] [ModeByte] [Suffix(4)]`
 The pump responds with a Class 10 acknowledgment.
 
 ```
-24 0A 20 E7 0A 34 56 00 06 01 [CRC]
+24 08 20 E7 0A 34 56 00 06 01 [CRC]
 ```
 
 **Breakdown:**
@@ -60,7 +60,7 @@ The `ModeByte` and `Suffix` are used in Step 1 to select the operating mode.
 | Constant Pressure | `0x00` | `45 65 70 00` |
 | Constant Speed | `0x02` | `45 65 70 00` |
 | Constant Flow | `0x08` | `45 65 70 00` |
-| DHW Cycle Time | `0x19` | `38 C6 70 00` |
+| DHW Cycle Time | `0x19` | `38 C6 76 EF` |
 | Temperature Range | `0x1B` | `39 67 70 00` |
 
 ## 5. Transaction Locking

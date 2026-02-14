@@ -7,7 +7,13 @@ from alpha_hwr.client import AlphaHWRClient
 class TestScheduleCoverage:
     @pytest_asyncio.fixture
     async def client(self):
-        with patch("alpha_hwr.client.BleakClient", autospec=True) as mock_bleak:
+        with (
+            patch("alpha_hwr.client.BleakClient", autospec=True) as mock_bleak,
+            patch(
+                "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
+                new_callable=AsyncMock,
+            ),
+        ):
             # Set up mock BleakClient instance
             mock_instance = AsyncMock()
             mock_instance.connect = AsyncMock()

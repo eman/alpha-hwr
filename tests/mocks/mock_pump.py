@@ -162,11 +162,6 @@ class MockPump:
         full_command = bytes(self._command_buffer)
         self._command_buffer.clear()
 
-        # Handle non-standard set clock command
-        # Format: [0x27][Len][0x07][0x5E][0x64][0x70][DateTime...]
-        if len(full_command) >= 6 and full_command[2:6] == b"\x07\x5e\x64\x70":
-            return self._handle_set_clock(full_command)
-
         # Parse incoming command
         frame = FrameParser.parse_frame(full_command)
 
@@ -258,16 +253,28 @@ class MockPump:
         if obj_id == 0x0054 and 1000 <= sub_id <= 1004:
             return self._handle_schedule_write(sub_id, raw_data)
 
+        # Clock SET (Sub 0x5E00, Obj 0x6401)
+        if sub_id == 0x5E00 and obj_id == 0x6401:
+            return self._handle_set_clock(raw_data)
+
         return self._build_ack_response()
 
-    def _handle_set_clock(self, command: bytes) -> bytes:
-        """Handle set clock command."""
-        # [0x27][Len][0x07][0x5E][0x64][0x70][Year(2)][Month][Day][Hour][Minute][Second]...
-        if len(command) >= 13:
+    def _handle_set_clock(self, raw_data: bytes) -> bytes:
+        """Handle Class 10 SET clock command.
+
+        The SET frame payload contains a Type 322 header (6 bytes)
+        followed by [Year(2BE)][Month][Day][Hour][Min][Sec][pad(3)].
+        In the full raw_data, the APDU starts at byte 4:
+        [STX][LEN][DST][SRC][Class][OpSpec][SubH][SubL][ObjH][ObjL][Type322...]
+        Type 322 data starts at offset 10, datetime at offset 16.
+        """
+        # Type322 header is 6 bytes starting at offset 10
+        # DateTime starts at offset 16: [Year(2)][Mon][Day][Hr][Min][Sec]
+        if len(raw_data) >= 23:
             from datetime import datetime
 
-            yr = (command[6] << 8) | command[7]
-            mo, da, hr, mi, sc = command[8:13]
+            yr = (raw_data[16] << 8) | raw_data[17]
+            mo, da, hr, mi, sc = raw_data[18:23]
             try:
                 self.state.last_synced_time = datetime(yr, mo, da, hr, mi, sc)
             except ValueError:
@@ -713,7 +720,7 @@ class MockPump:
         apdu = bytearray([0x02, 0x81])
         apdu.extend(payload)
 
-        length = len(apdu) + 4
+        length = len(apdu) + 2
         frame = bytearray([0x24, length, 0xE7, 0xF8])
         frame.extend(apdu)
 
@@ -724,17 +731,17 @@ class MockPump:
 
     def _build_ack_response(self) -> bytes:
         """Build simple acknowledgment response."""
-        # Use Class 10 (0x0A) with OpSpec 0x01 (ACK) or similar
-        # Real pump often echoes Class 10 with OpSpec 0x34 or 0x01
-        # ControlService accepts 0x0A
-        frame = bytearray([0x24, 0x06, 0xE7, 0xF8, 0x0A, 0x01])
+        # Class 10 ACK: [Start][Len][Svc(2)][Class=0x0A][OpSpec=0x01][CRC(2)]
+        # Length = Svc(2) + Class(1) + OpSpec(1) = 4
+        frame = bytearray([0x24, 0x04, 0xE7, 0xF8, 0x0A, 0x01])
         crc = calc_crc16(bytes(frame[1:]))
         frame.extend(encode_uint16_be(crc))
         return bytes(frame)
 
     def _build_error_response(self) -> bytes:
         """Build error response."""
-        frame = bytearray([0x24, 0x07, 0xE7, 0xF8, 0xFF, 0xFF, 0x00])
+        # Length = Svc(2) + Class(1) + OpSpec(1) + Error(1) = 5
+        frame = bytearray([0x24, 0x05, 0xE7, 0xF8, 0xFF, 0xFF, 0x00])
         crc = calc_crc16(bytes(frame[1:]))
         frame.extend(encode_uint16_be(crc))
         return bytes(frame)

@@ -155,7 +155,13 @@ async def mock_client_simple():
             result = await mock_client_simple.control.start()
             assert result
     """
-    with patch("alpha_hwr.client.BleakClient", autospec=True) as mock_bleak:
+    with (
+        patch("alpha_hwr.client.BleakClient", autospec=True) as mock_bleak,
+        patch(
+            "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
+            new_callable=AsyncMock,
+        ),
+    ):
         # Set up mock BleakClient instance
         mock_instance = AsyncMock()
         mock_instance.connect = AsyncMock()
@@ -216,7 +222,13 @@ async def mock_client_with_pump():
 
     from mocks.mock_transport import MockBleakClient
 
-    with patch("alpha_hwr.client.BleakClient", MockBleakClient):
+    with (
+        patch("alpha_hwr.client.BleakClient", MockBleakClient),
+        patch(
+            "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
+            new_callable=AsyncMock,
+        ),
+    ):
         client = AlphaHWRClient("MOCK")
         await client.connect()
         yield client

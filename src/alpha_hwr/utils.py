@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import re
 import platform
-from typing import Optional
 from .constants import CRC_TABLE
 
 
@@ -19,7 +20,7 @@ def is_uuid(address: str) -> bool:
     )
 
 
-def resolve_platform_address(address_string: str) -> Optional[str]:
+def resolve_platform_address(address_string: str) -> str | None:
     """
     Pick the appropriate address from a potential list based on the current platform.
 

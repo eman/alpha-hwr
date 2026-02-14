@@ -4,6 +4,8 @@ Unit tests for GENI protocol frame builder.
 Tests frame construction with CRC validation for all operation types.
 """
 
+import pytest
+
 from alpha_hwr.protocol.frame_builder import FrameBuilder
 from alpha_hwr.protocol.codec import encode_float_be
 from alpha_hwr.utils import calc_crc16_read, calc_crc16
@@ -257,14 +259,14 @@ class TestWriteRequest:
         assert packet[value_start : value_start + 4] == value
 
     def test_write_uses_different_crc(self):
-        """WRITE uses calc_crc16 (no XOR), unlike READ."""
+        """WRITE uses calc_crc16 (no XOR), excluding start byte."""
         packet = FrameBuilder.build_write_request(0x5D01, value=0x01)
 
         # Extract CRC
         crc_in_packet = (packet[-2] << 8) | packet[-1]
 
-        # WRITE uses calc_crc16 over entire packet including start
-        calculated_crc = calc_crc16(packet[:-2])
+        # WRITE uses calc_crc16 over packet excluding start byte
+        calculated_crc = calc_crc16(packet[1:-2])
 
         assert crc_in_packet == calculated_crc
 
@@ -383,21 +385,25 @@ class TestFrameBuilderEdgeCases:
         assert len(packet) >= 11  # Start + Len + ... + SubID + ObjID + CRC
 
     def test_large_data_class10(self):
-        """Test Class 10 with large data payload (respecting 1-byte length limit)."""
-        # Max length field value is 255
-        # Frame structure: ServiceID(1) + Source(1) + Class(1) + OpSpec(1) + SubID(2) + ObjID(2) + Data + CRC(2)
-        # Length field counts from ServiceID to end of APDU (excludes Start and CRC)
-        # So max data size = 255 - 8 (header bytes) = 247 bytes
-        large_data = bytes(range(200))  # 200 bytes of data (safe margin)
-        packet = FrameBuilder.build_data_object_set(0x5600, 0x0601, large_data)
+        """Test Class 10 rejects data too large for 6-bit OpSpec."""
+        # OpSpec bits 5-0 encode the payload length (max 63).
+        # Payload = SubID(2) + ObjID(2) + Data, so max Data = 59 bytes.
+        # Larger payloads must use override_op.
+        large_data = bytes(range(200))
+        with pytest.raises(ValueError, match="Payload too large"):
+            FrameBuilder.build_data_object_set(0x5600, 0x0601, large_data)
+
+    def test_large_data_class10_with_override(self):
+        """Test Class 10 with large data using override_op."""
+        large_data = bytes(range(200))
+        packet = FrameBuilder.build_data_object_set(
+            0x5600, 0x0601, large_data, override_op=0xB3
+        )
 
         # Verify data is present
         data_start = 10  # After frame header and IDs
         data_end = data_start + len(large_data)
         assert packet[data_start:data_end] == large_data
-
-        # Verify length field is valid (< 256)
-        assert packet[1] < 256
 
     def test_all_methods_return_bytes(self):
         """Ensure all builder methods return bytes, not bytearray."""

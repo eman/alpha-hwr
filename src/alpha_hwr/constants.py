@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import IntEnum
 
 # ============================================================================
@@ -52,20 +54,25 @@ class TelemetryObject:
     """
     Class 10 DataObject identifiers for telemetry requests.
 
-    These are Sub-ID and Object-ID pairs used in Class 10 INFO commands
+    These are Object-ID and Sub-ID pairs used in Class 10 INFO commands
     to query telemetry data. Use these with FrameBuilder.build_data_object_info().
 
+    Note:
+        Tuple order is (Obj ID, Sub ID) to match the decoder match
+        pattern in TelemetryDecoder.decode() and FrameParser.is_telemetry_frame().
+
     Example:
-        >>> sub_id, obj_id = TelemetryObject.MOTOR_STATE
-        >>> req = FrameBuilder.build_data_object_info(sub_id, obj_id)
+        >>> obj_id, sub_id = TelemetryObject.MOTOR_STATE
+        >>> register = (obj_id << 16) | sub_id
+        >>> req = FrameBuilder.build_data_object_info(register)
     """
 
-    # (Sub ID, Obj ID) tuples
-    MOTOR_STATE = (0x0045, 0x0057)  # Voltage, Current, Power, RPM, Temp
-    FLOW_PRESSURE = (0x0122, 0x005D)  # Flow rate and head pressure
-    TEMPERATURE = (0x012C, 0x005D)  # Media, PCB, control box temperatures
+    # (Obj ID, Sub ID) tuples
+    MOTOR_STATE = (0x0057, 0x0045)  # Voltage, Current, Power, RPM, Temp
+    FLOW_PRESSURE = (0x005D, 0x0122)  # Flow rate and head pressure
+    TEMPERATURE = (0x005D, 0x012C)  # Media, PCB, control box temperatures
     # SETPOINT reserved for future use: passive notification of current RPM setpoint
-    SETPOINT = (0x0001, 0x012F)
+    SETPOINT = (0x012F, 0x0001)
 
 
 class Register(IntEnum):

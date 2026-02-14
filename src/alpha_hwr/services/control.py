@@ -155,6 +155,7 @@ class ControlService(BaseService):
     # app traffic captures.
     _MODE_SUFFIX_MAP: dict[int, bytes] = {
         0x00: bytes([0x45, 0x65, 0x70, 0x00]),  # Pressure
+        0x01: bytes([0x45, 0x65, 0x70, 0x00]),  # Proportional Pressure
         0x02: bytes([0x45, 0x65, 0x70, 0x00]),  # Speed
         0x08: bytes([0x45, 0x65, 0x70, 0x00]),  # Flow
         0x19: bytes([0x38, 0xC6, 0x76, 0xEF]),  # DHW
@@ -412,6 +413,12 @@ class ControlService(BaseService):
                     control_source = data[offset]
                     operation_mode = data[offset + 1]
                     control_mode = data[offset + 2]
+
+                    # Sync cached mode from actual pump state
+                    try:
+                        self._current_mode = ControlMode(control_mode)
+                    except ValueError:
+                        self._current_mode = control_mode
 
                     # Extract setpoint as big-endian float
                     setpoint = struct.unpack(
@@ -1170,4 +1177,3 @@ class ControlService(BaseService):
                     await asyncio.sleep(0.2)
 
         return False
-        logger.debug("Configuration commit sent")

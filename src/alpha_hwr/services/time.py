@@ -13,49 +13,53 @@ The pump's RTC is managed via GENI DataObjects:
    - Status 0x0000 = valid, 0xFFFF = unset
    - Year is big-endian uint16
 
-2. **Set Time** - Object 94, SubID 100 (DateTimeConfig):
-   - Payload: `[Year(2BE)][Month][Day][Hour][Minute][Second]` + 13 padding bytes (19 total)
-   - Frame: `[0x27][Length][0x07][0x5E][0x64][0x70][DateTime...][CRC]`
+2. **Set Time** - Class 10 SET on SubID 0x5E00 (Object 94), ObjID 0x6401 (SubID 100):
+   - Uses standard Class 10 SET frame via ``build_data_object_set``
+   - Data payload (16 bytes): ``[Type322Header(6)][Year(2BE)][Month][Day][Hour][Min][Sec][Pad(3)]``
+   - Type322Header is constant: ``41 02 00 00 0B 01``
+   - Pump responds with Class 10 ACK (OpSpec 0x01)
    - Note: Class 16 ID 0 (set_unix_rtc) does NOT work despite being documented
 
 Example (TypeScript):
 ```typescript
 async setClock(date: Date): Promise<boolean> {
-    const payload = new Uint8Array(19);
-    payload[0] = (date.getFullYear() >> 8) & 0xFF;
-    payload[1] = date.getFullYear() & 0xFF;
-    payload[2] = date.getMonth() + 1;
-    payload[3] = date.getDate();
-    payload[4] = date.getHours();
-    payload[5] = date.getMinutes();
-    payload[6] = date.getSeconds();
-    // bytes 7-18: padding (zeros)
+    // Type 322 data: [header(6)][year(2)][month][day][hour][min][sec][pad(3)]
+    const data = new Uint8Array(16);
+    // Type 322 header (constant)
+    data.set([0x41, 0x02, 0x00, 0x00, 0x0B, 0x01]);
+    data[6] = (date.getFullYear() >> 8) & 0xFF;
+    data[7] = date.getFullYear() & 0xFF;
+    data[8] = date.getMonth() + 1;
+    data[9] = date.getDate();
+    data[10] = date.getHours();
+    data[11] = date.getMinutes();
+    data[12] = date.getSeconds();
+    // bytes 13-15: padding (zeros)
 
-    const apdu = new Uint8Array([0x07, 0x5E, 0x64, 0x70, ...payload]);
-    const frame = this.buildFrame(0x27, apdu);
-    await this.transport.write(frame);
-    return true;
+    // Standard Class 10 SET frame
+    const frame = buildDataObjectSet(0x5E00, 0x6401, data);
+    const response = await this.transport.query(frame);
+    return response?.[5] === 0x01; // ACK
 }
 ```
 
 Example (Rust):
 ```rust
 pub async fn set_clock(&self, dt: DateTime<Local>) -> Result<bool, Error> {
-    let mut payload = Vec::with_capacity(19);
-    payload.extend_from_slice(&(dt.year() as u16).to_be_bytes());
-    payload.push(dt.month() as u8);
-    payload.push(dt.day() as u8);
-    payload.push(dt.hour() as u8);
-    payload.push(dt.minute() as u8);
-    payload.push(dt.second() as u8);
-    payload.resize(19, 0);
+    // Type 322 data: [header(6)][year(2)][month][day][hour][min][sec][pad(3)]
+    let mut data = vec![0x41, 0x02, 0x00, 0x00, 0x0B, 0x01];
+    data.extend_from_slice(&(dt.year() as u16).to_be_bytes());
+    data.push(dt.month() as u8);
+    data.push(dt.day() as u8);
+    data.push(dt.hour() as u8);
+    data.push(dt.minute() as u8);
+    data.push(dt.second() as u8);
+    data.resize(16, 0); // Pad to 16 bytes
 
-    let mut apdu = vec![0x07, 0x5E, 0x64, 0x70];
-    apdu.extend_from_slice(&payload);
-
-    let frame = self.build_frame(0x27, &apdu)?;
-    self.transport.write(&frame).await?;
-    Ok(true)
+    // Standard Class 10 SET frame
+    let frame = build_data_object_set(0x5E00, 0x6401, &data)?;
+    let resp = self.transport.query(&frame).await?;
+    Ok(resp.map_or(false, |r| r[5] == 0x01)) // ACK
 }
 ```
 """
@@ -66,7 +70,7 @@ import asyncio
 import logging
 import struct
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from .base import BaseService
 
@@ -116,7 +120,7 @@ class TimeService(BaseService):
         """
         super().__init__(transport, session)
 
-    async def get_clock(self) -> Optional[datetime]:
+    async def get_clock(self) -> datetime | None:
         """
         Read the pump's internal real-time clock.
 
@@ -196,21 +200,23 @@ class TimeService(BaseService):
 
         return None
 
-    async def set_clock(self, dt: Optional[datetime] = None) -> bool:
+    async def set_clock(self, dt: datetime | None = None) -> bool:
         """
         Synchronize the pump's internal real-time clock.
 
-        Writes to Object 94, SubID 100 (DateTimeConfig) using the standard
-        protocol format.
+        Sends a standard Class 10 SET to SubID 0x5E00 (Object 94),
+        ObjID 0x6401 (SubID 100 = DateTimeConfig) with a Type 322
+        data payload.
 
         Args:
-            dt: Datetime to set. If None, uses current LOCAL system time.
+            dt: Datetime to set. If None, uses current LOCAL system
+                time.
 
         Returns:
-            True if clock was successfully set, False otherwise
+            True if clock was successfully set, False otherwise.
 
         Raises:
-            ConnectionError: If not connected or not authenticated
+            ConnectionError: If not connected or not authenticated.
 
         Example:
             >>> # Sync with system time
@@ -222,15 +228,15 @@ class TimeService(BaseService):
             >>> await time_service.set_clock(dt)
 
         Implementation Notes:
-            - Uses Object 94, SubID 100 (DateTimeConfig) with SET operation
-            - Format: `[UnknownByte][Object][SubID][OpSpec][DateTime...]`
-            - DateTime format: `[Year(2BE)][Month][Day][Hour][Minute][Second][...]`
-            - This is confirmed by protocol behavior
+            - Uses ``build_data_object_set(0x5E00, 0x6401, data)``
+            - Data format (16 bytes): Type 322 header (6) +
+              ``[Year(2BE)][Month][Day][Hour][Min][Sec]`` + padding (3)
+            - Type 322 header is constant: ``41 02 00 00 0B 01``
+            - Pump responds with Class 10 ACK (OpSpec 0x01)
         """
         self.session.ensure_authenticated()
 
         if dt is None:
-            # Use LOCAL time
             dt = datetime.now()
 
         logger.info(
@@ -238,60 +244,50 @@ class TimeService(BaseService):
         )
 
         try:
-            # Build datetime payload in the format iOS uses
-            # `[Year(2 bytes, big-endian)][Month][Day][Hour][Minute][Second][padding...]`
-            datetime_bytes = bytearray()
-            datetime_bytes.extend(
-                struct.pack(">H", dt.year)
-            )  # Year as big-endian uint16
-            datetime_bytes.append(dt.month)
-            datetime_bytes.append(dt.day)
-            datetime_bytes.append(dt.hour)
-            datetime_bytes.append(dt.minute)
-            datetime_bytes.append(dt.second)
+            from ..protocol import FrameBuilder
 
-            # Add padding bytes (iOS sends 19 total bytes)
-            # The meaning of these extra bytes is unclear, but we'll send zeros
-            datetime_bytes.extend(bytes(13))  # Pad to 19 bytes total
+            # Type 322 data payload (16 bytes):
+            # [header(6)][Year(2BE)][Month][Day][Hour][Min][Sec][pad(3)]
+            _TYPE_322_HEADER = bytes([0x41, 0x02, 0x00, 0x00, 0x0B, 0x01])
+            data = bytearray(_TYPE_322_HEADER)
+            data.extend(struct.pack(">H", dt.year))
+            data.append(dt.month)
+            data.append(dt.day)
+            data.append(dt.hour)
+            data.append(dt.minute)
+            data.append(dt.second)
+            data.extend(bytes(3))  # Pad to 16 bytes
 
             logger.debug(
-                f"DateTime bytes: {datetime_bytes.hex()} "
+                f"DateTime payload: {data.hex()} "
                 f"({dt.year:04d}-{dt.month:02d}-{dt.day:02d} "
                 f"{dt.hour:02d}:{dt.minute:02d}:{dt.second:02d})"
             )
 
-            # Build APDU: `[UnknownByte][Object][SubID][OpSpec][Data...]`
-            # From iOS captures:
-            # - UnknownByte: 0x07 (purpose unknown, possibly address/routing)
-            # - Object: 0x5E (94)
-            # - SubID: 0x64 (100 = DateTimeConfig)
-            # - OpSpec: 0x70 (SET operation + length field)
-            apdu = bytearray(
-                [
-                    0x07,  # Unknown byte (seen in iOS packets)
-                    0x5E,  # Object 94
-                    0x64,  # SubID 100 (DateTimeConfig)
-                    0x70,  # OpSpec: SET operation
-                ]
+            # Class 10 SET: SubID 0x5E00 (Obj 94), ObjID 0x6401 (Sub 100)
+            frame = FrameBuilder.build_data_object_set(
+                sub_id=0x5E00,
+                obj_id=0x6401,
+                data=bytes(data),
             )
-            apdu.extend(datetime_bytes)
-
-            # Build GENI frame: [Delimiter][Length][APDU][CRC]
-            length = len(apdu)
-            frame_without_crc = bytes([0x27, length]) + bytes(apdu)
-
-            # Calculate CRC
-            from ..utils import calc_crc16_read
-
-            crc = calc_crc16_read(frame_without_crc[1:])
-            frame = frame_without_crc + bytes([(crc >> 8) & 0xFF, crc & 0xFF])
-
             logger.debug(f"Clock SET frame: {frame.hex()} ({len(frame)} bytes)")
 
-            # Send command
-            await self.transport.write(frame)
+            # Send and wait for ACK
+            def ack_filter(p: bytes) -> bool:
+                """Match Class 10 ACK response."""
+                return len(p) > 5 and p[4] == 0x0A and p[5] == 0x01
 
-            # Give the pump time to process
+            response = await self.transport.query(
+                frame,
+                match_func=ack_filter,
+                timeout=3.0,
+            )
+
+            if not response:
+                logger.warning("No ACK received for clock set")
+                return False
+
+            # Give the pump time to apply
             if not getattr(self.session, "fast_mode", False):
                 await asyncio.sleep(0.5)
 
@@ -299,9 +295,7 @@ class TimeService(BaseService):
             new_time = await self.get_clock()
             if new_time:
                 time_diff = abs((new_time - dt).total_seconds())
-                if time_diff < 5 or getattr(
-                    self.session, "fast_mode", False
-                ):  # Within 5 seconds is success
+                if time_diff < 5 or getattr(self.session, "fast_mode", False):
                     logger.info("Clock synchronized successfully")
                     return True
                 else:
