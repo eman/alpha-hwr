@@ -4,12 +4,11 @@ This document provides a comprehensive overview of all 32 control modes defined 
 
 ## Executive Summary
 
-The ALPHA HWR is a **domestic hot water recirculation pump** designed for residential heating systems. Hardware testing reveals it supports **9 out of 32 control modes** - those specifically related to heating and circulation applications.
+The ALPHA HWR is a **domestic hot water recirculation pump** designed for residential heating systems. Hardware testing reveals it supports **6 out of 32 control modes** - those specifically related to hot water recirculation applications.
 
 **Support Statistics:**
--  **Fully Supported:** 8 modes (25%)
--   **Limited Support:** 1 mode (3%)
--  **Not Supported:** 23 modes (72%)
+-  **Fully Supported:** 6 modes (19%)
+-  **Not Supported:** 26 modes (81%)
 
 ---
 
@@ -20,16 +19,16 @@ The ALPHA HWR is a **domestic hot water recirculation pump** designed for reside
 | 0 | CONSTANT_PRESSURE |  **Full** | 15 | 0x18 | Constant head pressure |
 | 1 | PROPORTIONAL_PRESSURE |  **Full** | 17 | 0x17 | Proportional pressure curve |
 | 2 | CONSTANT_SPEED |  **Full** | 13 | 0x04 | Fixed RPM operation |
-| 5 | AUTO_ADAPT |   **Limited** | 11 | 0x1D/0x06/0x05 | Generic AutoAdapt (use modes 13-15 instead) |
+| 5 | AUTO_ADAPT |  Not Supported | - | - | Generic AutoAdapt (deprecated, not for DHW) |
 | 7 | CLOSED_LOOP_SENSOR |  Not Supported | - | - | Generic sensor control |
 | 8 | CONSTANT_FLOW |  **Full** | 39 | 0x15 | Constant flow rate |
 | 9 | CONSTANT_LEVEL |  Not Supported | - | - | Water level control (tanks/sumps) |
 | 10 | FLOW_ADAPT |  Not Supported | - | - | Adaptive flow control |
 | 11 | CONSTANT_DIFF_PRESSURE |  Not Supported | - | - | Differential pressure sensors required |
 | 12 | CONSTANT_DIFF_TEMP |  Not Supported | - | - | Temperature differential control |
-| 13 | AUTO_ADAPT_RADIATOR |  **Full** | 19 | 0x1E | AutoAdapt for radiator systems |
-| 14 | AUTO_ADAPT_UNDERFLOOR |  **Full** | 21 | 0x1F | AutoAdapt for underfloor heating |
-| 15 | AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR |  **Full** | 23 | 0x20 | AutoAdapt for combined systems |
+| 13 | AUTO_ADAPT_RADIATOR |  Not Supported | 19 | 0x1E | Heating system mode (not DHW) |
+| 14 | AUTO_ADAPT_UNDERFLOOR |  Not Supported | 21 | 0x1F | Heating system mode (not DHW) |
+| 15 | AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR |  Not Supported | 23 | 0x20 | Heating system mode (not DHW) |
 | 16 | CONSTANT_DOSING |  Not Supported | - | - | Chemical dosing (pools/industrial) |
 | 17 | DISINFECTANT_CONTROL |  Not Supported | - | - | Chemical dosing (pools/water treatment) |
 | 18 | FLOCCULENT_CONTROL |  Not Supported | - | - | Chemical dosing (water treatment) |
@@ -39,7 +38,7 @@ The ALPHA HWR is a **domestic hot water recirculation pump** designed for reside
 | 22 | LEVEL_CONTROL |  Not Supported | - | - | Water level control |
 | 23 | ZONE_PUMP_CONTROL |  Not Supported | - | - | Multi-zone systems |
 | 24 | USER_DEFINED |  Not Supported | - | - | Custom mode |
-| 25 | DHW_ON_OFF_CONTROL |  Not Supported | - | - | Domestic hot water on/off |
+| 25 | DHW_ON_OFF_CONTROL |   **Full** | - | 0x19 | Cycle time control (on/off minutes) |
 | 26 | PROPORTIONAL_DIFF_PRESSURE |  Not Supported | - | - | Differential pressure sensors required |
 | 27 | TEMPERATURE_RANGE_CONTROL |  **Full** | - | - | Temperature range control (min/max) |
 | 28 | COMFORT_VALVE_CONTROL |  Not Supported | - | - | Valve control |
@@ -50,7 +49,7 @@ The ALPHA HWR is a **domestic hot water recirculation pump** designed for reside
 
 ---
 
-## Supported Modes (8 modes)
+## Supported Modes (6 modes)
 
 ### 1. Constant Pressure (Mode 0) -  Full Support
 
@@ -148,126 +147,77 @@ alpha-hwr control set-flow --value 0.5
 
 ---
 
-### 5. AutoAdapt Radiator (Mode 13) -  Full Support
+### 5. Temperature Control with AutoAdapt (Mode 27) - Full Support
 
-**Description:** Intelligent adaptation for radiator heating systems.
+**Description:** Temperature range control with automatic flow adjustment (AutoAdapt feature).
 
-**Use Case:** Radiator-only heating systems, automatic optimization
+**Use Case:** Hot water recirculation maintaining temperature within specified range with automatic flow optimization (1-4 gpm)
 
 **Hardware Support:**
--  SubID 19 in Object 86
--  Mode switching works reliably
--  Register 0x1E for setpoint writes
--  Limits: 1.83-4.57 m (typical)
+-  **This is the ALPHA HWR's primary temperature control mode**
+-  Confirmed via live hardware verification (factory default mode)
+-  Uses **Object 91** (Setpoint), **SubID 430** (`0x01AE`) for configuration
+-  Supports dual setpoints (Minimum and Maximum Temperature)
+-  **AutoAdapt:** Flow rate automatically adjusts between 1-4 gpm based on system demand
 
 **Implementation:**
 ```python
-await client.set_autoadapt_radiator(3.0)  # 3.0 meters
+# Set temperature range: 35°C min, 39°C max
+await client.set_temperature_range_control(35.0, 39.0)
 ```
 
 **CLI:**
 ```bash
-alpha-hwr control set-autoadapt-radiator --value 3.0
+alpha-hwr control set-temperature --min 35 --max 39
 ```
+
+**Note:** This mode combines temperature range control WITH the AutoAdapt flow adjustment feature. The "AutoAdapt" mentioned in ALPHA HWR documentation refers to this mode's automatic flow adjustment capability, not to modes 13/14/15 (which are for heating system pumps).
 
 ---
 
-### 6. AutoAdapt Underfloor (Mode 14) -  Full Support
+### 6. Cycle Time Control (Mode 25) -  Full Support
 
-**Description:** Intelligent adaptation for underfloor heating systems.
+**Description:** Operates the pump in on/off cycles at configurable intervals for domestic hot water (DHW) recirculation.
 
-**Use Case:** Underfloor heating, low-temperature systems
+**Use Case:** DHW recirculation systems where intermittent pump operation maintains water temperature while saving energy.
 
 **Hardware Support:**
--  SubID 21 in Object 86
--  Mode switching works reliably
--  Register 0x1F for setpoint writes
--  Limits: 1.83-4.57 m (typical)
+-   Mode switching works reliably (mode byte 0x19, suffix 0x38 0xC6 0x70 0x00)
+-   Successfully operates on ALPHA HWR hardware
+-   Exposed in Grundfos GO mobile app
+-   Supports configurable ON/OFF durations (1-60 minutes)
 
 **Implementation:**
 ```python
-await client.set_autoadapt_underfloor(2.5)  # 2.5 meters
+# Set cycle times: 5 min on, 15 min off
+await client.set_cycle_time_control(5, 15)
 ```
 
 **CLI:**
 ```bash
-alpha-hwr control set-autoadapt-underfloor --value 2.5
+alpha-hwr control set-cycle-time --on 5 --off 15
+alpha-hwr control get-cycle-time
 ```
+
+**Next Steps:**
+Investigate additional advanced modes if requested by users.
 
 ---
 
-### 7. AutoAdapt Combined (Mode 15) -  Full Support
-
-**Description:** Intelligent adaptation for mixed radiator and underfloor systems.
-
-**Use Case:** Hybrid heating systems, both radiator and underfloor
-
-**Hardware Support:**
--  SubID 23 in Object 86
--  Mode switching works reliably
--  Register 0x20 for setpoint writes
--  Limits: 1.83-4.57 m (typical)
-
-**Implementation:**
-```python
-await client.set_autoadapt_combined(3.5)  # 3.5 meters
-```
-
-**CLI:**
-```bash
-alpha-hwr control set-autoadapt-combined --value 3.5
-```
-
----
-
-### 8. AutoAdapt Generic (Mode 5) -  Limited Support
-
-**Description:** Generic AutoAdapt mode (older/deprecated).
-
-**Use Case:** Not recommended - use modes 13-15 instead
-
-**Hardware Support:**
--   SubID 11 in Object 86 (uint16 format, unusual)
--   Mode switching unreliable
--   Register IDs: tries 0x1D, 0x06, 0x05 (uncertain)
--   Very narrow limits: 1.48-1.52 m (0.04m range)
-
-**Recommendation:** **DO NOT USE** - Use specific variants (13, 14, or 15) instead.
-
-**Implementation:**
-```python
-# Available but not recommended
-await client.set_autoadapt(1.5)  # Limited support warning displayed
-```
-
----
-
-### 9. Temperature Range Control (Mode 27) - Full Support
-
-**Description:** Regulates pump operation based on a minimum and maximum temperature range.
-
-**Use Case:** Maintaining water temperature within specific bounds (e.g., DHW recirculation).
-
-**Hardware Support:**
--  Confirmed via live hardware verification (default mode on some units).
--  Uses **Object 91** (Setpoint), **SubID 430** (`0x01AE`) for configuration.
--  Supports dual setpoints (Minimum and Maximum Temperature).
-
-**Implementation:**
-```python
-# Set range: 35°C to 45°C
-await client.set_temperature_range_control(35.0, 45.0)
-```
-
----
-
-## Unsupported Modes (23 modes)
+## Unsupported Modes (26 modes)
 
 ### Why These Modes Are Not Supported
 
-The ALPHA HWR is a **residential hot water recirculation pump**, not a general-purpose industrial pump. The unsupported modes fall into these categories:
+The ALPHA HWR is a **residential hot water recirculation pump**, not a general-purpose industrial pump or heating system pump. The unsupported modes fall into these categories:
 
-#### 1. Sensor Requirements Not Met
+#### 1. Heating System Modes (Not DHW)
+- **Mode 13 (AUTO_ADAPT_RADIATOR):** For radiator heating systems, not DHW recirculation
+- **Mode 14 (AUTO_ADAPT_UNDERFLOOR):** For underfloor heating systems, not DHW recirculation
+- **Mode 15 (AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR):** For combined heating systems, not DHW recirculation
+
+**Note:** The ALPHA HWR uses Mode 27 (TEMPERATURE_RANGE_CONTROL) for temperature control with AutoAdapt flow adjustment. Modes 13/14/15 are GENI protocol modes for heating system pumps.
+
+#### 2. Sensor Requirements Not Met
 - **Mode 11 (CONSTANT_DIFF_PRESSURE):** Requires differential pressure sensors
 - **Mode 26 (PROPORTIONAL_DIFF_PRESSURE):** Requires differential pressure sensors
 - **Mode 12 (CONSTANT_DIFF_TEMP):** Requires temperature differential sensors
@@ -289,7 +239,6 @@ The ALPHA HWR is a **residential hot water recirculation pump**, not a general-p
 - **Mode 21 (CONSTANT_RELATIVE_SETPOINT):** Relative setpoint adjustment
 - **Mode 23 (ZONE_PUMP_CONTROL):** Multi-zone systems
 - **Mode 24 (USER_DEFINED):** Custom control algorithms
-- **Mode 25 (DHW_ON_OFF_CONTROL):** DHW on/off switching
 - **Mode 28 (COMFORT_VALVE_CONTROL):** Valve control systems
 - **Mode 29 (ON_OFF_CONTROL):** Simple on/off operation
 - **Mode 30 (CONSTANT_VOLTAGE):** Voltage control (motor testing)
@@ -307,10 +256,12 @@ All 32 GENI protocol modes were systematically tested on real ALPHA HWR hardware
 
 | Category | Tested | Supported |
 |----------|--------|-----------|
-| Standard Modes | 8 | 8 |
-| Temperature Range | 1 | 1 |
-| Industrial/Dosing | 23 | 0 |
-| **Total** | **32** | **9** |
+| Pressure/Flow Control | 4 | 4 |
+| Temperature Control | 1 | 1 |
+| DHW Cycle Control | 1 | 1 (limited) |
+| Heating System Modes | 3 | 0 |
+| Industrial/Dosing/Other | 23 | 0 |
+| **Total** | **32** | **5 fully + 1 limited** |
 
 ---
 
@@ -318,35 +269,41 @@ All 32 GENI protocol modes were systematically tested on real ALPHA HWR hardware
 
 ### Library Support
 
-**Fully Implemented (9 modes):**
+**Fully Implemented (6 modes via Class 10):**
 - `set_constant_pressure(value_m)` - Mode 0
-- `set_proportional_pressure(value_m)` - Mode 1
+- `set_proportional_pressure(value_m)` - Mode 1  
 - `set_constant_speed(value_rpm)` - Mode 2
 - `set_constant_flow(value_m3h)` - Mode 8
-- `set_autoadapt_radiator(value_m)` - Mode 13
-- `set_autoadapt_underfloor(value_m)` - Mode 14
-- `set_autoadapt_combined(value_m)` - Mode 15
-- `set_temperature_range_control(min, max)` - Mode 27
+- `set_temperature_range_control(min_c, max_c, autoadapt=True)` - Mode 27
+- `set_cycle_time_control(on_min, off_min)` - Mode 25
+- `set_flow_limit(value_gpm)` - Sub 39 limitation
 
-**Partially Implemented (1 mode):**
-- `set_autoadapt(value_m)` - Mode 5 (with warnings)
+**Deprecated Methods (for heating systems, not ALPHA HWR):**
+- `set_temperature_control(on_temp, off_temp, heating_type)` - Uses modes 13/14/15 (not for DHW)
+- `set_autoadapt_radiator(value_m)` - Mode 13 (not for DHW)
+- `set_autoadapt_underfloor(value_m)` - Mode 14 (not for DHW)
+- `set_autoadapt_combined(value_m)` - Mode 15 (not for DHW)
 
-**Not Implemented (23 modes):**
+**Not Implemented (26 modes):**
 - Unsupported modes listed above - no methods created
 
 ### CLI Support
 
 **Available Commands:**
 ```bash
-alpha-hwr control set-pressure --value <meters>
-alpha-hwr control set-proportional-pressure --value <meters>
-alpha-hwr control set-speed --value <rpm>
-alpha-hwr control set-flow --value <m3h>
-alpha-hwr control set-autoadapt-radiator --value <meters>
-alpha-hwr control set-autoadapt-underfloor --value <meters>
-alpha-hwr control set-autoadapt-combined --value <meters>
-alpha-hwr control set-autoadapt --value <meters>  # Not recommended
+alpha-hwr control set-pressure <meters>
+alpha-hwr control set-proportional <meters>
+alpha-hwr control set-speed <rpm> [--flow-limit <gpm>]
+alpha-hwr control set-flow <m3h>
+alpha-hwr control set-temperature --min <temp_c> --max <temp_c> [--autoadapt/--no-autoadapt] [--flow-limit <gpm>]
+alpha-hwr control set-cycle-time --on <minutes> --off <minutes>
+alpha-hwr control set-flow-limit <gpm>
+alpha-hwr control get-cycle-time
 ```
+
+**Deprecated Commands (removed from CLI):**
+
+These methods still exist in the service layer for GENI protocol compatibility but are not exposed in the CLI since they are not applicable to ALPHA HWR (they are for heating system pumps, not DHW pumps).
 
 ---
 
@@ -354,14 +311,15 @@ alpha-hwr control set-autoadapt --value <meters>  # Not recommended
 
 ### For Users
 
-1. **Use Supported Modes Only:** Stick to the 9 supported modes for reliable operation.
-2. **Avoid Mode 5:** Use specific AutoAdapt variants (13-15) instead.
-3. **Understand Pump Limitations:** ALPHA HWR is optimized for residential heating, not industrial applications.
+1. **Use Supported Modes Only:** Stick to the 5 fully supported modes + Mode 25 (cycle time control) for reliable operation.
+2. **Temperature Control:** Use Mode 27 (`set-temperature --min --max`) which includes AutoAdapt flow adjustment.
+3. **Understand Pump Limitations:** ALPHA HWR is optimized for domestic hot water recirculation, not heating systems or industrial applications.
 
 ### For Developers
 
-1. **No Further Investigation Needed:** All GENI protocol modes have been verified.
-2. **Documentation Complete:** Support matrix is fully documented.
+1. **No Further Investigation Needed:** All GENI protocol modes have been verified for ALPHA HWR compatibility.
+2. **Mode 25 Protocol:** See issue #14 for ongoing work to reverse engineer cycle time parameter protocol.
+3. **Documentation Complete:** Support matrix is fully documented for the 5 ALPHA HWR modes.
 
 ---
 

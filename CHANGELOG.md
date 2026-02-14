@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Refactored Control Modes and Setpoints**:
+  - Implementation of the 5 primary ALPHA HWR control modes using Class 10 (Object 0x0601) for improved reliability.
+  - Added support for **AUTOADAPT toggle** in Temperature Range Control (Mode 27).
+  - New CLI command `set-proportional` for proportional pressure mode.
+  - Enhanced CLI `set-mode` with aliases and better help text.
+- **Full implementation of Mode 25 (DHW_ON_OFF_CONTROL / Cycle Time Control)**:
+  - Added support for reading and writing cycle time parameters (on/off minutes) to the library.
+  - Added CLI commands: `alpha-hwr control set-cycle-time` and `alpha-hwr control get-cycle-time`.
+  - Added comprehensive integration tests using `MockPump`.
+  - Updated `MockPump` to simulate Mode 25 protocol behavior.
+
+### Changed
+
+- **Test Infrastructure and Dependencies**:
+  - Refactored `pyproject.toml` to use a dedicated `test` optional dependency group.
+  - Updated GitHub Actions CI to install test extras and ensure all required plugins are present.
+  - Improved `tests/conftest.py` to explicitly load `pytest-benchmark`, ensuring fixture availability during parallel execution.
+  - Unified `_send_configuration_commit` implementation in `BaseService` for all service modules.
+
+### Fixed
+
+- **Start/Stop Commands**: Fixed start and stop commands silently failing.
+  The control payload now uses the correct mode-specific suffix bytes
+  instead of encoding `0.0` (which the pump firmware rejected). The CLI
+  also reads the pump's current control mode before sending start/stop to
+  avoid accidentally switching modes.
+- **Control Mode Setpoints**: Fixed floating-point precision issues in integration tests by using `pytest.approx`.
+- **MockPump Reliability**: Fixed missing logger definitions and improved OpSpec 0xB3 ID parsing.
+- **CI Test Failures**: Resolved "fixture not found" errors by properly managing benchmark plugin loading.
+
 ### Documentation
 
 - Documentation site version now sourced from `pyproject.toml` and auto-
@@ -57,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **New `client` facade**: `AlphaHWRClient` delegates to specialized services.
   - **New `cli` structure**: CLI commands organized by domain using Typer.
 - **Control Service - Enhanced Safety and Reliability**
+  - Migrated primary control modes (Constant Pressure, Speed, Flow, Proportional Pressure) from Class 3 to **Class 10 (Object 0x0601)** for better hardware compatibility.
   - Added setpoint validation to all control mode setters
   - Improved error messages for out-of-range setpoints
   - Now uses `transport.query()` for reliable request/response transactions

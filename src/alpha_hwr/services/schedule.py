@@ -46,6 +46,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from alpha_hwr.models import ScheduleEntry
+from ..utils import calc_crc16_read
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -499,11 +500,14 @@ class ScheduleService(BaseService):
         sub_h = (sub_id >> 8) & 0xFF
         sub_l = sub_id & 0xFF
 
+        # APDU format: [Class][OpSpec][ObjID][SubH][SubL][Reserved][Type(3)][Size(2)]
+        # OpSpec 0xB3: SET with length 19 (decimal)
+        # Note: 84 is 0x54 in hex
         apdu = bytearray(
             [
                 0x0A,  # Class 10
-                0xB3,  # OpSpec 5
-                84,  # Object ID 84
+                0xB3,  # OpSpec (SET with long payload)
+                0x54,  # Object ID 84
                 sub_h,
                 sub_l,  # SubID
                 0x00,  # Reserved
@@ -516,11 +520,13 @@ class ScheduleService(BaseService):
         )
         apdu.extend(payload_data)
 
-        # Send write command (convert bytearray to bytes)
+        # Send write command
         success = await self._write_class10_command(0xE7, 0xF8, bytes(apdu))
 
         if success:
             logger.info(f"Schedule written successfully to layer {layer}")
+            # Need to commit configuration for schedule to persist
+            await self._send_configuration_commit()
         else:
             logger.error(f"Failed to write schedule to layer {layer}")
 
@@ -896,8 +902,6 @@ class ScheduleService(BaseService):
             both responses and timeouts (empty bytes) as success.
         """
         try:
-            from ..utils import calc_crc16_read
-
             # Build GENI frame: [Start][Length][Dst][Src][APDU...][CRC]
             length = 1 + 1 + len(apdu)  # Dst + Src + APDU
             frame_without_crc = bytes([0x27, length, dst, src]) + bytes(apdu)
@@ -913,7 +917,6 @@ class ScheduleService(BaseService):
             response = await self.transport.query(frame, timeout=3.0)
 
             # Treat both response and no response as success
-            # (matching original: `if resp is not None` where resp can be b"")
             if response is not None:
                 logger.debug(
                     f"Got response to Class 10 write: {response.hex() if response else '(empty)'}"

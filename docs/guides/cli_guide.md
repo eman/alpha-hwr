@@ -259,65 +259,76 @@ alpha-hwr control disable-remote
 
 ### Set Control Mode
 
-The pump supports multiple control modes. Each mode-specific command sets the mode and starts the pump.
+The pump supports multiple control modes specifically optimized for hot water recirculation.
 
-#### Constant Pressure
+#### Temperature Control
 
-Maintains fixed head pressure:
+Maintains temperature within a specified range (Mode 27):
 
 ```bash
-# Set to 1.5 meters head
-alpha-hwr control set-mode constant-pressure --setpoint 1.5
+# Set range 35-39°C with AUTOADAPT enabled (default)
+alpha-hwr control set-temperature --min 35 --max 39
 
-# Value is in meters (typically 0.5 - 5.0 m)
-alpha-hwr control set-mode constant-pressure --setpoint 2.5
+# Set custom range with no autoadapt and a flow limit
+alpha-hwr control set-temperature --min 40 --max 45 --no-autoadapt --flow-limit 1.5
 ```
 
-#### Proportional Pressure
+#### Cycle Time Control
 
-Adjusts pressure based on flow rate:
+Operates the pump in on/off cycles (Mode 25):
 
 ```bash
-# Set proportional pressure with 2.0m base
-alpha-hwr control set-mode proportional-pressure --setpoint 2.0
+# Set 5 minutes ON, 15 minutes OFF
+alpha-hwr control set-cycle-time --on 5 --off 15
+
+# View current cycle times
+alpha-hwr control get-cycle-time
 ```
 
 #### Constant Speed
 
-Runs at fixed RPM:
+Runs at fixed RPM (Mode 2):
 
 ```bash
-# Set to 2500 RPM
-alpha-hwr control set-mode constant-speed --setpoint 2500
+# Set to 2500 RPM with 2.3 GPM flow limit
+alpha-hwr control set-speed 2500 --flow-limit 2.3
+```
 
-# Valid range: typically 1000-4500 RPM
+#### Constant Pressure
+
+Maintains fixed head pressure (Mode 0):
+
+```bash
+# Set to 1.5 meters head
+alpha-hwr control set-pressure 1.5
 ```
 
 #### Constant Flow
 
-Maintains specific flow rate:
+Maintains specific flow rate (Mode 8):
 
 ```bash
-# Set to 0.8 m³/h
-alpha-hwr control set-mode constant-flow --setpoint 0.8
+# Set to 0.5 m³/h
+alpha-hwr control set-flow 0.5
 ```
 
-#### AutoAdapt Modes
+#### Proportional Pressure
 
-Automatically optimizes performance based on system type:
+Adjusts pressure based on flow rate (Mode 1):
 
 ```bash
-# AutoAdapt for radiator systems
-alpha-hwr control set-mode autoadapt-radiator --setpoint 3.0
-
-# AutoAdapt for underfloor heating
-alpha-hwr control set-mode autoadapt-underfloor --setpoint 2.5
-
-# AutoAdapt for combined systems
-alpha-hwr control set-mode autoadapt-combined --setpoint 3.5
+# Set proportional pressure with 1.2m base
+alpha-hwr control set-proportional 1.2
 ```
 
-**Recommendation**: Use the specific AutoAdapt variants (radiator/underfloor/combined) rather than the generic `autoadapt` mode for better reliability.
+#### Flow Limitation
+
+Set a global maximum flow limit to prevent corrosion:
+
+```bash
+# Set 1.5 GPM limit (recommended for 1/2" pipe)
+alpha-hwr control set-flow-limit 1.5
+```
 
 ---
 
@@ -803,7 +814,15 @@ alpha-hwr monitor live
 |---------|-------------|
 | `control start` | Start pump |
 | `control stop` | Stop pump |
-| `control set-mode <mode>` | Set control mode with setpoint |
+| `control set-temperature` | Set temperature range control (Mode 27) |
+| `control set-cycle-time` | Set DHW cycle time control (Mode 25) |
+| `control get-cycle-time` | Get DHW cycle time configuration |
+| `control set-pressure` | Set constant pressure mode (Mode 0) |
+| `control set-speed` | Set constant speed mode (Mode 2) |
+| `control set-flow` | Set constant flow mode (Mode 8) |
+| `control set-proportional` | Set proportional pressure mode (Mode 1) |
+| `control set-flow-limit` | Set maximum flow limit (GPM) |
+| `control set-mode <mode>` | Set control mode with setpoint (generic) |
 
 ### Device Commands
 

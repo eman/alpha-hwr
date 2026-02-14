@@ -156,6 +156,10 @@ class SetpointInfo(BaseModel):
     schedule_enabled: bool | None = Field(
         default=None, description="True if internal schedule is active"
     )
+    delta_temp_enabled: bool | None = Field(
+        default=None,
+        description="True if Delta Temperature control (AutoAdapt) is enabled",
+    )
 
     def get_display_value(self) -> tuple[float, str]:
         """
@@ -180,6 +184,9 @@ class SetpointInfo(BaseModel):
             ControlMode.PROPORTIONAL_PRESSURE,
             ControlMode.CONSTANT_DIFF_PRESSURE,
             ControlMode.PROPORTIONAL_DIFF_PRESSURE,
+            ControlMode.AUTO_ADAPT_RADIATOR,
+            ControlMode.AUTO_ADAPT_UNDERFLOOR,
+            ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
         ):
             # Convert Pascals to meters of water column (1 m H2O ≈ 9806.65 Pa)
             meters = self.setpoint / 9806.65
@@ -232,6 +239,9 @@ class SetpointInfo(BaseModel):
             ControlMode.PROPORTIONAL_PRESSURE,
             ControlMode.CONSTANT_DIFF_PRESSURE,
             ControlMode.PROPORTIONAL_DIFF_PRESSURE,
+            ControlMode.AUTO_ADAPT_RADIATOR,
+            ControlMode.AUTO_ADAPT_UNDERFLOOR,
+            ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
         ):
             min_val = self.min_setpoint / 9806.65
             max_val = self.max_setpoint / 9806.65
@@ -397,10 +407,12 @@ class ScheduleEntry(BaseModel):
     @field_validator("day")
     @classmethod
     def validate_day(cls, v: str) -> str:
-        """Validate day name is one of the valid weekdays."""
-        if v not in cls.VALID_DAYS:
+        """Validate day name is one of the valid weekdays (case-insensitive)."""
+        # Normalize to Title Case (e.g. 'monday' -> 'Monday')
+        normalized = v.capitalize()
+        if normalized not in cls.VALID_DAYS:
             raise ValueError(f"Day must be one of {cls.VALID_DAYS}, got '{v}'")
-        return v
+        return normalized
 
     @property
     def day_index(self) -> int:

@@ -11,6 +11,9 @@ from unittest.mock import AsyncMock, patch
 from hypothesis import strategies as st
 from alpha_hwr.client import AlphaHWRClient
 
+# Explicitly load the benchmark plugin to ensure the fixture is available
+pytest_plugins = ["pytest_benchmark"]
+
 
 @st.composite
 def valid_frame_bytes(draw):

@@ -212,3 +212,22 @@ class BaseService:
         frame = frame_without_crc + bytes([(crc >> 8) & 0xFF, crc & 0xFF])
 
         return frame
+
+    async def _send_configuration_commit(self) -> bool:
+        """
+        Send a configuration commit command to the pump.
+
+        This command is required after writing configuration objects
+        to ensure they are persisted to the pump's non-volatile memory.
+
+        Returns:
+            True if commit command was sent successfully
+        """
+        # Complex APDU format verified from ALPHA HWR traffic
+        # Class 10, SET (0x93), Sub 0x5400, Obj 0xDA01
+        conf_apdu = bytes.fromhex("0A9354000100DA0100000A02050005000100000000")
+        # Use query/send depending on implementation, but write is safe here
+        await self.transport.write(
+            self._build_geni_packet(0xF8, 0xE7, conf_apdu)
+        )
+        return True

@@ -71,15 +71,24 @@ async def test_stop_success(control_service, mock_transport):
 @pytest.mark.asyncio
 async def test_set_constant_pressure(control_service, mock_transport):
     """Test setting constant pressure."""
-    mock_transport.query.return_value = b"\x24\x06\xe7\xf8\x03\x01"
+    mock_transport.query.return_value = b"\x24\x06\xe7\xf8\x0a\x01"
 
-    # 1.5m -> 14710 Pa
+    # 1.5m -> ~14710 Pa
     success = await control_service.set_constant_pressure(1.5)
 
     assert success is True
-    # Verify set mode called first (Class 10)
-    # Then set value (Class 3)
-    assert mock_transport.query.call_count >= 2
+    # Verify set mode called (Class 10)
+    mock_transport.query.assert_called()
+
+    # Check conversion
+    from alpha_hwr.protocol.codec import decode_float_be
+
+    call_args = mock_transport.query.call_args_list[0][0][0]
+    # Setpoint is at offset 10 (APDU) + 8 (Header) = 18
+    actual_pa = decode_float_be(call_args, 18)
+    assert actual_pa is not None
+    expected_pa = 1.5 * 9806.65
+    assert abs(actual_pa - expected_pa) < 1.0
 
 
 @pytest.mark.asyncio
@@ -111,4 +120,4 @@ async def test_get_mode(control_service, mock_transport):
 
     assert info is not None
     assert info.control_mode == 0
-    assert abs(info.setpoint - 14710.0) < 0.1
+    assert abs(info.setpoint - 1.5) < 0.1

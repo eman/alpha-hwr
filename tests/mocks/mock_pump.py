@@ -9,6 +9,7 @@ the GENI protocol specification.
 """
 
 import asyncio
+import logging
 import struct
 from datetime import datetime
 from typing import Optional, Callable
@@ -18,6 +19,8 @@ from alpha_hwr.protocol import FrameParser
 from alpha_hwr.protocol.codec import encode_float_be, encode_uint16_be
 from alpha_hwr.constants import ControlMode
 from alpha_hwr.utils import calc_crc16
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -31,7 +34,7 @@ class MockPumpState:
     # Control state
     running: bool = False
     control_mode: int = ControlMode.CONSTANT_SPEED
-    setpoint: float = 0.0
+    setpoint: float | None = 0.0
 
     # Telemetry values
     voltage: float = 230.0
@@ -61,6 +64,10 @@ class MockPumpState:
 
     # Clock
     last_synced_time: Optional[datetime] = None
+
+    # Cycle time parameters (Mode 25)
+    cycle_on_minutes: int = 6
+    cycle_off_minutes: int = 14
 
     # Response callback
     notification_callback: Optional[Callable[[bytes], None]] = None
@@ -171,7 +178,8 @@ class MockPump:
         if frame.class_byte == 10:
             raw_data = frame.raw_data
             opspec = raw_data[5] if len(raw_data) > 5 else 0
-            if opspec in (0x93, 0xB3, 0x90):
+            # Any OpSpec with bit 7 set is a SET operation
+            if opspec & 0x80:
                 return await self._handle_class10_set(frame)
             return await self._handle_class10(frame)
         elif frame.class_byte == 7:
@@ -208,17 +216,17 @@ class MockPump:
         return self._build_error_response()
 
     async def _handle_class10_set(self, frame) -> bytes:
-        """Handle Class 10 SET operations (OpSpec 0x93, 0xB3, 0x90)."""
+        """Handle Class 10 SET operations."""
         raw_data = frame.raw_data
         opspec = raw_data[5]
 
-        # OpSpec 0xB3 uses a different header format than 0x90/0x93
+        # Standard GENI Class 10 SET: bit 7 set, bits 0-5 = length
+        # Standard ID order for standard length: SubID(2B) then ObjID(2B)
+        # BUT for OpSpec 0xB3 (Long SET), the order is ObjID(1B) then SubID(2B)
         if opspec == 0xB3:
-            # [0A][B3][ObjID][SubH][SubL][...]
             obj_id = raw_data[6]
             sub_id = (raw_data[7] << 8) | raw_data[8]
         else:
-            # Standard Class 10 identifier offsets for 0x90/0x93: SubID (6-7), ObjID (8-9)
             sub_id = (raw_data[6] << 8) | raw_data[7]
             obj_id = (raw_data[8] << 8) | raw_data[9]
 
@@ -226,12 +234,24 @@ class MockPump:
         if sub_id == 0x5600 and obj_id == 0x0601:
             return self._handle_control_command(frame)
 
+        # Mode 25 Cycle Time Write (Sub 0x01AE, Obj 0x005B)
+        if (opspec & 0x80) and sub_id == 0x01AE and obj_id == 0x005B:
+            # Payload structure: [Type(2)][Size(1)][0x00, 0x00, OFF, 0x01, 0x42, 0x02, ON, 0xFB]
+            # Offset to OFF = 4 (GENI) + 6 (APDU) + 3 (Type/Size) + 2 (Header) = 15
+            # Offset to ON = 15 + 4 = 19
+            if len(raw_data) >= 20:
+                self.state.cycle_off_minutes = raw_data[15]
+                self.state.cycle_on_minutes = raw_data[19]
+                return self._build_ack_response()
+
         # Schedule overview enable/disable (Obj 84, Sub 1)
         # Note: ObjID 84=0x0054, SubID 1=0x0001
         if obj_id == 0x0054 and sub_id == 0x0001:
-            if len(raw_data) >= 16:
-                # Enabled flag is byte 4 of 10-byte structure (offset 11+4=15)
-                self.state.schedule_enabled = raw_data[15] != 0
+            # APDU structure for 10-byte data: [Type(3)][Size(2)][Data(5)]
+            # enabled is Byte 4 of 5-byte data (index 9 of 10-byte block)
+            # Plus 10 bytes for GENI/APDU headers = 19
+            if len(raw_data) >= 20:
+                self.state.schedule_enabled = raw_data[19] != 0
             return self._build_ack_response()
 
         # Schedule write (Obj 84, Sub 1000-1004)
@@ -257,16 +277,20 @@ class MockPump:
     def _handle_schedule_write(self, sub_id: int, raw_data: bytes) -> bytes:
         """Handle schedule layer write."""
         # OpSpec 0xB3: SET with long payload
-        # Structure: [Header(11)][Type(3)][Size(2)][Data(42)]
-        # Total offset to data = 11 + 3 + 2 = 16
-        if len(raw_data) >= 16 + 42:
-            data = raw_data[16 : 16 + 42]
+        # Structure: [Header(9)][Reserved(1)][Type(3)][Size(2)][Data(42)]
+        # Total offset to data = 15
+        if len(raw_data) >= 15 + 42:
+            data = raw_data[15 : 15 + 42]
             layer = sub_id - 1000
-            self.state.schedule_entries[layer] = data
-        else:
-            pass
+            if 0 <= layer < 5:
+                self.state.schedule_entries[layer] = data
+                logger.debug(
+                    f"MockPump: Written schedule layer {layer}: {data.hex()[:20]}..."
+                )
+                return self._build_ack_response()
 
-        return self._build_ack_response()
+        logger.warning(f"MockPump: Invalid schedule write: len={len(raw_data)}")
+        return self._build_error_response()
 
     async def _handle_class10(self, frame) -> bytes:
         """Handle Class 10 DataObject operations."""
@@ -318,6 +342,21 @@ class MockPump:
         # Clock read (Obj 94, Sub 101)
         if obj_id == 0x005E and sub_id == 0x0065:
             return self._build_clock_response()
+
+        # Mode 25 Cycle Time Config (Obj 91, Sub 421)
+        if obj_id == 91 and sub_id == 421:
+            # Format: [Header(2)][OnTime(1)][Unknown(5)][OffTime(1)]
+            payload = bytearray([0x00, 0x00])
+            payload.append(self.state.cycle_on_minutes)
+            payload.extend(
+                bytes([0x38, 0x84, 0x4F, 0x30, 0x05])
+            )  # Unknowns from capture
+            payload.append(self.state.cycle_off_minutes)
+            return self._build_class10_response(sub_id, obj_id, bytes(payload))
+
+        # Main User Settings (Obj 91, Sub 430)
+        if obj_id == 91 and sub_id == 430:
+            return self._build_user_settings_response()
 
         # Timestamp map (Obj 88, Sub 13300/13301)
         if obj_id == 88 and sub_id in (13300, 13301):
@@ -394,12 +433,14 @@ class MockPump:
 
     def _handle_control_command(self, frame) -> bytes:
         """Handle pump control commands (start/stop/mode change)."""
+        from alpha_hwr.protocol.codec import decode_float_be
+
         payload = frame.payload
 
         if len(payload) < 8:
             return self._build_error_response()
 
-        # Parse control payload: [Header(6 bytes)][Flag][Mode][Suffix]
+        # Parse control payload: [Header(6 bytes)][Flag][Mode][Setpoint(4)]
         # From ControlService: [0x2F, 0x01, 0x00, 0x00, 0x07, 0x00, Flag, Mode]
         flag = payload[6]  # 0x00 = start, 0x01 = stop
         mode = payload[7]
@@ -408,6 +449,11 @@ class MockPump:
             # Start command
             self.state.running = True
             self.state.control_mode = mode
+
+            # Extract setpoint if available (12-byte payload)
+            if len(payload) >= 12:
+                self.state.setpoint = decode_float_be(payload, 8)
+
             self.state.speed_rpm = 1500.0  # Simulate running
             self.state.flow_m3h = 2.5
             self.state.current = 1.5
@@ -519,6 +565,22 @@ class MockPump:
 
         return self._build_class10_response(101, 94, bytes(payload))
 
+    def _build_user_settings_response(self) -> bytes:
+        """
+        Build Class 10 User Settings response (Obj 91, Sub 430).
+
+        Format: [00 00 0E][01 42 0C][00 00 42 1E DE 4C][OFF][3C 02][ON][01]
+        """
+        payload = bytearray([0x00, 0x00, 0x0E])  # Header
+        payload.extend([0x01, 0x42, 0x0C])  # Magic
+        payload.extend([0x00, 0x00, 0x42, 0x1E, 0xDE, 0x4C])  # Magic
+        payload.append(self.state.cycle_off_minutes)  # Offset 12
+        payload.extend([0x3C, 0x02])  # Magic
+        payload.append(self.state.cycle_on_minutes)  # Offset 15
+        payload.append(0x01)  # Suffix
+
+        return self._build_class10_response(430, 91, bytes(payload))
+
     def _build_setpoint_info_response(self) -> bytes:
         """
         Build Class 10 setpoint info response (Obj 86, Sub 6).
@@ -530,7 +592,9 @@ class MockPump:
         payload.append(0x01)  # control_source (local=1)
         payload.append(0x01)  # operation_mode (normal=1)
         payload.append(self.state.control_mode)  # control_mode
-        payload.extend(encode_float_be(self.state.setpoint))  # setpoint value
+        payload.extend(
+            encode_float_be(self.state.setpoint or 0.0)
+        )  # setpoint value
 
         return self._build_class10_response(6, 86, bytes(payload))
 

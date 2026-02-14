@@ -367,19 +367,3 @@ class TimeService(BaseService):
                 await asyncio.sleep(0.5)
 
         return False
-
-    async def _send_configuration_commit(self) -> None:
-        """
-        Send configuration commit packet.
-
-        This is required after setting the clock to persist changes.
-        Uses Class 10 SET on Object 84, SubID 1.
-        """
-        # Class 10 SET: Object 84, SubID 1
-        # Simple form without payload
-        conf_apdu = bytes([0x0A, 0x93, 0x54, 0x00, 0x01])
-        cmd = self._build_geni_packet(0xF8, 0xE7, conf_apdu)
-        await self.transport.write(cmd)
-        if not getattr(self.session, "fast_mode", False):
-            await asyncio.sleep(0.2)
-        logger.debug("Configuration commit sent")
