@@ -323,6 +323,11 @@ class FrameBuilder:
 
         # Calculate OpSpec (bit 7 set = SET, bits 6-0 = data length)
         op_bits = length - 4  # Subtract ServiceID, Source, Class, OpSpec
+        if override_op is None and op_bits > 0x3F:
+            raise ValueError(
+                f"Payload too large for OpSpec: {op_bits} "
+                f"exceeds 6-bit max (63). Use override_op."
+            )
         op_spec = (
             override_op
             if override_op is not None
@@ -521,8 +526,8 @@ class FrameBuilder:
         ]
         packet = bytearray(header + payload)
 
-        # Note: WRITE uses calc_crc16 (no XOR)
-        crc = calc_crc16(bytes(packet))
+        # Note: WRITE uses calc_crc16 (no XOR), CRC excludes start byte
+        crc = calc_crc16(bytes(packet[1:]))
         packet.extend([(crc >> 8) & 0xFF, crc & 0xFF])
 
         return bytes(packet)

@@ -16,7 +16,7 @@ if str(tests_dir) not in sys.path:
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
 import asyncio  # noqa: E402
-from unittest.mock import patch  # noqa: E402
+from unittest.mock import AsyncMock, patch  # noqa: E402
 
 from mocks.mock_pump import MockPump  # noqa: E402
 from mocks.mock_transport import MockBleakClient  # noqa: E402
@@ -36,7 +36,13 @@ async def mock_pump():
 @pytest_asyncio.fixture
 async def mock_client():
     """Create client with mock transport."""
-    with patch("alpha_hwr.client.BleakClient", MockBleakClient):
+    with (
+        patch("alpha_hwr.client.BleakClient", MockBleakClient),
+        patch(
+            "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
+            new_callable=AsyncMock,
+        ),
+    ):
         client = AlphaHWRClient("MOCK")
         await client.connect()
         await client.authenticate(fast_mode=True)
@@ -53,7 +59,13 @@ class TestClientWorkflows:
     @pytest.mark.asyncio
     async def test_connect_and_disconnect(self):
         """Test basic connection/disconnection workflow."""
-        with patch("alpha_hwr.client.BleakClient", MockBleakClient):
+        with (
+            patch("alpha_hwr.client.BleakClient", MockBleakClient),
+            patch(
+                "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
+                new_callable=AsyncMock,
+            ),
+        ):
             client = AlphaHWRClient("MOCK")
 
             # Not connected initially

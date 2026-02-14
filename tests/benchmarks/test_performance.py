@@ -160,11 +160,17 @@ class TestEndToEndPerformance:
     @pytest.mark.asyncio
     async def test_connect_authenticate_read_cycle(self):
         """Benchmark complete connect→auth→read cycle."""
-        from unittest.mock import patch
+        from unittest.mock import AsyncMock, patch
         from mocks.mock_transport import MockBleakClient
         from alpha_hwr.client import AlphaHWRClient
 
-        with patch("alpha_hwr.client.BleakClient", MockBleakClient):
+        with (
+            patch("alpha_hwr.client.BleakClient", MockBleakClient),
+            patch(
+                "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
+                new_callable=AsyncMock,
+            ),
+        ):
             start = time.perf_counter()
 
             # Full cycle
@@ -185,11 +191,17 @@ class TestEndToEndPerformance:
     @pytest.mark.asyncio
     async def test_rapid_telemetry_reads(self):
         """Benchmark rapid consecutive telemetry reads."""
-        from unittest.mock import patch
+        from unittest.mock import AsyncMock, patch
         from mocks.mock_transport import MockBleakClient
         from alpha_hwr.client import AlphaHWRClient
 
-        with patch("alpha_hwr.client.BleakClient", MockBleakClient):
+        with (
+            patch("alpha_hwr.client.BleakClient", MockBleakClient),
+            patch(
+                "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
+                new_callable=AsyncMock,
+            ),
+        ):
             client = AlphaHWRClient("MOCK")
             await client.connect()
 

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Protocol documentation errors in `04_set_mode.md`**:
+  - Corrected float encoding example: `0x46E5B000` is 29400.0 Pa (3.0 m), not 14710.0 Pa (1.5 m). Updated to correct hex `46 65 D7 E6`.
+  - Fixed Step 1 packet length byte: `0x14` (20), was incorrectly `0x12` (18).
+  - Fixed Step 2 packet length byte: `0x0C` (12), was incorrectly `0x10` (16).
+  - Fixed Step 2 OpSpec byte: `0x88`, was incorrectly `0x84`.
+  - Aligned DHW Cycle Time suffix to match code: `38 C6 76 EF` (was `38 C6 70 00`).
+- **`set_clock()` completely broken**: Rewrote to use standard Class 10 SET via `build_data_object_set(0x5E00, 0x6401, data)` with Type 322 payload. The old implementation used a non-standard frame format missing ServiceID/Source bytes, which the pump silently rejected. Updated module docstring with correct TypeScript and Rust reference implementations.
+- **`ControlService._current_mode` not synced from pump**: `get_mode()` now updates `_current_mode` from the actual pump state, so `start()`/`stop()` send the correct mode byte.
+- **Missing `PROPORTIONAL_PRESSURE` in `_MODE_SUFFIX_MAP`**: Added mode `0x01` with suffix `45 65 70 00`, preventing silent command rejection when starting/stopping in proportional pressure mode.
+- **Dead code in `ControlService._send_with_retry`**: Removed unreachable `logger.debug()` after `return False`.
+- **`build_write_request` CRC scope**: CRC now excludes the start byte (`packet[1:]`), consistent with all other frame builders.
+- **OpSpec overflow in `build_data_object_set`**: Added guard that raises `ValueError` when payload exceeds 6-bit OpSpec maximum (63). Callers with large payloads must use `override_op`.
+- **Test vector comment**: Fixed "little-endian" to "big-endian" for ObjID `0x005D` in `frame_parser.py`.
+- **`TelemetryObject` tuple order**: Changed from `(SubID, ObjID)` to `(ObjID, SubID)` to match the decoder match pattern in `TelemetryDecoder.decode()` and `FrameParser.is_telemetry_frame()`.
+- **MockPump `_build_ack_response` length byte**: Fixed LEN from `0x06` to `0x04` so the Transport's packet assembly logic doesn't hang waiting for 2 extra bytes that never arrive. Also fixed `_build_error_response` and `_build_class2_response` length calculations.
+- **MockPump `_handle_set_clock`**: Updated to handle new Class 10 SET format (was using old non-standard format).
+- **Test performance: 5-second BLE scan in every mock test**: Patched `_scan_advertisement_data` in all test fixtures to skip the real `BleakScanner.discover(timeout=5.0)` call. Integration tests dropped from 144s to 35s.
+
+### Deprecated
+
+- **`EventLogService.get_cycle_timestamps()`**: Use `HistoryService.get_cycle_timestamps()` instead. This method violated the service layer architecture by creating a `HistoryService` internally.
+
+### Changed
+
+- **Style**: Added `from __future__ import annotations` to `utils.py`, `constants.py`, `models.py`. Replaced `Optional` with `| None` in `utils.py`.
+
 ### Added
 
 - **Refactored Control Modes and Setpoints**:

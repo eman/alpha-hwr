@@ -109,13 +109,16 @@ async def test_get_clock_unset(time_service, mock_transport):
 
 @pytest.mark.asyncio
 async def test_set_clock_success(time_service, mock_transport):
-    """Test setting clock successfully."""
-    # get_clock is called to verify success
-    # First call to get_clock returns the set time
+    """Test setting clock successfully.
 
+    set_clock uses standard Class 10 SET via build_data_object_set(0x5E00,
+    0x6401, data) with Type 322 payload, then verifies by reading back.
+    """
     target_dt = datetime(2026, 2, 1, 10, 0, 0)
 
-    # Mock read back response
+    # ACK response for the SET, then read-back for verification
+    ack_response = b"\x24\x05\xf8\xe7\x0a\x01\x00\xae\xa2"
+
     clock_payload = (
         b"\x00\x00\x07" + struct.pack(">H", 2026) + b"\x02\x01\x0a\x00\x00"
     )
@@ -124,21 +127,26 @@ async def test_set_clock_success(time_service, mock_transport):
         + clock_payload
         + b"\xaa\xbb"
     )
-    mock_transport.query.return_value = read_response
+    mock_transport.query.side_effect = [ack_response, read_response]
 
     success = await time_service.set_clock(target_dt)
 
     assert success is True
 
-    # Verify write called with correct packet
-    # set_clock uses non-standard format:
-    # [27][Len][07][5E][64][70][Year...]
-    mock_transport.write.assert_called_once()
-    call_args = mock_transport.write.call_args
-    packet = call_args[0][0]
+    # Verify query was called twice (SET + read-back verification)
+    assert mock_transport.query.call_count == 2
 
-    # Check [07][5E][64][70] at indices 2-6
-    assert packet[2:6] == b"\x07\x5e\x64\x70"
+    # First call is the SET frame built by build_data_object_set
+    set_call = mock_transport.query.call_args_list[0]
+    packet = set_call[0][0]
 
-    # Verify Year bytes at indices 6-8
-    assert packet[6:8] == struct.pack(">H", 2026)
+    # Frame starts with STX=0x27
+    assert packet[0] == 0x27
+    # Contains Class 10 (0x0A) at index 4
+    assert packet[4] == 0x0A
+
+    # Type 322 header (41 02 00 00 0B 01) in payload
+    assert b"\x41\x02\x00\x00\x0b\x01" in packet
+
+    # Year bytes in big-endian
+    assert struct.pack(">H", 2026) in packet

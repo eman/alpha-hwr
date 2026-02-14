@@ -19,7 +19,13 @@ from alpha_hwr.client import AlphaHWRClient
 @pytest_asyncio.fixture
 async def client():
     """Create connected client with mocked transport."""
-    with patch("alpha_hwr.client.BleakClient", autospec=True) as mock_bleak:
+    with (
+        patch("alpha_hwr.client.BleakClient", autospec=True) as mock_bleak,
+        patch(
+            "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
+            new_callable=AsyncMock,
+        ),
+    ):
         # Set up mock BleakClient
         mock_instance = AsyncMock()
         mock_instance.connect = AsyncMock()

@@ -10,7 +10,13 @@ from alpha_hwr.client import AlphaHWRClient
 @pytest_asyncio.fixture
 async def client():
     """Create a connected client with mocked transport."""
-    with patch("alpha_hwr.client.BleakClient", autospec=True) as mock_bleak:
+    with (
+        patch("alpha_hwr.client.BleakClient", autospec=True) as mock_bleak,
+        patch(
+            "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
+            new_callable=AsyncMock,
+        ),
+    ):
         # Set up mock BleakClient
         mock_instance = AsyncMock()
         mock_instance.connect = AsyncMock()
@@ -65,21 +71,24 @@ async def test_get_clock_object_94(client):
 
 @pytest.mark.asyncio
 async def test_set_clock_object_94(client):
-    """Test setting clock via Object 94."""
+    """Test setting clock via Object 94.
 
-    # Mock successful write
-    client.transport.write = AsyncMock()
+    set_clock now uses standard Class 10 SET via build_data_object_set,
+    sending through transport.query() and verifying with a read-back.
+    """
+    # ACK for the SET command
+    ack_resp = b"\x24\x05\xf8\xe7\x0a\x01\x00\xae\xa2"
 
-    # Mock the verification read after write
-    # Response format for get_clock: [Status(2)][Length(1)][Year(2BE)][Month][Day][Hour][Minute][Second]
+    # Verification read-back response
     # Date: 2026-01-30 11:35:00
     verify_resp = bytes.fromhex(
         "2417f8e70a13005ef8e700000c07ea011e0b23000102050102abcd"
     )
-    client.transport.query = AsyncMock(return_value=verify_resp)
+    client.transport.query = AsyncMock(side_effect=[ack_resp, verify_resp])
 
     dt = datetime(2026, 1, 30, 11, 35, 0)
     success = await client.time.set_clock(dt)
 
     assert success is True
-    assert client.transport.write.called
+    # Two query calls: SET + read-back verification
+    assert client.transport.query.call_count == 2
