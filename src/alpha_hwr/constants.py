@@ -63,7 +63,8 @@ class TelemetryObject:
 
     Example:
         >>> obj_id, sub_id = TelemetryObject.MOTOR_STATE
-        >>> req = FrameBuilder.build_data_object_info(sub_id, obj_id)
+        >>> register = (obj_id << 16) | sub_id
+        >>> req = FrameBuilder.build_data_object_info(register)
     """
 
     # (Obj ID, Sub ID) tuples
