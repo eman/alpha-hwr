@@ -2,7 +2,7 @@
 Grundfos ALPHA HWR Client Library
 """
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from .client import AlphaHWRClient, discover_devices
 from .models import (

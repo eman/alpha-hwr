@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-02-21
+
+### Fixed
+
+- **Missing `PROPORTIONAL_PRESSURE` in `_MODE_BYTE_MAP`**: Added mode value `1` → byte `0x01`, preventing a `KeyError` when starting or stopping the pump in proportional pressure mode.
+- **Alarm/warning descriptions not populated**: `read_alarms()` now resolves each active alarm and warning code against `ERROR_CODES`, populating `alarm_description` and `warning_description` as comma-separated human-readable strings. Unknown codes fall back to `"Unknown (<code>)"`.
+
+### Changed
+
+- **CLI alarm panel**: The alarm status panel now lists every active alarm and warning code with its description rather than showing only a single code.
+
+### Tests
+
+- Extended `test_read_alarms` to assert `alarm_description` and `warning_description` are correctly populated.
+- Added `test_read_alarms_unknown_code_fallback` to verify the `"Unknown (<code>)"` fallback for codes not present in `ERROR_CODES`.
+
 ## [0.4.0] - 2026-02-14
 
 ### Fixed
