@@ -122,3 +122,30 @@ async def test_read_alarms(device_info_service, mock_transport):
     assert 1 in alarms.active_alarms
     assert 2 in alarms.active_alarms
     assert 3 in alarms.active_warnings
+    # Codes 1 and 2 are known: "Leakage Current" and "Motor Phase Missing"
+    assert alarms.alarm_description == "Leakage Current, Motor Phase Missing"
+    # Code 3 is known: "External Alarm"
+    assert alarms.warning_description == "External Alarm"
+
+
+@pytest.mark.asyncio
+async def test_read_alarms_unknown_code_fallback(
+    device_info_service, mock_transport
+):
+    """Test that unmapped alarm codes fall back to 'Unknown (<code>)'."""
+    # Use a code (e.g. 9999) that is not in ERROR_CODES
+    alarm_resp = (
+        b"\x24\x0c\xe7\xf8\x0a\x03\x00\x58\x00\x00"
+        + b"\x27\x0f"  # Code 9999 (0x270F)
+        + b"\xaa\xbb"
+    )
+    warning_resp = b"\x24\x0a\xe7\xf8\x0a\x03\x00\x58\x00\x0b" + b"\xaa\xbb"
+
+    mock_transport.query.side_effect = [alarm_resp, warning_resp]
+
+    alarms = await device_info_service.read_alarms()
+
+    assert alarms is not None
+    assert 9999 in alarms.active_alarms
+    assert alarms.alarm_description == "Unknown (9999)"
+    assert alarms.warning_description is None

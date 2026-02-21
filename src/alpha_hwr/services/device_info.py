@@ -409,14 +409,21 @@ class DeviceInfoService(BaseService):
             )
 
             # Build descriptions from code lookup
-            alarm_desc = ", ".join(
-                ERROR_CODES.get(c, f"Unknown ({c})")
-                for c in active_alarms
-            ) if active_alarms else None
-            warning_desc = ", ".join(
-                ERROR_CODES.get(c, f"Unknown ({c})")
-                for c in active_warnings
-            ) if active_warnings else None
+            alarm_desc = (
+                ", ".join(
+                    ERROR_CODES.get(c, f"Unknown ({c})") for c in active_alarms
+                )
+                if active_alarms
+                else None
+            )
+            warning_desc = (
+                ", ".join(
+                    ERROR_CODES.get(c, f"Unknown ({c})")
+                    for c in active_warnings
+                )
+                if active_warnings
+                else None
+            )
 
             return AlarmInfo(
                 active_alarms=active_alarms,
