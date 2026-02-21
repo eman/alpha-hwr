@@ -144,6 +144,7 @@ class ControlService(BaseService):
     # Value -> Mode Byte used in control payload
     _MODE_BYTE_MAP = {
         0: 0x00,  # CONSTANT_PRESSURE
+        1: 0x01,  # PROPORTIONAL_PRESSURE
         2: 0x02,  # CONSTANT_SPEED
         8: 0x08,  # CONSTANT_FLOW
         25: 0x19,  # DHW_ON_OFF_CONTROL

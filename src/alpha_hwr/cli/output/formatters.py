@@ -13,6 +13,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
+from ...constants import ERROR_CODES
 from ...models import (
     TelemetryData,
     DeviceInfo,
@@ -336,25 +337,41 @@ def format_alarm_panel(alarm: AlarmInfo) -> Panel:
     Returns:
         Rich Panel object
     """
-    if not alarm.alarm_code or alarm.alarm_code == 0:
-        content = "[green]✓ No active alarms[/green]"
-        style = "green"
-    else:
-        lines = [
-            f"[bold red]⚠ ALARM {alarm.alarm_code}[/bold red]",
-            f"[bold]Description:[/bold] {alarm.alarm_description or 'Unknown'}",
-        ]
+    lines: list[str] = []
+    style = "green"
 
-        if alarm.warning_code and alarm.warning_code != 0:
-            lines.append("")
-            lines.append(f"[yellow]⚠ WARNING {alarm.warning_code}[/yellow]")
-            lines.append(
-                f"[bold]Description:[/bold] {alarm.warning_description or 'Unknown'}"
-            )
-
-        content = "\n".join(lines)
+    # Active alarms
+    if alarm.active_alarms:
         style = "red"
+        for code in alarm.active_alarms:
+            desc = ERROR_CODES.get(code, f"Unknown ({code})")
+            lines.append(f"[bold red]⚠ ALARM {code}: {desc}[/bold red]")
+    elif alarm.alarm_code and alarm.alarm_code != 0:
+        style = "red"
+        desc = ERROR_CODES.get(
+            alarm.alarm_code, alarm.alarm_description or "Unknown"
+        )
+        lines.append(f"[bold red]⚠ ALARM {alarm.alarm_code}: {desc}[/bold red]")
 
+    # Active warnings
+    if alarm.active_warnings:
+        if style == "green":
+            style = "yellow"
+        for code in alarm.active_warnings:
+            desc = ERROR_CODES.get(code, f"Unknown ({code})")
+            lines.append(f"[yellow]⚠ WARNING {code}: {desc}[/yellow]")
+    elif alarm.warning_code and alarm.warning_code != 0:
+        if style == "green":
+            style = "yellow"
+        desc = ERROR_CODES.get(
+            alarm.warning_code, alarm.warning_description or "Unknown"
+        )
+        lines.append(f"[yellow]⚠ WARNING {alarm.warning_code}: {desc}[/yellow]")
+
+    if not lines:
+        lines.append("[green]✓ No active alarms or warnings[/green]")
+
+    content = "\n".join(lines)
     return Panel(content, title="Alarm Status", border_style=style)
 
 

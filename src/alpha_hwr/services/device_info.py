@@ -61,6 +61,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Optional, Any
 
+from ..constants import ERROR_CODES
 from ..models import DeviceInfo, Statistics, AlarmInfo
 from .base import BaseService
 
@@ -407,9 +408,28 @@ class DeviceInfoService(BaseService):
                 self._parse_uint16_array(warning_data) if warning_data else []
             )
 
+            # Build descriptions from code lookup
+            alarm_desc = (
+                ", ".join(
+                    ERROR_CODES.get(c, f"Unknown ({c})") for c in active_alarms
+                )
+                if active_alarms
+                else None
+            )
+            warning_desc = (
+                ", ".join(
+                    ERROR_CODES.get(c, f"Unknown ({c})")
+                    for c in active_warnings
+                )
+                if active_warnings
+                else None
+            )
+
             return AlarmInfo(
                 active_alarms=active_alarms,
                 active_warnings=active_warnings,
+                alarm_description=alarm_desc,
+                warning_description=warning_desc,
             )
 
         except Exception as e:
