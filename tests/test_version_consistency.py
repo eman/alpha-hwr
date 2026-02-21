@@ -13,9 +13,9 @@ def test_version_consistency():
     assert 'dynamic = ["version"]' in content, (
         "pyproject.toml must declare version as dynamic for setuptools_scm"
     )
-    assert re.search(r'^\s*version\s*=\s*"[^"]+"', content, re.MULTILINE) is None, (
-        "pyproject.toml must not have a static version field in [project]"
-    )
+    assert (
+        re.search(r'^\s*version\s*=\s*"[^"]+"', content, re.MULTILINE) is None
+    ), "pyproject.toml must not have a static version field in [project]"
 
     # setuptools_scm must be in build requirements
     assert "setuptools_scm" in content, (
