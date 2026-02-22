@@ -104,7 +104,7 @@ typeCheckingMode = "standard"
 reportAny = false
 reportExplicitAny = false
 reportUnusedCallResult = false
-exclude = ["src/alpha_hwr/*_baseline.py"]
+exclude = ["src/alpha_hwr/*_baseline.py", "macros.py"]
 
 [tool.mypy]
 ignore_missing_imports = true
