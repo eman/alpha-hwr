@@ -2,7 +2,12 @@
 Grundfos ALPHA HWR Client Library
 """
 
-__version__ = "0.5.0"
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("alpha-hwr")
+except PackageNotFoundError:
+    __version__ = "0.0.0+unknown"
 
 from .client import AlphaHWRClient, discover_devices
 from .models import (

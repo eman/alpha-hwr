@@ -197,9 +197,8 @@ All new features should include appropriate tests.
 Releases are managed by maintainers:
 
 1. Update CHANGELOG.md
-2. Run `bump2version [major|minor|patch]` to create version tag
-3. Push tags: `git push --tags`
-4. Create a GitHub Release - this triggers PyPI publishing automatically
+2. Push a version tag: `git tag v<version> && git push --tags`
+3. Create a GitHub Release from that tag - this triggers PyPI publishing automatically
 
 ## Questions?
 
