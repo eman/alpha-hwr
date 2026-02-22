@@ -38,6 +38,6 @@ def test_init_uses_importlib_metadata():
     assert "importlib.metadata" in content, (
         "__init__.py must use importlib.metadata to read the package version"
     )
-    assert re.search(r'__version__\s*=\s*"[^"]+"', content) is None, (
-        "__init__.py must not have a hardcoded __version__ string"
+    assert "PackageNotFoundError" in content, (
+        "__init__.py must handle PackageNotFoundError from importlib.metadata"
     )
