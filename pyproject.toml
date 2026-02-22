@@ -86,6 +86,7 @@ docs = [
     "mkdocs-material",
     "mkdocstrings[python]",
     "mkdocs-macros-plugin",
+    "setuptools_scm>=8.0",
 ]
 
 [project.scripts]
