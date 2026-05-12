@@ -69,7 +69,7 @@ Addresses for Legacy Class 3 Register Polling.
 
 ## ERROR_CODES (Dictionary)
 
-A comprehensive lookup table mapping error codes to human-readable descriptions. Extracted from the GENI profile.
+A lookup table mapping error codes to human-readable descriptions. Extracted from the GENI profile.
 
 ```python
 from alpha_hwr.constants import ERROR_CODES

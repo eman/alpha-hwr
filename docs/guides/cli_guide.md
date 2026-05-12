@@ -1,6 +1,6 @@
 # Command Line Interface (CLI) Guide
 
-The `alpha-hwr` command-line tool provides a modern, user-friendly interface for interacting with your Grundfos ALPHA HWR pump. Built with Typer and Rich, it offers beautiful terminal output and intuitive command structure.
+The `alpha-hwr` command-line tool for interacting with Grundfos ALPHA HWR pumps. Built on Typer and Rich.
 
 ## Table of Contents
 

@@ -1,6 +1,6 @@
 # Control Modes and Setpoints
 
-This guide provides comprehensive information about the ALPHA HWR's control modes and setpoint configuration.
+This guide covers the ALPHA HWR's control modes and setpoint configuration.
 
 ## Overview
 
