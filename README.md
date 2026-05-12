@@ -147,7 +147,7 @@ Actively maintained and tested on real ALPHA HWR hardware.
 
 ## Home Assistant
 
-For Home Assistant integration, use the ESPHome component instead of this library: [esphome-alpha-hwr](https://github.com/eman/esphome-alpha-hwr). It runs on an ESP32 as a Bluetooth proxy, exposing the pump as native Home Assistant sensors without requiring a Python host.
+For Home Assistant integration, it is suggested to use the ESPHome component instead of this library: [esphome-alpha-hwr](https://github.com/eman/esphome-alpha-hwr). It runs on an ESP32 as a Bluetooth proxy, exposing the pump as native Home Assistant sensors without requiring a Python host.
 
 ## Contributing
 
