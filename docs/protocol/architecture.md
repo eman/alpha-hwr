@@ -21,7 +21,7 @@ graph TD
 
 ## 2. Authentication Sequence
 
-The authentication process is a strict sequence of "magic packets" required to unlock the pump's capabilities.
+The authentication process is a strict sequence of "magic packets" that must succeed before the pump accepts commands.
 
 ```mermaid
 sequenceDiagram

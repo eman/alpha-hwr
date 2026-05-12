@@ -154,7 +154,7 @@ if alarms:
 
 ## ScheduleEntry Model
 
-The `ScheduleEntry` class represents a single schedule time window with comprehensive validation.
+The `ScheduleEntry` class represents a single schedule time window. All fields are validated on construction.
 
 ### Properties
 

@@ -613,7 +613,7 @@ alpha-hwr schedule
 
 ## Schedule Validation
 
-The library includes comprehensive validation for schedule entries to prevent conflicts and errors.
+The library validates schedule entries to prevent conflicts and errors.
 
 ### ScheduleEntry Model
 

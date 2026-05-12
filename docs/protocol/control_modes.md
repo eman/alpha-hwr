@@ -1,6 +1,6 @@
 # Control Modes - Complete Support Matrix
 
-This document provides a comprehensive overview of all 32 control modes defined in the GENI protocol and their support status on the Grundfos ALPHA HWR pump.
+This document covers all 32 control modes defined in the GENI protocol and their support status on the Grundfos ALPHA HWR pump.
 
 ## Executive Summary
 
