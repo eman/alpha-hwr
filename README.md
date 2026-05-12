@@ -6,7 +6,7 @@
 [![Documentation](https://img.shields.io/badge/docs-github%20pages-blue)](https://eman.github.io/alpha-hwr/)
 [![License](https://img.shields.io/pypi/l/alpha-hwr)](https://github.com/eman/alpha-hwr/blob/main/LICENSE)
 
-Modern Python library and CLI for controlling Grundfos ALPHA HWR pumps via Bluetooth Low Energy.
+Python library and CLI for controlling Grundfos ALPHA HWR pumps via Bluetooth Low Energy.
 
 ## Features
 
