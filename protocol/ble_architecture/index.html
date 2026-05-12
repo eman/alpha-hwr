@@ -1,0 +1,3662 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Independent implementation and control documentation for Grundfos ALPHA HWR pumps.">
+      
+      
+      
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+        <link rel="next" href="../connection/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>BLE Architecture - Alpha HWR Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ble-architecture-and-protocol-layers" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Alpha HWR Documentation" class="md-header__button md-logo" aria-label="Alpha HWR Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Alpha HWR Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              BLE Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting_started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/cli_guide/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+  Protocol Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reimplementation/" class="md-tabs__link">
+          
+  
+  
+  Reimplementation Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/client/" class="md-tabs__link">
+          
+  
+  
+  Python API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/hardware/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../troubleshooting/service_discovery/" class="md-tabs__link">
+          
+  
+  
+  Troubleshooting
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../integrations/esphome/" class="md-tabs__link">
+          
+  
+  
+  Integrations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../TESTING_STRATEGY/" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Alpha HWR Documentation" class="md-nav__button md-logo" aria-label="Alpha HWR Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Alpha HWR Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/quick_start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/cli_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/device-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/understanding_telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Understanding Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/control_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes & Setpoints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/backup_restore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/historical_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/time_management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocol Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Protocol Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BLE Architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BLE Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ble-stack-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BLE Stack Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-1-ble-link-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1: BLE Link Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 1: BLE Link Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connection-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#device-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device Discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-2-ble-gatt-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2: BLE GATT Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 2: BLE GATT Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#characteristic-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Characteristic Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mtu-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MTU Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-3-framing-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 3: Framing Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 3: Framing Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#geni-frame-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GENI Frame Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crc-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CRC Calculation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-4-geni-protocol-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 4: GENI Protocol Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 4: GENI Protocol Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#class-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-10-dataobjects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class 10: DataObjects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#object-ids-and-subids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object IDs and SubIDs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-5-application-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 5: Application Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 5: Application Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#telemetry-update-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Telemetry Update Rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schedule-layers-focus-of-this-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schedule Layers (Focus of This Guide)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schedule Layers (Focus of This Guide)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-object-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Object Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-5-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why 5 Layers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-readwrite-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer Read/Write Protocol
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-interaction-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer Interaction Example
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer Interaction Example">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#practical-scenario-weekday-weekend-scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical Scenario: Weekday + Weekend Scheduling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#packet-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packet Timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transaction-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transaction Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keep-alive-burst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keep-Alive Burst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#debugging-protocol-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debugging Protocol Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Debugging Protocol Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Problems
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-schedule-write-fails-silently" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Schedule Write Fails Silently
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-schedule-read-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Schedule Read Timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-crc-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. CRC Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#packet-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packet Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection & Auth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../wire_format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wire Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry & Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control & Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../control_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../autoadapt_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoAdapt Modes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../schedules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schedule Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device_info/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Information
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../energy_power/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_12" id="__nav_4_12_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packet Traces
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Packet Traces
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../packet_traces/01_connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../packet_traces/02_authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../packet_traces/03_telemetry_stream/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry Stream
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../packet_traces/04_set_mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../packet_traces/05_schedule_write/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schedule Write
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reimplementation Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reimplementation Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/layer_by_layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer-by-Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/test_vectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Vectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/common_pitfalls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Pitfalls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data_models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Troubleshooting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/service_discovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Service Discovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integrations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/esphome/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ESPHome / ESP32
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../TESTING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ble-stack-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BLE Stack Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-1-ble-link-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 1: BLE Link Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 1: BLE Link Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connection-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#device-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Device Discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-2-ble-gatt-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 2: BLE GATT Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 2: BLE GATT Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#characteristic-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Characteristic Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mtu-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MTU Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-3-framing-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 3: Framing Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 3: Framing Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#geni-frame-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GENI Frame Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#crc-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CRC Calculation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-4-geni-protocol-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 4: GENI Protocol Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 4: GENI Protocol Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#class-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-10-dataobjects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class 10: DataObjects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#object-ids-and-subids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object IDs and SubIDs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-5-application-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer 5: Application Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer 5: Application Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#telemetry-update-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Telemetry Update Rate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schedule-layers-focus-of-this-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schedule Layers (Focus of This Guide)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schedule Layers (Focus of This Guide)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-object-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Object Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-5-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why 5 Layers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layer-readwrite-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer Read/Write Protocol
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-interaction-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer Interaction Example
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer Interaction Example">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#practical-scenario-weekday-weekend-scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical Scenario: Weekday + Weekend Scheduling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#packet-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packet Timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transaction-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transaction Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keep-alive-burst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keep-Alive Burst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#debugging-protocol-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debugging Protocol Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Debugging Protocol Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Problems
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1-schedule-write-fails-silently" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Schedule Write Fails Silently
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-schedule-read-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Schedule Read Timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-crc-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. CRC Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#packet-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packet Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="ble-architecture-and-protocol-layers">BLE Architecture and Protocol Layers</h1>
+<p>This document explains how the Grundfos ALPHA HWR communicates over Bluetooth Low Energy (BLE) and how different protocol layers work together.</p>
+<h2 id="ble-stack-overview">BLE Stack Overview</h2>
+<p>The ALPHA HWR uses a layered communication architecture:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Layer</th>
+<th style="text-align: left;">Responsibility</th>
+<th style="text-align: left;">Components</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Application Layer</strong></td>
+<td style="text-align: left;">Pump logic and user features</td>
+<td style="text-align: left;">Schedule Management, Control, Telemetry</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>GENI Protocol Layer</strong></td>
+<td style="text-align: left;">Protocol semantics and object mapping</td>
+<td style="text-align: left;">Class 2/3/7/10, OpSpec, Objects, SubIDs</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Framing Layer</strong></td>
+<td style="text-align: left;">Low-level packet structure and integrity</td>
+<td style="text-align: left;">Start, Length, CRC, Packet splitting</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>BLE GATT Layer</strong></td>
+<td style="text-align: left;">Data transport and service definition</td>
+<td style="text-align: left;">Characteristics, Notifications, MTU</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>BLE Link Layer</strong></td>
+<td style="text-align: left;">Physical connection and radio management</td>
+<td style="text-align: left;">Connection, Pairing, Security</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="layer-1-ble-link-layer">Layer 1: BLE Link Layer</h2>
+<h3 id="connection-parameters">Connection Parameters</h3>
+<p><strong>BLE Service:</strong></p>
+<ul>
+<li><strong>UUID:</strong> <code>0000fdd0-0000-1000-8000-00805f9b34fb</code> (GENI Service)</li>
+<li><strong>Characteristic:</strong> <code>859cffd1-036e-432a-aa28-1a0085b87ba9</code> (Read/Write/Notify)</li>
+</ul>
+<p><strong>Connection Properties:</strong>
+...</p>
+<h3 id="device-discovery">Device Discovery</h3>
+<p>The pump broadcasts BLE advertisements with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Service Data (Grundfos Company ID: 0000fe5d-0000-1000-8000-00805f9b34fb):
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>[flags...][product_family][product_type][product_version][...]
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  Byte 3: 52 (0x34) = ALPHA family
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  Byte 4: 7  (0x07) = HWR type
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  Byte 5: 2  (0x02) = Version
+</code></pre></div>
+<p><strong>Example:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Service Data: 00 03 00 34 07 02 ...
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>              ^^ ^^ ^^ ^^ ^^ ^^
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>              |  |  |  |  |  └─ Product Version
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>              |  |  |  |  └──── Product Type (HWR)
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>              |  |  |  └─────── Product Family (ALPHA)
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>              |  |  └────────── Reserved
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>              |  └───────────── Reserved
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>              └──────────────── Flags
+</code></pre></div>
+<h3 id="notifications">Notifications</h3>
+<p>The characteristic supports <strong>notifications</strong> for:</p>
+<ul>
+<li>Real-time telemetry streaming (Class 10, OpSpec 0x0E)</li>
+<li>Command acknowledgments (ACK/NACK)</li>
+<li>Asynchronous responses</li>
+</ul>
+<hr />
+<h2 id="layer-2-ble-gatt-layer">Layer 2: BLE GATT Layer</h2>
+<h3 id="characteristic-operations">Characteristic Operations</h3>
+<p><strong>Write Operations:</strong></p>
+<ul>
+<li>Used for sending commands and requests</li>
+<li><strong>Write Without Response</strong> (faster, no confirmation)</li>
+<li>Packets &gt;20 bytes must be split across multiple writes</li>
+</ul>
+<p><strong>Notify Operations:</strong></p>
+<ul>
+<li>Pump sends unsolicited data (telemetry, events)</li>
+<li>Client must enable notifications on characteristic</li>
+<li>High-frequency telemetry stream (~1-2 Hz)</li>
+</ul>
+<h3 id="mtu-limitations">MTU Limitations</h3>
+<p><strong>Problem:</strong> BLE ATT has a 20-byte payload limit<br />
+<strong>Solution:</strong> Multi-chunk packet splitting</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Example: 59-byte schedule write packet</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">packet</span> <span class="o">=</span> <span class="p">[</span><span class="mi">59</span> <span class="nb">bytes</span> <span class="n">total</span><span class="p">]</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Split into 3 chunks:</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">chunk1</span> <span class="o">=</span> <span class="n">packet</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">20</span><span class="p">]</span>   <span class="c1"># 20 bytes</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">chunk2</span> <span class="o">=</span> <span class="n">packet</span><span class="p">[</span><span class="mi">20</span><span class="p">:</span><span class="mi">40</span><span class="p">]</span>  <span class="c1"># 20 bytes</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">chunk3</span> <span class="o">=</span> <span class="n">packet</span><span class="p">[</span><span class="mi">40</span><span class="p">:</span><span class="mi">59</span><span class="p">]</span>  <span class="c1"># 19 bytes</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="n">CHAR_UUID</span><span class="p">,</span> <span class="n">chunk1</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>  <span class="c1"># 10ms delay between chunks</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="n">CHAR_UUID</span><span class="p">,</span> <span class="n">chunk2</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="n">CHAR_UUID</span><span class="p">,</span> <span class="n">chunk3</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Critical:</strong> The pump reassembles chunks in order. Delays between chunks prevent buffer overflow.</p>
+<hr />
+<h2 id="layer-3-framing-layer">Layer 3: Framing Layer</h2>
+<h3 id="geni-frame-structure">GENI Frame Structure</h3>
+<p>Every packet follows this format:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>[Start][Length][Dest][Source][APDU...][CRC_H][CRC_L]
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  0x27    N     0xE7   0xF8    ...      ...    ...
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>Start:  0x27 (request) or 0x24 (response)
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>Length: Dest + Source + APDU length
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>Dest:   0xE7 (pump/service)
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>Source: 0xF8 (local master/client)
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>APDU:   Application Protocol Data Unit
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>CRC:    CRC-16-CCITT (big-endian)
+</code></pre></div>
+<p><strong>Example Request:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>2705e7f802c39421a6
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>││││││││││││││││││
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>│││││││││││││││└└─ CRC: 0x21A6
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>││││││││││││└└──── Register: 0x94 (Class 2, ID 148)
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>│││││││││└└─────── OpSpec: 0xC3 (INFO, 3 bytes)
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>││││││││└────────── Class: 0x02 (Class 2)
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>│││││││└─────────── Source: 0xF8 (client)
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>││││││└──────────── Dest: 0xE7 (pump)
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>│││││└───────────── Length: 0x05 (5 bytes)
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>││││└────────────── Start: 0x27 (request)
+</code></pre></div>
+<h3 id="crc-calculation">CRC Calculation</h3>
+<p><strong>Two CRC variants:</strong></p>
+<ul>
+<li><strong>Read/Response CRC:</strong> Standard CRC-16-CCITT with final XOR</li>
+<li><strong>Write CRC:</strong> Alternative variant (rarely used)</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">calc_crc16_read</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="n">crc</span> <span class="o">=</span> <span class="mh">0xFFFF</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="k">for</span> <span class="n">byte</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>        <span class="n">crc</span> <span class="o">^=</span> <span class="n">byte</span> <span class="o">&lt;&lt;</span> <span class="mi">8</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>            <span class="k">if</span> <span class="n">crc</span> <span class="o">&amp;</span> <span class="mh">0x8000</span><span class="p">:</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>                <span class="n">crc</span> <span class="o">=</span> <span class="p">(</span><span class="n">crc</span> <span class="o">&lt;&lt;</span> <span class="mi">1</span><span class="p">)</span> <span class="o">^</span> <span class="mh">0x1021</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>                <span class="n">crc</span> <span class="o">&lt;&lt;=</span> <span class="mi">1</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>            <span class="n">crc</span> <span class="o">&amp;=</span> <span class="mh">0xFFFF</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="k">return</span> <span class="n">crc</span> <span class="o">^</span> <span class="mh">0xFFFF</span>  <span class="c1"># Final XOR</span>
+</code></pre></div>
+<hr />
+<h2 id="layer-4-geni-protocol-layer">Layer 4: GENI Protocol Layer</h2>
+<h3 id="class-system">Class System</h3>
+<p>GENI uses <strong>classes</strong> to categorize operations:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Class</th>
+<th style="text-align: left;">Name</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">Register</td>
+<td style="text-align: left;">Read single-byte values</td>
+<td style="text-align: left;">Alarm code, control mode</td>
+</tr>
+<tr>
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">Command</td>
+<td style="text-align: left;">Execute actions</td>
+<td style="text-align: left;">Start, stop, set mode</td>
+</tr>
+<tr>
+<td style="text-align: left;">7</td>
+<td style="text-align: left;">String</td>
+<td style="text-align: left;">Read text data</td>
+<td style="text-align: left;">Serial number, firmware (NOT supported on HWR)</td>
+</tr>
+<tr>
+<td style="text-align: left;">10</td>
+<td style="text-align: left;">DataObject</td>
+<td style="text-align: left;">Complex structures</td>
+<td style="text-align: left;">Telemetry, schedules, setpoints</td>
+</tr>
+</tbody>
+</table>
+<h3 id="class-10-dataobjects">Class 10: DataObjects</h3>
+<p><strong>Most commonly used for:</strong></p>
+<ul>
+<li>Telemetry streaming (flow, pressure, power)</li>
+<li>Schedule management (Object 84)</li>
+<li>Setpoint configuration (Object 82, 86)</li>
+<li>Statistics (Object 93)</li>
+</ul>
+<p><strong>Structure:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>[Class=0x0A][OpSpec][SubID_H][SubID_L][ObjID_H][ObjID_L][Data...]
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>OpSpec encoding: [OpSpec(3 bits)][Length(5 bits)]
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>SubID: 16-bit identifier (big-endian)
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>ObjID: 16-bit identifier (big-endian)
+</code></pre></div>
+<p><strong>OpSpec Types:</strong></p>
+<ul>
+<li><code>0x03</code>: INFO (read request)</li>
+<li><code>0x0E</code>: Notification (unsolicited data)</li>
+<li><code>0x93</code>: SET (10-byte structure write)</li>
+<li><code>0xB3</code>: SET (42-byte schedule write)</li>
+</ul>
+<h3 id="object-ids-and-subids">Object IDs and SubIDs</h3>
+<p><strong>Key Objects:</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Object</th>
+<th style="text-align: left;">SubID Range</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">84</td>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">Single</td>
+<td style="text-align: left;">Schedule overview</td>
+</tr>
+<tr>
+<td style="text-align: left;">84</td>
+<td style="text-align: left;">1000-1004</td>
+<td style="text-align: left;">Multiple</td>
+<td style="text-align: left;"><strong>Schedule layers 0-4</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">86</td>
+<td style="text-align: left;">varies</td>
+<td style="text-align: left;">Multiple</td>
+<td style="text-align: left;">Setpoint limits and current setpoint</td>
+</tr>
+<tr>
+<td style="text-align: left;">87</td>
+<td style="text-align: left;">69</td>
+<td style="text-align: left;">Single</td>
+<td style="text-align: left;">Electrical telemetry (Motor State)</td>
+</tr>
+<tr>
+<td style="text-align: left;">93</td>
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">Single</td>
+<td style="text-align: left;">Operation statistics</td>
+</tr>
+<tr>
+<td style="text-align: left;">93</td>
+<td style="text-align: left;">290</td>
+<td style="text-align: left;">Single</td>
+<td style="text-align: left;">Flow/pressure telemetry</td>
+</tr>
+<tr>
+<td style="text-align: left;">93</td>
+<td style="text-align: left;">300</td>
+<td style="text-align: left;">Single</td>
+<td style="text-align: left;">Temperature telemetry</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="layer-5-application-layer">Layer 5: Application Layer</h2>
+<h3 id="telemetry-update-rate">Telemetry Update Rate</h3>
+<p>While basic notifications might arrive at ~1Hz, the high-frequency stream for Motor State and Flow/Pressure typically updates at <strong>~10Hz</strong> when the pump is actively running.</p>
+<h3 id="schedule-layers-focus-of-this-guide">Schedule Layers (Focus of This Guide)</h3>
+<p>The ALPHA HWR implements <strong>5 independent schedule layers</strong> within the GENI protocol:</p>
+<h4 id="data-object-mapping">Data Object Mapping</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Object 84: Clock Program
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>├─ SubID 1:    Overview (enabled/disabled)
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>├─ SubID 1000: Layer 0 schedule (42 bytes)
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>├─ SubID 1001: Layer 1 schedule (42 bytes)
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>├─ SubID 1002: Layer 2 schedule (42 bytes)
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>├─ SubID 1003: Layer 3 schedule (42 bytes)
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>└─ SubID 1004: Layer 4 schedule (42 bytes)
+</code></pre></div>
+<p>Each layer (SubID) contains a complete 7-day schedule (42 bytes):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>[Mon(6)][Tue(6)][Wed(6)][Thu(6)][Fri(6)][Sat(6)][Sun(6)]
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>Per-day (6 bytes):
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>[Enabled][Action][Start_H][Start_M][End_H][End_M]
+</code></pre></div>
+<h4 id="why-5-layers">Why 5 Layers</h4>
+<p><strong>Architectural Benefits:</strong></p>
+<ol>
+<li><strong>Storage Efficiency:</strong> Each layer is 42 bytes, total 210 bytes</li>
+<li><strong>Independent Management:</strong> Modify one layer without affecting others</li>
+<li><strong>Overlay Support:</strong> Multiple layers active simultaneously</li>
+<li><strong>Hierarchical Scheduling:</strong> Base + override pattern</li>
+</ol>
+<p><strong>Practical Use Cases:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>Layer 0: Base schedule (weekday mornings)
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>Layer 1: Additional slots (weekday evenings)
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>Layer 2: Weekend schedule (different pattern)
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>Layer 3: Seasonal adjustments (winter/summer)
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>Layer 4: Temporary overrides (holidays, events)
+</code></pre></div>
+<h4 id="layer-readwrite-protocol">Layer Read/Write Protocol</h4>
+<p><strong>Read Layer 0:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>Request:  [0x27][0x0B][0xE7][0xF8][0x0A][0x03][0x54][0x03][0xE8][CRC]
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>                                    ││    ││    ││    ││    └└─ SubID: 1000 (Layer 0)
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>                                    ││    ││    └└────────────── ObjID: 84
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>                                    ││    └└───────────────────── OpSpec: 0x03 (INFO)
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>                                    └└─────────────────────────── Class: 10
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>Response: [0x24][0x31][0xF8][0xE7][0x0A][0x03][0x54][0x03][0xE8][Header(3)][Data(42)][CRC]
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>                                                                 └──────────┴─────────┘
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>                                                                    45 bytes total
+</code></pre></div>
+<p><strong>Write Layer 0:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>Request:  [0x27][0x37][0xE7][0xF8][0x0A][0xB3][0x54][0x03][0xE8][0x00][Type(3)][Size(2)][Data(42)][CRC]
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>                                    ││    ││    ││    ││    └└── ││      └└──────┴────┴─────────┘
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>                                    ││    ││    ││    ││    │    ││        Type 222 header + data
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>                                    ││    ││    ││    ││    │    └└────────── Reserved
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>                                    ││    ││    ││    └└────┴────────────────── SubID: 1000
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>                                    ││    ││    └└───────────────────────────── ObjID: 84
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>                                    ││    └└──────────────────────────────────── OpSpec: 0xB3 (SET)
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>                                    └└─────────────────────────────────────────── Class: 10
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>Total: 59 bytes  Split into 3 BLE writes (20+20+19)
+</code></pre></div>
+<hr />
+<h2 id="layer-interaction-example">Layer Interaction Example</h2>
+<h3 id="practical-scenario-weekday-weekend-scheduling">Practical Scenario: Weekday + Weekend Scheduling</h3>
+<p><strong>User Goal:</strong></p>
+<ul>
+<li>Weekdays: Pump on 6:30-8:30 (morning) and 18:00-22:00 (evening)</li>
+<li>Weekends: Pump on 8:00-23:00 (all day)</li>
+</ul>
+<p><strong>Implementation Using Layers:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Layer 0: Weekday mornings</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">weekday_morning</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="n">ScheduleEntry</span><span class="p">(</span><span class="n">day</span><span class="o">=</span><span class="s2">&quot;Monday&quot;</span><span class="p">,</span> <span class="n">begin_hour</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">begin_minute</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">end_hour</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">end_minute</span><span class="o">=</span><span class="mi">30</span><span class="p">),</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="n">ScheduleEntry</span><span class="p">(</span><span class="n">day</span><span class="o">=</span><span class="s2">&quot;Tuesday&quot;</span><span class="p">,</span> <span class="n">begin_hour</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">begin_minute</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">end_hour</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">end_minute</span><span class="o">=</span><span class="mi">30</span><span class="p">),</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="n">ScheduleEntry</span><span class="p">(</span><span class="n">day</span><span class="o">=</span><span class="s2">&quot;Wednesday&quot;</span><span class="p">,</span> <span class="n">begin_hour</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">begin_minute</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">end_hour</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">end_minute</span><span class="o">=</span><span class="mi">30</span><span class="p">),</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="n">ScheduleEntry</span><span class="p">(</span><span class="n">day</span><span class="o">=</span><span class="s2">&quot;Thursday&quot;</span><span class="p">,</span> <span class="n">begin_hour</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">begin_minute</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">end_hour</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">end_minute</span><span class="o">=</span><span class="mi">30</span><span class="p">),</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    <span class="n">ScheduleEntry</span><span class="p">(</span><span class="n">day</span><span class="o">=</span><span class="s2">&quot;Friday&quot;</span><span class="p">,</span> <span class="n">begin_hour</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">begin_minute</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">end_hour</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">end_minute</span><span class="o">=</span><span class="mi">30</span><span class="p">),</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="p">]</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">set_weekly_schedule</span><span class="p">(</span><span class="n">weekday_morning</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="c1"># Layer 1: Weekday evenings</span>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="n">weekday_evening</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>    <span class="n">ScheduleEntry</span><span class="p">(</span><span class="n">day</span><span class="o">=</span><span class="s2">&quot;Monday&quot;</span><span class="p">,</span> <span class="n">begin_hour</span><span class="o">=</span><span class="mi">18</span><span class="p">,</span> <span class="n">begin_minute</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">end_hour</span><span class="o">=</span><span class="mi">22</span><span class="p">,</span> <span class="n">end_minute</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>    <span class="c1"># ... Tuesday-Friday same pattern</span>
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="p">]</span>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">set_weekly_schedule</span><span class="p">(</span><span class="n">weekday_evening</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a><span class="c1"># Layer 2: Weekend all-day</span>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a><span class="n">weekend</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a>    <span class="n">ScheduleEntry</span><span class="p">(</span><span class="n">day</span><span class="o">=</span><span class="s2">&quot;Saturday&quot;</span><span class="p">,</span> <span class="n">begin_hour</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">begin_minute</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">end_hour</span><span class="o">=</span><span class="mi">23</span><span class="p">,</span> <span class="n">end_minute</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>    <span class="n">ScheduleEntry</span><span class="p">(</span><span class="n">day</span><span class="o">=</span><span class="s2">&quot;Sunday&quot;</span><span class="p">,</span> <span class="n">begin_hour</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">begin_minute</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">end_hour</span><span class="o">=</span><span class="mi">23</span><span class="p">,</span> <span class="n">end_minute</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a><span class="p">]</span>
+<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a><span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">set_weekly_schedule</span><span class="p">(</span><span class="n">weekend</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Protocol Operations:</strong></p>
+<ol>
+<li><strong>3 BLE packets</strong> (each 59 bytes  split into 3 chunks)</li>
+<li><strong>3 separate Class 10 SET operations</strong> (OpSpec 0xB3)</li>
+<li><strong>3 different SubIDs</strong> (1000, 1001, 1002)</li>
+<li><strong>Independent storage</strong> in pump memory</li>
+</ol>
+<p><strong>Result on Pump:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>Layer 0 (SubID 1000): Mon-Fri 6:30-8:30, Sat-Sun empty
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>Layer 1 (SubID 1001): Mon-Fri 18:00-22:00, Sat-Sun empty
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>Layer 2 (SubID 1002): Mon-Fri empty, Sat-Sun 8:00-23:00
+</code></pre></div>
+<p><strong>Pump Behavior:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>Monday:    ▓▓▓▓▓▓▓▓░░░░░░░░░░░░░▓▓▓▓▓▓▓▓▓▓░░░░░  (Layer 0 + Layer 1)
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>Saturday:  ░░░░░░░░░░▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░  (Layer 2)
+</code></pre></div>
+<hr />
+<h2 id="performance-considerations">Performance Considerations</h2>
+<h3 id="packet-timing">Packet Timing</h3>
+<p><strong>Critical Delays:</strong></p>
+<ul>
+<li><strong>10ms between BLE chunks:</strong> Prevents buffer overflow</li>
+<li><strong>200-500ms after keep-alive:</strong> Wakes GENI controller</li>
+<li><strong>300-500ms after write:</strong> Allows pump to persist data</li>
+</ul>
+<h3 id="transaction-management">Transaction Management</h3>
+<p>The library uses a <strong>transaction lock</strong> to prevent concurrent operations:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transaction_lock</span><span class="p">:</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="c1"># Send request</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="c1"># Wait for response</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_response_queue</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="n">timeout</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Why</strong> BLE characteristics don't support request/response matching. The lock ensures one operation completes before another starts.</p>
+<h3 id="keep-alive-burst">Keep-Alive Burst</h3>
+<p>Large data reads (schedules, statistics) require a <strong>keep-alive burst</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Send 3 keep-alive packets</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">send_keep_alive</span><span class="p">()</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1"># Wait for GENI controller to wake</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="c1"># Now send read request</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read_class10_subid</span><span class="p">(</span><span class="mi">84</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Purpose:</strong> Some GENI controllers sleep between operations. The burst wakes them up for complex reads.</p>
+<hr />
+<h2 id="debugging-protocol-issues">Debugging Protocol Issues</h2>
+<h3 id="common-problems">Common Problems</h3>
+<h3 id="1-schedule-write-fails-silently">1. Schedule Write Fails Silently</h3>
+<ul>
+<li><strong>Symptom:</strong> <code>set_schedule_entry()</code> returns True but data unchanged</li>
+<li><strong>Cause:</strong> Packet splitting broken (only 2 chunks sent instead of 3)</li>
+<li><strong>Fix:</strong> Use multi-chunk splitting in <code>_query()</code> method</li>
+</ul>
+<h3 id="2-schedule-read-timeout">2. Schedule Read Timeout</h3>
+<ul>
+<li><strong>Symptom:</strong> <code>get_schedule()</code> times out or returns None</li>
+<li><strong>Cause:</strong> GENI controller asleep</li>
+<li><strong>Fix:</strong> Add keep-alive burst before read</li>
+</ul>
+<h3 id="3-crc-errors">3. CRC Errors</h3>
+<ul>
+<li><strong>Symptom:</strong> Pump sends NACK (OpSpec 0x02)</li>
+<li><strong>Cause:</strong> Wrong CRC calculation or corrupted packet</li>
+<li><strong>Fix:</strong> Verify CRC algorithm, check packet integrity</li>
+</ul>
+<h3 id="packet-logging">Packet Logging</h3>
+<p>Enable debug logging to see protocol traffic:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># Output includes:</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="c1"># Querying: 2737e7f80ab35403e800de0100002a01020...</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="c1"># Split-wrote 59 bytes (20 + 20 + 19)</span>
+</code></pre></div>
+<hr />
+<h2 id="summary">Summary</h2>
+<p>The ALPHA HWR BLE architecture uses:</p>
+<ol>
+<li><strong>BLE GATT</strong> for transport (MTU 20 bytes)</li>
+<li><strong>GENI framing</strong> for packet structure (Start, Length, CRC)</li>
+<li><strong>GENI protocol</strong> for operations (Class 10 DataObjects)</li>
+<li><strong>Schedule layers</strong> for application logic (5 independent SubIDs)</li>
+</ol>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Schedule layers are <strong>SubIDs within Object 84</strong>, not separate BLE characteristics</li>
+<li>Multi-chunk splitting is <strong>critical</strong> for packets &gt;20 bytes</li>
+<li>Layers allow <strong>complex scheduling</strong> without protocol complexity</li>
+<li>All operations are <strong>synchronous request/response</strong> over a single BLE characteristic</li>
+</ul>
+<p>For more details:</p>
+<ul>
+<li><strong>Schedule Protocol:</strong> See <code>docs/protocol/schedules.md</code></li>
+<li><strong>Wire Format:</strong> See <code>docs/protocol/wire_format.md</code></li>
+<li><strong>Control Operations:</strong> See <code>docs/protocol/control.md</code></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": "0.1.dev1+g5ceb7604e"}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

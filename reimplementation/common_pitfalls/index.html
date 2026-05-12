@@ -1,0 +1,4253 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Independent implementation and control documentation for Grundfos ALPHA HWR pumps.">
+      
+      
+      
+      
+        <link rel="prev" href="../test_vectors/">
+      
+      
+        <link rel="next" href="../../api/client/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Common Pitfalls - Alpha HWR Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#common-pitfalls-and-solutions" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Alpha HWR Documentation" class="md-header__button md-logo" aria-label="Alpha HWR Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Alpha HWR Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Common Pitfalls
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting_started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/cli_guide/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../protocol/architecture/" class="md-tabs__link">
+          
+  
+  
+  Protocol Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  Reimplementation Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/client/" class="md-tabs__link">
+          
+  
+  
+  Python API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/hardware/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../troubleshooting/service_discovery/" class="md-tabs__link">
+          
+  
+  
+  Troubleshooting
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../integrations/esphome/" class="md-tabs__link">
+          
+  
+  
+  Integrations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../TESTING_STRATEGY/" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Alpha HWR Documentation" class="md-nav__button md-logo" aria-label="Alpha HWR Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Alpha HWR Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/quick_start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/cli_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/device-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/understanding_telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Understanding Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/control_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes & Setpoints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/backup_restore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/historical_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/time_management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocol Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Protocol Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/ble_architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BLE Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection & Auth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/wire_format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wire Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry & Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control & Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/control_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/autoadapt_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoAdapt Modes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/schedules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schedule Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/device_info/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Information
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/energy_power/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_12" id="__nav_4_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packet Traces
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Packet Traces
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/01_connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/02_authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/03_telemetry_stream/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry Stream
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/04_set_mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/05_schedule_write/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schedule Write
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reimplementation Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reimplementation Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../layer_by_layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer-by-Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test_vectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Vectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Pitfalls
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Pitfalls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-endianness-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Endianness Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Endianness Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-little-endian-instead-of-big-endian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Little-Endian Instead of Big-Endian
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-crc-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. CRC Calculation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. CRC Calculation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-wrong-crc-polynomial-or-initial-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Wrong CRC Polynomial or Initial Value
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-authentication-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Authentication Sequence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Authentication Sequence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-commands-dont-work-after-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Commands Don't Work After Connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-ble-notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. BLE Notifications
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. BLE Notifications">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-never-receive-responses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Never Receive Responses
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4a-ble-packet-fragmentation-receiving" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4a. BLE Packet Fragmentation (Receiving)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4a. BLE Packet Fragmentation (Receiving)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-incomplete-or-corrupted-packets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Incomplete or Corrupted Packets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4aa-ble-packet-splitting-sending" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4aa. BLE Packet Splitting (Sending)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4aa. BLE Packet Splitting (Sending)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-write-commands-dont-work-pump-ignores-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Write Commands Don't Work (Pump Ignores Them)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4b-error-then-data-response-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4b. Error-Then-Data Response Pattern
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4b. Error-Then-Data Response Pattern">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-get-not-authorized-errors-but-telemetry-never-arrives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Get "Not Authorized" Errors But Telemetry Never Arrives
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4c-register-read-response-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4c. Register-Read Response Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4c. Register-Read Response Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-telemetry-decoder-returns-empty-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Telemetry Decoder Returns Empty Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-frame-length-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Frame Length Calculation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Frame Length Calculation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-incorrect-length-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Incorrect Length Field
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-payload-offsets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Payload Offsets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Payload Offsets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-telemetry-values-are-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Telemetry Values Are Wrong
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-unit-conversions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Unit Conversions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Unit Conversions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-pressure-values-way-off" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Pressure Values Way Off
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-asyncconcurrency-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Async/Concurrency Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Async/Concurrency Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-commands-interfere-with-each-other" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Commands Interfere With Each Other
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-response-frame-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Response Frame Detection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Response Frame Detection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-cant-distinguish-request-from-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Can't Distinguish Request from Response
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-timeout-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Timeout Values
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Timeout Values">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-premature-timeouts-or-hanging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Premature Timeouts or Hanging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-float-special-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Float Special Values
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Float Special Values">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-crashes-on-nan-or-infinity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Crashes on NaN or Infinity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-source-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Source Address
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Source Address">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-responses-dont-match-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Responses Don't Match Requests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-schedule-time-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Schedule Time Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13. Schedule Time Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-schedule-times-dont-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Schedule Times Don't Work
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-connection-stability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Connection Stability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="14. Connection Stability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-random-disconnections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Random Disconnections
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-testing-without-hardware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Testing Without Hardware
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="15. Testing Without Hardware">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-cant-test-without-real-pump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Can't Test Without Real Pump
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-debug-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Debug Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Help
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#debugging-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debugging Tips
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Debugging Tips">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enable-packet-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enable Packet Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validate-each-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate Each Layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-ble-debugging-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use BLE Debugging Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data_models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Troubleshooting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/service_discovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Service Discovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integrations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/esphome/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ESPHome / ESP32
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../TESTING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-endianness-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Endianness Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Endianness Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-little-endian-instead-of-big-endian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Little-Endian Instead of Big-Endian
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-crc-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. CRC Calculation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. CRC Calculation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-wrong-crc-polynomial-or-initial-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Wrong CRC Polynomial or Initial Value
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-authentication-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Authentication Sequence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Authentication Sequence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-commands-dont-work-after-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Commands Don't Work After Connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-ble-notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. BLE Notifications
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. BLE Notifications">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-never-receive-responses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Never Receive Responses
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4a-ble-packet-fragmentation-receiving" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4a. BLE Packet Fragmentation (Receiving)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4a. BLE Packet Fragmentation (Receiving)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-incomplete-or-corrupted-packets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Incomplete or Corrupted Packets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4aa-ble-packet-splitting-sending" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4aa. BLE Packet Splitting (Sending)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4aa. BLE Packet Splitting (Sending)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-write-commands-dont-work-pump-ignores-them" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Write Commands Don't Work (Pump Ignores Them)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4b-error-then-data-response-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4b. Error-Then-Data Response Pattern
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4b. Error-Then-Data Response Pattern">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-get-not-authorized-errors-but-telemetry-never-arrives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Get "Not Authorized" Errors But Telemetry Never Arrives
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4c-register-read-response-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4c. Register-Read Response Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4c. Register-Read Response Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-telemetry-decoder-returns-empty-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Telemetry Decoder Returns Empty Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-frame-length-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Frame Length Calculation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Frame Length Calculation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-incorrect-length-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Incorrect Length Field
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-payload-offsets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Payload Offsets
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Payload Offsets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-telemetry-values-are-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Telemetry Values Are Wrong
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-unit-conversions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Unit Conversions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Unit Conversions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-pressure-values-way-off" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Pressure Values Way Off
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-asyncconcurrency-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Async/Concurrency Issues
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Async/Concurrency Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-commands-interfere-with-each-other" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Commands Interfere With Each Other
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-response-frame-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Response Frame Detection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Response Frame Detection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-cant-distinguish-request-from-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Can't Distinguish Request from Response
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-timeout-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Timeout Values
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Timeout Values">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-premature-timeouts-or-hanging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Premature Timeouts or Hanging
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-float-special-values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Float Special Values
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Float Special Values">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-crashes-on-nan-or-infinity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Crashes on NaN or Infinity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-source-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Source Address
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Source Address">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-responses-dont-match-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Responses Don't Match Requests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-schedule-time-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Schedule Time Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="13. Schedule Time Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-schedule-times-dont-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Schedule Times Don't Work
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-connection-stability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Connection Stability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="14. Connection Stability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-random-disconnections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Random Disconnections
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-testing-without-hardware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Testing Without Hardware
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="15. Testing Without Hardware">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#problem-cant-test-without-real-pump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problem: Can't Test Without Real Pump
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-debug-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Debug Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Help
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#debugging-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debugging Tips
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Debugging Tips">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enable-packet-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enable Packet Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validate-each-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate Each Layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use-ble-debugging-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use BLE Debugging Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="common-pitfalls-and-solutions">Common Pitfalls and Solutions</h1>
+<p>This document covers common mistakes when implementing the ALPHA HWR protocol and how to avoid them.</p>
+<h2 id="1-endianness-issues">1. Endianness Issues</h2>
+<h3 id="problem-little-endian-instead-of-big-endian">Problem: Little-Endian Instead of Big-Endian</h3>
+<p><strong>Symptom:</strong> Float values decode incorrectly (very large/small numbers).</p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Little-endian (incorrect)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">value</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&lt;f&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># Note the &#39;&lt;&#39;</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Big-endian (network byte order)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">value</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&gt;f&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># Note the &#39;&gt;&#39;</span>
+</code></pre></div></p>
+<p><strong>Why:</strong> GENI protocol uses network byte order (big-endian) for all multi-byte values.</p>
+<p><strong>Quick Test:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># 1.5 should encode as: 0x3F 0xC0 0x00 0x00</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">assert</span> <span class="n">encode_float</span><span class="p">(</span><span class="mf">1.5</span><span class="p">)</span> <span class="o">==</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0x3F</span><span class="p">,</span> <span class="mh">0xC0</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">])</span>
+</code></pre></div></p>
+<hr />
+<h2 id="2-crc-calculation">2. CRC Calculation</h2>
+<h3 id="problem-wrong-crc-polynomial-or-initial-value">Problem: Wrong CRC Polynomial or Initial Value</h3>
+<p><strong>Symptom:</strong> All packets rejected with CRC errors.</p>
+<p><strong>Common Mistakes:</strong>
+1. Using CRC-16/CCITT instead of CRC-16/MODBUS
+2. Wrong initial value (0x0000 vs 0xFFFF)
+3. Wrong polynomial (0x1021 vs 0x8005)</p>
+<p><strong>Correct CRC-16/MODBUS:</strong>
+- Polynomial: <code>0x8005</code>
+- Initial value: <code>0xFFFF</code>
+- Reflect input: No
+- Reflect output: No
+- Final XOR: <code>0x0000</code></p>
+<p><strong>Test:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">data</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0x27</span><span class="p">,</span> <span class="mh">0x06</span><span class="p">,</span> <span class="mh">0xE7</span><span class="p">,</span> <span class="mh">0xF8</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x67</span><span class="p">])</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">crc</span> <span class="o">=</span> <span class="n">calculate_crc16_modbus</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">assert</span> <span class="n">crc</span> <span class="o">==</span> <span class="mh">0xA3E3</span>  <span class="c1"># Must match!</span>
+</code></pre></div></p>
+<p><strong>Python Reference:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">calculate_crc16_modbus</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">crc</span> <span class="o">=</span> <span class="mh">0xFFFF</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="k">for</span> <span class="n">byte</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>        <span class="n">crc</span> <span class="o">^=</span> <span class="n">byte</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>            <span class="k">if</span> <span class="n">crc</span> <span class="o">&amp;</span> <span class="mh">0x0001</span><span class="p">:</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>                <span class="n">crc</span> <span class="o">=</span> <span class="p">(</span><span class="n">crc</span> <span class="o">&gt;&gt;</span> <span class="mi">1</span><span class="p">)</span> <span class="o">^</span> <span class="mh">0xA001</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>                <span class="n">crc</span> <span class="o">&gt;&gt;=</span> <span class="mi">1</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="k">return</span> <span class="n">crc</span>
+</code></pre></div></p>
+<hr />
+<h2 id="3-authentication-sequence">3. Authentication Sequence</h2>
+<h3 id="problem-commands-dont-work-after-connection">Problem: Commands Don't Work After Connection</h3>
+<p><strong>Symptom:</strong> Connection succeeds but all commands timeout or get rejected.</p>
+<p><strong>Cause:</strong> Skipped or incorrect authentication sequence.</p>
+<p><strong>Correct Sequence:</strong>
+1. Connect to BLE device
+2. Send <strong>exactly 3</strong> Legacy Magic packets: <code>27 07 E7 F8 02 03 94 95 96 EB 47</code>
+3. Send <strong>exactly 5</strong> Class 10 Unlock packets: <code>27 07 E7 F8 0A 03 56 00 06 C5 5A</code>
+4. Send <strong>exactly 1</strong> Extend 1 packet: <code>27 05 E7 F8 0B C1 0F D0 C3</code>
+5. Send <strong>exactly 1</strong> Extend 2 packet: <code>27 05 E7 F8 05 C1 4B C3 82</code></p>
+<p><strong>Common Mistakes:</strong>
+- Wrong number of repetitions
+- Wrong order
+- Not waiting for BLE write confirmation
+- Typos in packet bytes</p>
+<p><strong>Validation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># After authentication, this should work:</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">response</span> <span class="o">=</span> <span class="n">send_command</span><span class="p">(</span><span class="n">info_command</span><span class="p">())</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">assert</span> <span class="n">response</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>  <span class="c1"># Should get telemetry</span>
+</code></pre></div></p>
+<hr />
+<h2 id="4-ble-notifications">4. BLE Notifications</h2>
+<h3 id="problem-never-receive-responses">Problem: Never Receive Responses</h3>
+<p><strong>Symptom:</strong> Send commands successfully but timeout waiting for response.</p>
+<p><strong>Cause:</strong> Forgot to subscribe to RX characteristic notifications.</p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># No notification subscription!</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">await</span> <span class="n">tx_char</span><span class="o">.</span><span class="n">write_value</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">get_response</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Timeout!</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Subscribe to notifications first</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">notification_handler</span><span class="p">(</span><span class="n">sender</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">process_response</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="k">await</span> <span class="n">rx_char</span><span class="o">.</span><span class="n">start_notify</span><span class="p">(</span><span class="n">notification_handler</span><span class="p">)</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Now commands will get responses</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="k">await</span> <span class="n">tx_char</span><span class="o">.</span><span class="n">write_value</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Checklist:</strong>
+- [x] RX characteristic: <code>0000fdd2-...-34fb</code>
+- [x] Enable notifications before sending commands
+- [x] Keep connection alive during operations</p>
+<hr />
+<h2 id="4a-ble-packet-fragmentation-receiving">4a. BLE Packet Fragmentation (Receiving)</h2>
+<h3 id="problem-incomplete-or-corrupted-packets">Problem: Incomplete or Corrupted Packets</h3>
+<p><strong>Symptom:</strong> Packets fail CRC checks, telemetry values are garbage, or responses seem truncated.</p>
+<p><strong>Cause:</strong> BLE has a 20-byte MTU limit. Larger packets are fragmented across multiple notifications.</p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">notification_handler</span><span class="p">(</span><span class="n">sender</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="c1"># Process each notification as complete packet</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="n">frame</span> <span class="o">=</span> <span class="n">parse_frame</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>  <span class="c1"># Might be fragment!</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">process_telemetry</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">Transport</span><span class="p">:</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">notification_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sender</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>        <span class="c1"># Check if this starts a new packet</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="mh">0x24</span><span class="p">,</span> <span class="mh">0x27</span><span class="p">):</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>            <span class="c1"># Frame start byte - begin new packet</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>            <span class="c1"># Continuation - append to buffer</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>        <span class="c1"># Check if packet is complete</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>            <span class="n">expected_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">4</span>  <span class="c1"># len + start + len + CRC</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">expected_len</span><span class="p">:</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>                <span class="c1"># Complete packet!</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>                <span class="n">full_packet</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="p">)</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>                <span class="n">process_packet</span><span class="p">(</span><span class="n">full_packet</span><span class="p">)</span>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>                <span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</code></pre></div></p>
+<p><strong>Key Points:</strong>
+- Frame start: <code>0x24</code> (response) or <code>0x27</code> (request)
+- Expected length: <code>packet[1] + 4</code> (length field + start byte + length byte + 2-byte CRC)
+- Buffer fragments until complete
+- Clear buffer after processing complete packet</p>
+<p><strong>Example Fragmentation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>Complete packet (30 bytes):
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  24 1C F8 E7 0A 30 00 01 00 03 00 00 42 EE E5 AA 43 27 D6 00 3E 1B F8 00 41 5A 29 C0 41 58
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>Arrives as:
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>  Notification 1 (20 bytes): 24 1C F8 E7 0A 30 00 01 00 03 00 00 42 EE E5 AA 43 27 D6 00
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>  Notification 2 (10 bytes): 3E 1B F8 00 41 5A 29 C0 41 58
+</code></pre></div></p>
+<p><strong>Validation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># After reassembly, verify packet</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">assert</span> <span class="n">full_packet</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">(</span><span class="mh">0x24</span><span class="p">,</span> <span class="mh">0x27</span><span class="p">)</span>  <span class="c1"># Valid start</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">full_packet</span><span class="p">)</span> <span class="o">==</span> <span class="n">full_packet</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">4</span>  <span class="c1"># Length matches</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="k">assert</span> <span class="n">verify_crc</span><span class="p">(</span><span class="n">full_packet</span><span class="p">)</span>  <span class="c1"># CRC valid</span>
+</code></pre></div></p>
+<hr />
+<h2 id="4aa-ble-packet-splitting-sending">4aa. BLE Packet Splitting (Sending)</h2>
+<h3 id="problem-write-commands-dont-work-pump-ignores-them">Problem: Write Commands Don't Work (Pump Ignores Them)</h3>
+<p><strong>Symptom:</strong> Commands like schedule enable/disable appear to succeed but pump state doesn't change. Read operations work fine but write operations fail silently.</p>
+<p><strong>Cause:</strong> <strong>CRITICAL:</strong> Packets &gt;20 bytes <strong>MUST</strong> be split into multiple writes. The pump will <strong>silently ignore</strong> unsplit long packets.</p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># WRONG: Writing 27-byte packet in one write</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">packet</span> <span class="o">=</span> <span class="n">build_schedule_command</span><span class="p">()</span>  <span class="c1"># 27 bytes</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="n">GENI_CHAR_UUID</span><span class="p">,</span> <span class="n">packet</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Pump ignores this! No error, just fails silently.</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">response</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Write data, splitting if needed for BLE MTU.&quot;&quot;&quot;</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="p">:</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>        <span class="c1"># Split at 20-byte boundary</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="n">GENI_CHAR_UUID</span><span class="p">,</span> <span class="n">data</span><span class="p">[:</span><span class="mi">20</span><span class="p">],</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>  <span class="c1"># 10ms delay between chunks</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="n">GENI_CHAR_UUID</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="mi">20</span><span class="p">:],</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>        <span class="c1"># Single write for short packets</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="n">GENI_CHAR_UUID</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Why This Happens:</strong>
+1. BLE ATT has a 20-byte payload limit (MTU - 3 header bytes = 20)
+2. Some BLE stacks (like Bleak) don't automatically split writes
+3. The pump <strong>requires</strong> manual splitting - it won't reassemble unsplit long packets
+4. Failure is <strong>silent</strong> - no error response, just ignored</p>
+<p><strong>Real Example:</strong></p>
+<p>Schedule enable/disable command is 27 bytes:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>Command: 2717e7f80a9354000100da0100000a02050005010100000000b44e
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>         ├──────────── 20 bytes ──────────┤├───── 7 bytes ─────┤
+</code></pre></div></p>
+<p>Must be written as:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Chunk 1 (20 bytes)</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="k">await</span> <span class="n">write</span><span class="p">(</span><span class="nb">bytes</span><span class="o">.</span><span class="n">fromhex</span><span class="p">(</span><span class="s1">&#39;2717e7f80a9354000100da0100000a0205000500&#39;</span><span class="p">))</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="c1"># Chunk 2 (7 bytes) </span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="k">await</span> <span class="n">write</span><span class="p">(</span><span class="nb">bytes</span><span class="o">.</span><span class="n">fromhex</span><span class="p">(</span><span class="s1">&#39;0100000000b44e&#39;</span><span class="p">))</span>
+</code></pre></div></p>
+<p><strong>Detection:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># If reads work but writes fail silently, check packet length</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="p">:</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;WARNING: Packet is </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span><span class="si">}</span><span class="s2"> bytes, needs splitting!&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Commands Affected:</strong>
+- [x] Authentication (11 bytes) - No split needed
+- [x] Telemetry read (11 bytes) - No split needed<br />
+- [ ] Schedule enable/disable (27 bytes) - <strong>MUST SPLIT</strong>
+- [ ] Schedule write (59 bytes) - <strong>MUST SPLIT</strong>
+- [ ] Some setpoint writes (&gt;20 bytes) - <strong>MUST SPLIT</strong></p>
+<p><strong>Testing:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Test that splitting works</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">packet</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">27</span><span class="p">))</span>  <span class="c1"># 27-byte test packet</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># This will fail (pump ignores it)</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">packet</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># This will work</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">packet</span><span class="p">[:</span><span class="mi">20</span><span class="p">],</span> <span class="n">response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">write_gatt_char</span><span class="p">(</span><span class="n">uuid</span><span class="p">,</span> <span class="n">packet</span><span class="p">[</span><span class="mi">20</span><span class="p">:],</span> <span class="n">response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Performance Note:</strong>
+The 10ms delay between chunks is <strong>critical</strong> - it prevents buffer overflow on the pump's BLE controller. Shorter delays may cause corruption; longer delays are unnecessary.</p>
+<hr />
+<h2 id="4b-error-then-data-response-pattern">4b. Error-Then-Data Response Pattern</h2>
+<h3 id="problem-get-not-authorized-errors-but-telemetry-never-arrives">Problem: Get "Not Authorized" Errors But Telemetry Never Arrives</h3>
+<p><strong>Symptom:</strong> After querying telemetry, receive Class 2 error response with "not authorized" code, but pump is authenticated.</p>
+<p><strong>Cause:</strong> Pump sends Class 2 error FIRST, then sends the actual telemetry data in a second packet. Naive implementations return the error and don't wait for the data.</p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Send telemetry query</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="k">await</span> <span class="n">tx_char</span><span class="o">.</span><span class="n">write_value</span><span class="p">(</span><span class="n">telemetry_request</span><span class="p">)</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Wait for response</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">wait_for_response</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">2.0</span><span class="p">)</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="k">if</span> <span class="n">response</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">==</span> <span class="mh">0x02</span><span class="p">:</span>  <span class="c1"># Class 2 = error</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Not authorized&quot;</span><span class="p">)</span>  <span class="c1"># Give up too early!</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Send telemetry query  </span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="k">await</span> <span class="n">tx_char</span><span class="o">.</span><span class="n">write_value</span><span class="p">(</span><span class="n">telemetry_request</span><span class="p">)</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="c1"># Filter function to skip errors and passive notifications</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">is_telemetry_data</span><span class="p">(</span><span class="n">packet</span><span class="p">):</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">6</span><span class="p">:</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>    <span class="c1"># Reject Class 2 errors (data comes after)</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>    <span class="k">if</span> <span class="n">packet</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">==</span> <span class="mh">0x02</span><span class="p">:</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>    <span class="c1"># Reject Class 10 passive notifications (OpSpec 0x0E)</span>
+<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>    <span class="k">if</span> <span class="n">packet</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">==</span> <span class="mh">0x0A</span> <span class="ow">and</span> <span class="n">packet</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">==</span> <span class="mh">0x0E</span><span class="p">:</span>
+<a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a>        <span class="k">return</span> <span class="kc">False</span>
+<a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a>    <span class="c1"># Accept Class 10 data responses</span>
+<a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a>    <span class="k">return</span> <span class="n">packet</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">==</span> <span class="mh">0x0A</span>
+<a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a>
+<a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="c1"># Wait for ACTUAL data, skipping error responses</span>
+<a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">wait_for_matching_response</span><span class="p">(</span>
+<a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a>    <span class="n">timeout</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+<a id="__codelineno-19-20" name="__codelineno-19-20" href="#__codelineno-19-20"></a>    <span class="n">match_func</span><span class="o">=</span><span class="n">is_telemetry_data</span>
+<a id="__codelineno-19-21" name="__codelineno-19-21" href="#__codelineno-19-21"></a><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>What Happens:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>1. Client sends: 27 07 E7 F8 0A 03 57 00 45 [CRC]  (query motor state)
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>2. Pump sends:   24 07 F8 E7 02 03 34 07 02 [CRC]  (Class 2 error - IGNORE THIS)
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>3. Pump sends:   24 34 F8 E7 0A 30 ... [data]      (Class 10 data - USE THIS!)
+</code></pre></div></p>
+<p><strong>Why This Happens:</strong>
+- The error is the pump's immediate response to the query command
+- The actual telemetry data is sent as a follow-up notification
+- You must wait for and filter for the telemetry data packet</p>
+<p><strong>Implementation Tip:</strong>
+Keep reading responses in a loop until you get a Class 10 packet or timeout expires.</p>
+<hr />
+<h2 id="4c-register-read-response-format">4c. Register-Read Response Format</h2>
+<h3 id="problem-telemetry-decoder-returns-empty-results">Problem: Telemetry Decoder Returns Empty Results</h3>
+<p><strong>Symptom:</strong> Receive telemetry responses but decoder extracts no values (all None/null).</p>
+<p><strong>Cause:</strong> Register-read queries (OpSpec 0x03) return responses with DIFFERENT format than passive notifications.</p>
+<p><strong>Two Response Formats:</strong></p>
+<p><strong>Format 1: Passive Notifications (OpSpec 0x0E)</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>24 22 F8 E7 0A 0E [Sub-H] [Sub-L] [Obj-H] [Obj-L] [Payload...] [CRC]
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>                  ^  ^    ~~~~~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>                  |  |    Standard Sub/Obj     Structured payload
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>                Class OpSpec
+</code></pre></div>
+Sub/Obj at bytes 6-9, payload follows standard structure.</p>
+<p><strong>Format 2: Register-Read Responses (OpSpec 0x30, 0x2b, 0x14, etc)</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>24 34 F8 E7 0A 30 [Counters...] [Res] [Float1] [Float2] ... [CRC]
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>                  ^  ^           ~~~~~ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>                  |  |           Skip  Packed floats starting at offset 13
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>                Class OpSpec
+</code></pre></div>
+No Sub/Obj headers! Data starts at offset 13 as packed IEEE 754 floats.</p>
+<p><strong>OpSpec Mapping:</strong>
+- <code>0x30</code> = Motor state response (voltage, current, power, RPM)
+- <code>0x2b</code> = Flow/pressure response (flow, head, inlet, outlet)
+- <code>0x14</code> = Temperature response (media, PCB, box)</p>
+<p><strong>Motor State Response (OpSpec 0x30) Decoding:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">decode_register_read_motor</span><span class="p">(</span><span class="n">packet</span><span class="p">):</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>    <span class="c1"># Skip to offset 13 where float data starts</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    <span class="n">offset</span> <span class="o">=</span> <span class="mi">13</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    <span class="n">floats</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>    <span class="c1"># Extract floats (big-endian IEEE 754)</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>    <span class="k">while</span> <span class="n">offset</span> <span class="o">+</span> <span class="mi">4</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># Leave room for CRC</span>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>        <span class="n">val</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">&#39;&gt;f&#39;</span><span class="p">,</span> <span class="n">packet</span><span class="p">[</span><span class="n">offset</span><span class="p">:</span><span class="n">offset</span><span class="o">+</span><span class="mi">4</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>        <span class="c1"># Check for NaN marker (0x7FFFFFFF)</span>
+<a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>        <span class="k">if</span> <span class="n">math</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">val</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">abs</span><span class="p">(</span><span class="n">val</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1e15</span><span class="p">:</span>
+<a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>            <span class="n">floats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+<a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a>            <span class="n">floats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+<a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a>        <span class="n">offset</span> <span class="o">+=</span> <span class="mi">4</span>
+<a id="__codelineno-23-15" name="__codelineno-23-15" href="#__codelineno-23-15"></a>
+<a id="__codelineno-23-16" name="__codelineno-23-16" href="#__codelineno-23-16"></a>    <span class="c1"># Map floats to telemetry fields</span>
+<a id="__codelineno-23-17" name="__codelineno-23-17" href="#__codelineno-23-17"></a>    <span class="k">return</span> <span class="p">{</span>
+<a id="__codelineno-23-18" name="__codelineno-23-18" href="#__codelineno-23-18"></a>        <span class="s1">&#39;voltage_ac_v&#39;</span><span class="p">:</span> <span class="n">floats</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">floats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>   <span class="c1"># Offset 13-16</span>
+<a id="__codelineno-23-19" name="__codelineno-23-19" href="#__codelineno-23-19"></a>        <span class="s1">&#39;voltage_dc_v&#39;</span><span class="p">:</span> <span class="n">floats</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">floats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>   <span class="c1"># Offset 17-20</span>
+<a id="__codelineno-23-20" name="__codelineno-23-20" href="#__codelineno-23-20"></a>        <span class="s1">&#39;current_a&#39;</span><span class="p">:</span> <span class="n">floats</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">floats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>      <span class="c1"># Offset 21-24</span>
+<a id="__codelineno-23-21" name="__codelineno-23-21" href="#__codelineno-23-21"></a>        <span class="s1">&#39;power_w&#39;</span><span class="p">:</span> <span class="n">floats</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">floats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>        <span class="c1"># Offset 25-28</span>
+<a id="__codelineno-23-22" name="__codelineno-23-22" href="#__codelineno-23-22"></a>        <span class="s1">&#39;speed_rpm&#39;</span><span class="p">:</span> <span class="n">floats</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">floats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">5</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>      <span class="c1"># Offset 33-36</span>
+<a id="__codelineno-23-23" name="__codelineno-23-23" href="#__codelineno-23-23"></a>    <span class="p">}</span>
+</code></pre></div></p>
+<p><strong>Flow/Pressure Response (OpSpec 0x2b) Decoding:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">decode_register_read_flow</span><span class="p">(</span><span class="n">packet</span><span class="p">):</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>    <span class="n">floats</span> <span class="o">=</span> <span class="n">extract_floats_from_offset_13</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>    <span class="k">return</span> <span class="p">{</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>        <span class="s1">&#39;flow_m3h&#39;</span><span class="p">:</span> <span class="n">floats</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">floats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>        <span class="s1">&#39;head_m&#39;</span><span class="p">:</span> <span class="n">floats</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">floats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>        <span class="s1">&#39;inlet_pressure_bar&#39;</span><span class="p">:</span> <span class="n">floats</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">floats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>        <span class="s1">&#39;outlet_pressure_bar&#39;</span><span class="p">:</span> <span class="n">floats</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">floats</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>    <span class="p">}</span>
+</code></pre></div></p>
+<p><strong>Detection Logic:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">decode_telemetry</span><span class="p">(</span><span class="n">packet</span><span class="p">):</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>    <span class="n">opspec</span> <span class="o">=</span> <span class="n">packet</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">5</span> <span class="k">else</span> <span class="mi">0</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>    <span class="k">if</span> <span class="n">opspec</span> <span class="o">==</span> <span class="mh">0x0E</span><span class="p">:</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>        <span class="c1"># Passive notification - use standard decoder</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>        <span class="k">return</span> <span class="n">decode_standard_notification</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>    <span class="k">elif</span> <span class="n">opspec</span> <span class="ow">in</span> <span class="p">(</span><span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x2b</span><span class="p">,</span> <span class="mh">0x14</span><span class="p">):</span>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>        <span class="c1"># Register-read response - use packed float decoder</span>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>        <span class="k">return</span> <span class="n">decode_register_read_response</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a>        <span class="c1"># Unknown format</span>
+<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a>        <span class="k">return</span> <span class="p">{}</span>
+</code></pre></div></p>
+<p><strong>Real Example:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>Query sent:
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>  27 07 E7 F8 0A 03 57 00 45 [CRC]  (Read motor state register 0x570045)
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>Response received (OpSpec 0x30):
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>  24 34 F8 E7 0A 30 00 01 00 03 00 00 42 EE E5 AA 43 27 D6 00 3E 1B F8 00 41 5A 29 C0 41 58 CD E0 45 65 3A D0 [CRC]
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>
+<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a>Decoded floats from offset 13:
+<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a>  [0] 0x42EEE5AA = 119.45 V  (AC voltage)
+<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a>  [1] 0x4327D600 = 167.84 V  (DC voltage)
+<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a>  [2] 0x3E1BF800 = 0.152 A   (current)
+<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a>  [3] 0x415A29C0 = 13.64 W   (power)
+<a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a>  [4] 0x4158CDE0 = 13.55     (unknown)
+<a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a>  [5] 0x45653AD0 = 3667.7 RPM (speed)
+</code></pre></div></p>
+<p><strong>Key Differences:</strong>
+| Aspect | Passive Notification (0x0E) | Register-Read Response (0x30/0x2b) |
+|--------|---------------------------|----------------------------------|
+| <strong>OpSpec</strong> | 0x0E | 0x30, 0x2b, 0x14, etc |
+| <strong>Sub/Obj</strong> | Present at bytes 6-9 | Not present |
+| <strong>Data Start</strong> | After Sub/Obj (byte 10) | Fixed offset 13 |
+| <strong>Data Format</strong> | Structured with gaps | Packed sequential floats |
+| <strong>When</strong> | Unsolicited stream | Response to query |</p>
+<p><strong>Validation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># Test with known packet</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="n">motor_response</span> <span class="o">=</span> <span class="nb">bytes</span><span class="o">.</span><span class="n">fromhex</span><span class="p">(</span><span class="s1">&#39;2434f8e70a300001000300002942eee5aa4327d6003e1bf800415a29c04158cde045653ad0...&#39;</span><span class="p">)</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="n">data</span> <span class="o">=</span> <span class="n">decode_register_read_motor</span><span class="p">(</span><span class="n">motor_response</span><span class="p">)</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="k">assert</span> <span class="mi">118</span> <span class="o">&lt;=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;voltage_ac_v&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">120</span>  <span class="c1"># ~119V</span>
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="k">assert</span> <span class="mi">13</span> <span class="o">&lt;=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;power_w&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">14</span>         <span class="c1"># ~13.6W</span>
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a><span class="k">assert</span> <span class="mi">3600</span> <span class="o">&lt;=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;speed_rpm&#39;</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">3700</span>   <span class="c1"># ~3667 RPM</span>
+</code></pre></div></p>
+<hr />
+<h2 id="5-frame-length-calculation">5. Frame Length Calculation</h2>
+<h3 id="problem-incorrect-length-field">Problem: Incorrect Length Field</h3>
+<p><strong>Symptom:</strong> Pump doesn't respond or rejects packets.</p>
+<p><strong>Cause:</strong> Length field doesn't match actual packet size.</p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># Length = payload only (wrong!)</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="n">length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="c1"># Length = start byte + length field + service ID + source + APDU + CRC</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="n">length</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">apdu</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="c1"># OR simply: count all bytes including start and length itself</span>
+</code></pre></div></p>
+<p><strong>Example:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>Packet: 27 07 E7 F8 02 03 94 95 96 EB 47
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>Length: 07 (means 7 bytes total, including start and length)
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>Bytes:  [27][07] E7 F8 02 03 94 95 96 EB 47
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a>         ^   ^  ^  ^  ^  ^  ^  ^  ^  ^  ^
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>         1   2  3  4  5  6  7 (CRC doesn&#39;t count)
+</code></pre></div></p>
+<p><strong>Rule:</strong> Length field = position of last APDU byte + 1</p>
+<hr />
+<h2 id="6-payload-offsets">6. Payload Offsets</h2>
+<h3 id="problem-telemetry-values-are-wrong">Problem: Telemetry Values Are Wrong</h3>
+<p><strong>Symptom:</strong> Speed shows as temperature, pressure shows as flow, etc.</p>
+<p><strong>Cause:</strong> Incorrect byte offsets when parsing telemetry.</p>
+<p><strong>Example - Motor State (Sub 0x45, Obj 0x57):</strong></p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="n">grid_voltage</span> <span class="o">=</span> <span class="n">decode_float</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">])</span>    <span class="c1"># Correct</span>
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="n">current</span> <span class="o">=</span> <span class="n">decode_float</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">8</span><span class="p">])</span>         <span class="c1"># Wrong! Skip 4 bytes</span>
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="n">power</span> <span class="o">=</span> <span class="n">decode_float</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">8</span><span class="p">:</span><span class="mi">12</span><span class="p">])</span>          <span class="c1"># Wrong!</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="n">grid_voltage</span> <span class="o">=</span> <span class="n">decode_float</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">])</span>    <span class="c1"># Offset 0-3</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a><span class="n">current</span> <span class="o">=</span> <span class="n">decode_float</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">8</span><span class="p">:</span><span class="mi">12</span><span class="p">])</span>        <span class="c1"># Offset 8-11 (skip 4 bytes!)</span>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="n">power</span> <span class="o">=</span> <span class="n">decode_float</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">16</span><span class="p">:</span><span class="mi">20</span><span class="p">])</span>         <span class="c1"># Offset 16-19 (skip gaps)</span>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="n">speed</span> <span class="o">=</span> <span class="n">decode_float</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">20</span><span class="p">:</span><span class="mi">24</span><span class="p">])</span>         <span class="c1"># Offset 20-23</span>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="n">temp</span> <span class="o">=</span> <span class="n">decode_float</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">24</span><span class="p">:</span><span class="mi">28</span><span class="p">])</span>          <span class="c1"># Offset 24-27</span>
+</code></pre></div></p>
+<p><strong>Why:</strong> Telemetry payloads have gaps (reserved bytes). Always check documentation.</p>
+<p><strong>Reference:</strong> See <code>telemetry_decoder.py</code> for correct offsets.</p>
+<hr />
+<h2 id="7-unit-conversions">7. Unit Conversions</h2>
+<h3 id="problem-pressure-values-way-off">Problem: Pressure Values Way Off</h3>
+<p><strong>Symptom:</strong> Setting 1.5m results in pump showing 15000m.</p>
+<p><strong>Cause:</strong> Incorrect pressure unit conversion.</p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="c1"># Wrong! Factor is off by 10000x</span>
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="n">pascals</span> <span class="o">=</span> <span class="n">meters</span> <span class="o">*</span> <span class="mi">1000</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="c1"># 1 meter water column = 9806.65 Pascals</span>
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a><span class="n">pascals</span> <span class="o">=</span> <span class="n">meters</span> <span class="o">*</span> <span class="mf">9806.65</span>
+</code></pre></div></p>
+<p><strong>Common Conversions:</strong>
+- <strong>Meters to Pascals:</strong> multiply by <code>9806.65</code>
+- <strong>Bar to Pascals:</strong> multiply by <code>100000</code>
+- <strong>Flow m³/h:</strong> no conversion (already correct unit)</p>
+<p><strong>Quick Check:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="k">assert</span> <span class="n">meters_to_pascals</span><span class="p">(</span><span class="mf">1.5</span><span class="p">)</span> <span class="err">≈</span> <span class="mf">14710.0</span>
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a><span class="k">assert</span> <span class="n">pascals_to_meters</span><span class="p">(</span><span class="mf">14710.0</span><span class="p">)</span> <span class="err">≈</span> <span class="mf">1.5</span>
+</code></pre></div></p>
+<hr />
+<h2 id="8-asyncconcurrency-issues">8. Async/Concurrency Issues</h2>
+<h3 id="problem-commands-interfere-with-each-other">Problem: Commands Interfere With Each Other</h3>
+<p><strong>Symptom:</strong> Random timeouts or corrupted responses.</p>
+<p><strong>Cause:</strong> Sending multiple commands concurrently without locking.</p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="c1"># Two commands sent at same time</span>
+<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a><span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span>
+<a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a>    <span class="n">read_telemetry</span><span class="p">(),</span>
+<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a>    <span class="n">set_mode</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<a id="__codelineno-36-5" name="__codelineno-36-5" href="#__codelineno-36-5"></a><span class="p">)</span>
+<a id="__codelineno-36-6" name="__codelineno-36-6" href="#__codelineno-36-6"></a><span class="c1"># Responses get mixed up!</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="c1"># Use a lock for sequential execution</span>
+<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a><span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">transport_lock</span><span class="p">:</span>
+<a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a>    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">send_command</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+<a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a>    <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">wait_response</span><span class="p">()</span>
+</code></pre></div></p>
+<p><strong>Rule:</strong> Only one command in-flight at a time. Wait for response before sending next command.</p>
+<hr />
+<h2 id="9-response-frame-detection">9. Response Frame Detection</h2>
+<h3 id="problem-cant-distinguish-request-from-response">Problem: Can't Distinguish Request from Response</h3>
+<p><strong>Symptom:</strong> Try to parse responses but get confused with echoed requests.</p>
+<p><strong>Cause:</strong> Not checking start byte.</p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="c1"># Assumes all frames are responses</span>
+<a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="n">frame</span> <span class="o">=</span> <span class="n">parse_frame</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<a id="__codelineno-38-3" name="__codelineno-38-3" href="#__codelineno-38-3"></a><span class="n">process_response</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>  <span class="c1"># Might be request echo!</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">parse_frame</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a>    <span class="n">start_byte</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-39-3" name="__codelineno-39-3" href="#__codelineno-39-3"></a>    <span class="k">if</span> <span class="n">start_byte</span> <span class="o">==</span> <span class="mh">0x27</span><span class="p">:</span>
+<a id="__codelineno-39-4" name="__codelineno-39-4" href="#__codelineno-39-4"></a>        <span class="k">return</span> <span class="n">RequestFrame</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<a id="__codelineno-39-5" name="__codelineno-39-5" href="#__codelineno-39-5"></a>    <span class="k">elif</span> <span class="n">start_byte</span> <span class="o">==</span> <span class="mh">0x24</span><span class="p">:</span>
+<a id="__codelineno-39-6" name="__codelineno-39-6" href="#__codelineno-39-6"></a>        <span class="k">return</span> <span class="n">ResponseFrame</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<a id="__codelineno-39-7" name="__codelineno-39-7" href="#__codelineno-39-7"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-39-8" name="__codelineno-39-8" href="#__codelineno-39-8"></a>        <span class="k">raise</span> <span class="n">InvalidFrame</span><span class="p">()</span>
+</code></pre></div></p>
+<p><strong>Key:</strong>
+- <code>0x27</code> = Request (from client to pump)
+- <code>0x24</code> = Response (from pump to client)</p>
+<hr />
+<h2 id="10-timeout-values">10. Timeout Values</h2>
+<h3 id="problem-premature-timeouts-or-hanging">Problem: Premature Timeouts or Hanging</h3>
+<p><strong>Symptom:</strong> Operations timeout even though pump is working.</p>
+<p><strong>Cause:</strong> Incorrect timeout values.</p>
+<p><strong>Too Short:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">get_response</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a><span class="c1"># Timeouts before pump can respond!</span>
+</code></pre></div></p>
+<p><strong>Too Long:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">get_response</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span>
+<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a><span class="c1"># Hangs for 5 minutes on error!</span>
+</code></pre></div></p>
+<p><strong>Recommended:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="c1"># General commands</span>
+<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a><span class="n">timeout</span> <span class="o">=</span> <span class="mf">5.0</span>  <span class="c1"># 5 seconds</span>
+<a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a>
+<a id="__codelineno-42-4" name="__codelineno-42-4" href="#__codelineno-42-4"></a><span class="c1"># Authentication</span>
+<a id="__codelineno-42-5" name="__codelineno-42-5" href="#__codelineno-42-5"></a><span class="n">timeout</span> <span class="o">=</span> <span class="mf">10.0</span>  <span class="c1"># 10 seconds (needs more time)</span>
+<a id="__codelineno-42-6" name="__codelineno-42-6" href="#__codelineno-42-6"></a>
+<a id="__codelineno-42-7" name="__codelineno-42-7" href="#__codelineno-42-7"></a><span class="c1"># Telemetry polling</span>
+<a id="__codelineno-42-8" name="__codelineno-42-8" href="#__codelineno-42-8"></a><span class="n">timeout</span> <span class="o">=</span> <span class="mf">2.0</span>  <span class="c1"># 2 seconds (faster feedback)</span>
+</code></pre></div></p>
+<hr />
+<h2 id="11-float-special-values">11. Float Special Values</h2>
+<h3 id="problem-crashes-on-nan-or-infinity">Problem: Crashes on NaN or Infinity</h3>
+<p><strong>Symptom:</strong> Pump returns unexpected float values that crash decoder.</p>
+<p><strong>Cause:</strong> Not handling IEEE 754 special values.</p>
+<p><strong>Examples:</strong>
+- <code>0x7F800000</code> = Positive Infinity
+- <code>0xFF800000</code> = Negative Infinity
+- <code>0x7FC00000</code> = NaN (Not a Number)</p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>
+<a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a><span class="n">value</span> <span class="o">=</span> <span class="n">decode_float_be</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a><span class="k">if</span> <span class="n">math</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">or</span> <span class="n">math</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+<a id="__codelineno-43-5" name="__codelineno-43-5" href="#__codelineno-43-5"></a>    <span class="c1"># Treat as invalid/unavailable</span>
+<a id="__codelineno-43-6" name="__codelineno-43-6" href="#__codelineno-43-6"></a>    <span class="n">value</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div></p>
+<p><strong>When This Happens:</strong>
+- Sensor disconnected
+- Sensor not yet initialized
+- Invalid measurement</p>
+<hr />
+<h2 id="12-source-address">12. Source Address</h2>
+<h3 id="problem-responses-dont-match-requests">Problem: Responses Don't Match Requests</h3>
+<p><strong>Symptom:</strong> Send command with source <code>0xF8</code>, expect response from <code>0x20</code>, but get confused.</p>
+<p><strong>Correct Understanding:</strong>
+- <strong>Client (you):</strong> Always use source <code>0xF8</code> in requests
+- <strong>Pump:</strong> Always uses source <code>0x20</code> in responses
+- <strong>Match by:</strong> Class, Sub ID, Obj ID (not source address)</p>
+<p><strong>Frame Matching:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="c1"># Request</span>
+<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a><span class="n">request</span> <span class="o">=</span> <span class="n">build_info_command</span><span class="p">(</span><span class="n">class</span><span class="o">=</span><span class="mh">0x0A</span><span class="p">,</span> <span class="n">sub</span><span class="o">=</span><span class="mh">0x45</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="mh">0x57</span><span class="p">)</span>
+<a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="c1"># Source will be 0xF8</span>
+<a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a>
+<a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="c1"># Response</span>
+<a id="__codelineno-44-6" name="__codelineno-44-6" href="#__codelineno-44-6"></a><span class="n">response</span> <span class="o">=</span> <span class="n">parse_response</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a><span class="c1"># Source will be 0x20</span>
+<a id="__codelineno-44-8" name="__codelineno-44-8" href="#__codelineno-44-8"></a>
+<a id="__codelineno-44-9" name="__codelineno-44-9" href="#__codelineno-44-9"></a><span class="c1"># Match by content, not source</span>
+<a id="__codelineno-44-10" name="__codelineno-44-10" href="#__codelineno-44-10"></a><span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">class_byte</span> <span class="o">==</span> <span class="mh">0x0A</span>
+<a id="__codelineno-44-11" name="__codelineno-44-11" href="#__codelineno-44-11"></a><span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">sub_id</span> <span class="o">==</span> <span class="mh">0x45</span>
+<a id="__codelineno-44-12" name="__codelineno-44-12" href="#__codelineno-44-12"></a><span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">obj_id</span> <span class="o">==</span> <span class="mh">0x57</span>
+</code></pre></div></p>
+<hr />
+<h2 id="13-schedule-time-format">13. Schedule Time Format</h2>
+<h3 id="problem-schedule-times-dont-work">Problem: Schedule Times Don't Work</h3>
+<p><strong>Symptom:</strong> Schedule added but pump doesn't follow it.</p>
+<p><strong>Cause:</strong> Incorrect time encoding.</p>
+<p><strong>Wrong:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a><span class="c1"># Sending time as string</span>
+<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a><span class="n">schedule_data</span> <span class="o">=</span> <span class="s2">&quot;06:30&quot;</span>
+</code></pre></div></p>
+<p><strong>Correct:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="c1"># Encode as minutes since midnight</span>
+<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a><span class="n">hour</span> <span class="o">=</span> <span class="mi">6</span>
+<a id="__codelineno-46-3" name="__codelineno-46-3" href="#__codelineno-46-3"></a><span class="n">minute</span> <span class="o">=</span> <span class="mi">30</span>
+<a id="__codelineno-46-4" name="__codelineno-46-4" href="#__codelineno-46-4"></a><span class="n">minutes_since_midnight</span> <span class="o">=</span> <span class="n">hour</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">+</span> <span class="n">minute</span>  <span class="c1"># 390</span>
+<a id="__codelineno-46-5" name="__codelineno-46-5" href="#__codelineno-46-5"></a><span class="c1"># Encode as uint16 big-endian</span>
+<a id="__codelineno-46-6" name="__codelineno-46-6" href="#__codelineno-46-6"></a><span class="n">time_bytes</span> <span class="o">=</span> <span class="n">encode_uint16_be</span><span class="p">(</span><span class="n">minutes_since_midnight</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Formula:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a>minutes_since_midnight = (hour × 60) + minute
+</code></pre></div></p>
+<p><strong>Examples:</strong>
+- <code>00:00</code> = <code>0</code> minutes
+- <code>06:30</code> = <code>390</code> minutes
+- <code>18:45</code> = <code>1125</code> minutes
+- <code>23:59</code> = <code>1439</code> minutes</p>
+<hr />
+<h2 id="14-connection-stability">14. Connection Stability</h2>
+<h3 id="problem-random-disconnections">Problem: Random Disconnections</h3>
+<p><strong>Symptom:</strong> Connection drops during long operations.</p>
+<p><strong>Cause:</strong> BLE connection not kept alive.</p>
+<p><strong>Solution:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="c1"># Keep-alive mechanism</span>
+<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">keep_alive_loop</span><span class="p">():</span>
+<a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a>    <span class="k">while</span> <span class="n">connected</span><span class="p">:</span>
+<a id="__codelineno-48-4" name="__codelineno-48-4" href="#__codelineno-48-4"></a>        <span class="c1"># Send periodic command (e.g., read status)</span>
+<a id="__codelineno-48-5" name="__codelineno-48-5" href="#__codelineno-48-5"></a>        <span class="k">await</span> <span class="n">read_pump_state</span><span class="p">()</span>
+<a id="__codelineno-48-6" name="__codelineno-48-6" href="#__codelineno-48-6"></a>        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>  <span class="c1"># Every 30 seconds</span>
+</code></pre></div></p>
+<p><strong>Best Practices:</strong>
+- Send command at least every 60 seconds
+- Handle disconnection gracefully
+- Implement reconnection logic
+- Monitor connection state</p>
+<hr />
+<h2 id="15-testing-without-hardware">15. Testing Without Hardware</h2>
+<h3 id="problem-cant-test-without-real-pump">Problem: Can't Test Without Real Pump</h3>
+<p><strong>Solution:</strong> Create mock pump for testing.</p>
+<p><strong>Example Mock:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">MockPump</span><span class="p">:</span>
+<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-49-3" name="__codelineno-49-3" href="#__codelineno-49-3"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">authenticated</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-49-4" name="__codelineno-49-4" href="#__codelineno-49-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="s2">&quot;stopped&quot;</span>
+<a id="__codelineno-49-5" name="__codelineno-49-5" href="#__codelineno-49-5"></a>
+<a id="__codelineno-49-6" name="__codelineno-49-6" href="#__codelineno-49-6"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">handle_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packet</span><span class="p">):</span>
+<a id="__codelineno-49-7" name="__codelineno-49-7" href="#__codelineno-49-7"></a>        <span class="k">if</span> <span class="n">is_auth_packet</span><span class="p">(</span><span class="n">packet</span><span class="p">):</span>
+<a id="__codelineno-49-8" name="__codelineno-49-8" href="#__codelineno-49-8"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">authenticated</span> <span class="o">=</span> <span class="kc">True</span>
+<a id="__codelineno-49-9" name="__codelineno-49-9" href="#__codelineno-49-9"></a>            <span class="k">return</span> <span class="n">build_ack</span><span class="p">()</span>
+<a id="__codelineno-49-10" name="__codelineno-49-10" href="#__codelineno-49-10"></a>
+<a id="__codelineno-49-11" name="__codelineno-49-11" href="#__codelineno-49-11"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">authenticated</span><span class="p">:</span>
+<a id="__codelineno-49-12" name="__codelineno-49-12" href="#__codelineno-49-12"></a>            <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># Reject</span>
+<a id="__codelineno-49-13" name="__codelineno-49-13" href="#__codelineno-49-13"></a>
+<a id="__codelineno-49-14" name="__codelineno-49-14" href="#__codelineno-49-14"></a>        <span class="c1"># Handle other commands</span>
+<a id="__codelineno-49-15" name="__codelineno-49-15" href="#__codelineno-49-15"></a>        <span class="k">if</span> <span class="n">is_telemetry_request</span><span class="p">(</span><span class="n">packet</span><span class="p">):</span>
+<a id="__codelineno-49-16" name="__codelineno-49-16" href="#__codelineno-49-16"></a>            <span class="k">return</span> <span class="n">build_telemetry_response</span><span class="p">()</span>
+</code></pre></div></p>
+<p><strong>Benefits:</strong>
+- Test protocol implementation
+- Validate packet building
+- Test error handling
+- No hardware needed</p>
+<hr />
+<h2 id="quick-debug-checklist">Quick Debug Checklist</h2>
+<p>When something doesn't work:</p>
+<ol>
+<li>[x] <strong>Endianness:</strong> All multi-byte values big-endian?</li>
+<li>[x] <strong>CRC:</strong> Using CRC-16/MODBUS (polynomial 0x8005)?</li>
+<li>[x] <strong>Authentication:</strong> Sent all packets in correct order?</li>
+<li>[x] <strong>Notifications:</strong> Subscribed to RX characteristic?</li>
+<li>[x] <strong>Packet Fragmentation:</strong> Reassembling fragments before parsing?</li>
+<li>[x] <strong>Error Responses:</strong> Filtering out Class 2 errors before data?</li>
+<li>[x] <strong>Response Format:</strong> Handling both 0x0E and 0x30/0x2b formats?</li>
+<li>[x] <strong>Length:</strong> Frame length field correct?</li>
+<li>[x] <strong>Offsets:</strong> Using correct byte offsets for telemetry?</li>
+<li>[x] <strong>Units:</strong> Pressure in Pascals, not meters?</li>
+<li>[x] <strong>Locking:</strong> Only one command at a time?</li>
+<li>[x] <strong>Start Byte:</strong> Checking 0x27 vs 0x24?</li>
+<li>[x] <strong>Timeouts:</strong> Using reasonable timeout values?</li>
+</ol>
+<hr />
+<h2 id="getting-help">Getting Help</h2>
+<p>If you're still stuck:</p>
+<ol>
+<li><strong>Compare with reference:</strong> Check Python implementation</li>
+<li><strong>Use test vectors:</strong> Validate each component</li>
+<li><strong>Enable logging:</strong> Log all packets sent/received</li>
+<li><strong>Hex dump packets:</strong> Verify byte-by-byte</li>
+<li><strong>Check documentation:</strong> Review protocol docs</li>
+<li><strong>File issue:</strong> Report bugs or unclear documentation</li>
+</ol>
+<h2 id="debugging-tips">Debugging Tips</h2>
+<h3 id="enable-packet-logging">Enable Packet Logging</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">log_packet</span><span class="p">(</span><span class="n">direction</span><span class="p">,</span> <span class="n">packet</span><span class="p">):</span>
+<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>    <span class="n">hex_str</span> <span class="o">=</span> <span class="n">packet</span><span class="o">.</span><span class="n">hex</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+<a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">direction</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">hex_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-50-4" name="__codelineno-50-4" href="#__codelineno-50-4"></a>
+<a id="__codelineno-50-5" name="__codelineno-50-5" href="#__codelineno-50-5"></a><span class="c1"># Log all packets</span>
+<a id="__codelineno-50-6" name="__codelineno-50-6" href="#__codelineno-50-6"></a><span class="k">await</span> <span class="n">tx_char</span><span class="o">.</span><span class="n">write_value</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+<a id="__codelineno-50-7" name="__codelineno-50-7" href="#__codelineno-50-7"></a><span class="n">log_packet</span><span class="p">(</span><span class="s2">&quot;TX&quot;</span><span class="p">,</span> <span class="n">packet</span><span class="p">)</span>
+<a id="__codelineno-50-8" name="__codelineno-50-8" href="#__codelineno-50-8"></a>
+<a id="__codelineno-50-9" name="__codelineno-50-9" href="#__codelineno-50-9"></a><span class="c1"># In notification handler</span>
+<a id="__codelineno-50-10" name="__codelineno-50-10" href="#__codelineno-50-10"></a><span class="k">def</span><span class="w"> </span><span class="nf">on_notification</span><span class="p">(</span><span class="n">sender</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+<a id="__codelineno-50-11" name="__codelineno-50-11" href="#__codelineno-50-11"></a>    <span class="n">log_packet</span><span class="p">(</span><span class="s2">&quot;RX&quot;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="validate-each-layer">Validate Each Layer</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a><span class="c1"># Test codec</span>
+<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a><span class="k">assert</span> <span class="n">encode_float_be</span><span class="p">(</span><span class="mf">1.5</span><span class="p">)</span> <span class="o">==</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0x3F</span><span class="p">,</span> <span class="mh">0xC0</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">])</span>
+<a id="__codelineno-51-3" name="__codelineno-51-3" href="#__codelineno-51-3"></a>
+<a id="__codelineno-51-4" name="__codelineno-51-4" href="#__codelineno-51-4"></a><span class="c1"># Test frame building</span>
+<a id="__codelineno-51-5" name="__codelineno-51-5" href="#__codelineno-51-5"></a><span class="n">packet</span> <span class="o">=</span> <span class="n">build_info_command</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<a id="__codelineno-51-6" name="__codelineno-51-6" href="#__codelineno-51-6"></a><span class="k">assert</span> <span class="n">packet</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mh">0x27</span>  <span class="c1"># Start byte</span>
+<a id="__codelineno-51-7" name="__codelineno-51-7" href="#__codelineno-51-7"></a><span class="k">assert</span> <span class="n">calculate_crc</span><span class="p">(</span><span class="n">packet</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span> <span class="o">==</span> <span class="n">get_crc_from_packet</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+<a id="__codelineno-51-8" name="__codelineno-51-8" href="#__codelineno-51-8"></a>
+<a id="__codelineno-51-9" name="__codelineno-51-9" href="#__codelineno-51-9"></a><span class="c1"># Test authentication</span>
+<a id="__codelineno-51-10" name="__codelineno-51-10" href="#__codelineno-51-10"></a><span class="k">await</span> <span class="n">authenticate</span><span class="p">()</span>
+<a id="__codelineno-51-11" name="__codelineno-51-11" href="#__codelineno-51-11"></a><span class="k">assert</span> <span class="n">session</span><span class="o">.</span><span class="n">is_authenticated</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="use-ble-debugging-tools">Use BLE Debugging Tools</h3>
+<ul>
+<li><strong>nRF Connect</strong> - Monitor BLE traffic</li>
+<li><strong>Wireshark</strong> - Capture BLE packets</li>
+<li><strong>Logic Analyzer</strong> - Hardware-level debugging</li>
+</ul>
+<hr />
+<h2 id="summary">Summary</h2>
+<p>Most issues stem from:
+1. <strong>Endianness</strong> (big-endian!)
+2. <strong>CRC algorithm</strong> (MODBUS, not CCITT!)
+3. <strong>Authentication sequence</strong> (exact order and count!)
+4. <strong>Notifications</strong> (must subscribe!)
+5. <strong>Packet fragmentation</strong> (reassemble before parsing!)
+6. <strong>Error-then-data pattern</strong> (ignore Class 2 errors, wait for data!)
+7. <strong>Response format</strong> (OpSpec 0x30/0x2b uses different structure!)
+8. <strong>Unit conversions</strong> (9806.65 for meters to Pascals!)</p>
+<p>Always validate with test vectors before testing with hardware!</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": "0.1.dev1+g5ceb7604e"}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

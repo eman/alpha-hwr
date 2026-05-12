@@ -1,0 +1,3316 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Independent implementation and control documentation for Grundfos ALPHA HWR pumps.">
+      
+      
+      
+      
+        <link rel="prev" href="../understanding_telemetry/">
+      
+      
+        <link rel="next" href="../backup_restore/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Control Modes & Setpoints - Alpha HWR Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#control-modes-and-setpoints" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Alpha HWR Documentation" class="md-header__button md-logo" aria-label="Alpha HWR Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Alpha HWR Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Control Modes & Setpoints
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting_started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../cli_guide/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../protocol/architecture/" class="md-tabs__link">
+          
+  
+  
+  Protocol Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reimplementation/" class="md-tabs__link">
+          
+  
+  
+  Reimplementation Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/client/" class="md-tabs__link">
+          
+  
+  
+  Python API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/hardware/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../troubleshooting/service_discovery/" class="md-tabs__link">
+          
+  
+  
+  Troubleshooting
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../integrations/esphome/" class="md-tabs__link">
+          
+  
+  
+  Integrations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../TESTING_STRATEGY/" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Alpha HWR Documentation" class="md-nav__button md-logo" aria-label="Alpha HWR Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Alpha HWR Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/quick_start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../understanding_telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Understanding Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes & Setpoints
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes & Setpoints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-current-setpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading Current Setpoint
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading Current Setpoint">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python API
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#control-modes-available-via-operating-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control Modes Available via Operating Panel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Control Modes Available via Operating Panel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#temperature-control-autoadapt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature Control - AUTOADAPT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temperature-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#continuous-operation-247" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Continuous Operation - 24/7
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#control-modes-available-via-bluetooth-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control Modes Available via Bluetooth Interface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Control Modes Available via Bluetooth Interface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-temperature-control-mode-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Temperature Control (Mode 27)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cycle-time-control-mode-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cycle Time Control (Mode 25)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-constant-curve-constant-speed-mode-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Constant Curve / Constant Speed (Mode 2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-constant-pressure-mode-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Constant Pressure (Mode 0)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-constant-flow-mode-8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Constant Flow (Mode 8)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flow-limitation-and-pipe-diameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flow Limitation and Pipe Diameters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proportional-pressure-mode-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proportional Pressure (Mode 1)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deprecatedunsupported-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deprecated/Unsupported Modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#temperature-range-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature Range Control
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setpoint-data-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setpoint Data Structures
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Setpoint Data Structures">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standard-modes-object-86-sub-id-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standard Modes (Object 86, Sub-ID 6)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limit-configuration-object-86-sub-ids-11-39" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limit Configuration (Object 86, Sub-IDs 11-39)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temperature-range-control-object-91-sub-id-430" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature Range Control (Object 91, Sub-ID 430)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unit-conversions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Conversions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unit Conversions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pressure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pressure Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flow-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flow Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speed-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speed Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temperature-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backup_restore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../historical_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../time_management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocol Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Protocol Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/ble_architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BLE Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection & Auth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/wire_format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wire Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry & Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control & Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/control_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/autoadapt_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoAdapt Modes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/schedules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schedule Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/device_info/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Information
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/energy_power/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_12" id="__nav_4_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packet Traces
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Packet Traces
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/01_connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/02_authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/03_telemetry_stream/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry Stream
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/04_set_mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/05_schedule_write/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schedule Write
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reimplementation Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reimplementation Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/layer_by_layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer-by-Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/test_vectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Vectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reimplementation/common_pitfalls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Pitfalls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data_models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Troubleshooting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/service_discovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Service Discovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integrations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/esphome/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ESPHome / ESP32
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../TESTING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-current-setpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading Current Setpoint
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading Current Setpoint">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python API
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#control-modes-available-via-operating-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control Modes Available via Operating Panel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Control Modes Available via Operating Panel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#temperature-control-autoadapt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature Control - AUTOADAPT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temperature-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#continuous-operation-247" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Continuous Operation - 24/7
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#control-modes-available-via-bluetooth-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control Modes Available via Bluetooth Interface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Control Modes Available via Bluetooth Interface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-temperature-control-mode-27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Temperature Control (Mode 27)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cycle-time-control-mode-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cycle Time Control (Mode 25)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-constant-curve-constant-speed-mode-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Constant Curve / Constant Speed (Mode 2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-constant-pressure-mode-0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Constant Pressure (Mode 0)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-constant-flow-mode-8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Constant Flow (Mode 8)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flow-limitation-and-pipe-diameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flow Limitation and Pipe Diameters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proportional-pressure-mode-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proportional Pressure (Mode 1)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deprecatedunsupported-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deprecated/Unsupported Modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#temperature-range-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature Range Control
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setpoint-data-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setpoint Data Structures
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Setpoint Data Structures">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standard-modes-object-86-sub-id-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standard Modes (Object 86, Sub-ID 6)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limit-configuration-object-86-sub-ids-11-39" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limit Configuration (Object 86, Sub-IDs 11-39)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temperature-range-control-object-91-sub-id-430" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature Range Control (Object 91, Sub-ID 430)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unit-conversions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Conversions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unit Conversions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pressure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pressure Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#flow-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flow Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#speed-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speed Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temperature-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temperature Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="control-modes-and-setpoints">Control Modes and Setpoints</h1>
+<p>This guide provides comprehensive information about the ALPHA HWR's control modes and setpoint configuration.</p>
+<h2 id="overview">Overview</h2>
+<p>The ALPHA HWR pump supports multiple control modes, each designed for specific application requirements. Control modes can be configured via:</p>
+<ul>
+<li><strong>Physical operating panel</strong> (limited modes)</li>
+<li><strong>Mobile application</strong> (all modes)</li>
+<li><strong>alpha-hwr library</strong> (all modes via CLI or Python API)</li>
+</ul>
+<h2 id="reading-current-setpoint">Reading Current Setpoint</h2>
+<h3 id="cli">CLI</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Read current control mode and setpoint</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>alpha-hwr<span class="w"> </span>control<span class="w"> </span>status
+</code></pre></div>
+<h3 id="python-api">Python API</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">alpha_hwr</span><span class="w"> </span><span class="kn">import</span> <span class="n">AlphaHWRClient</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">async</span> <span class="k">with</span> <span class="n">AlphaHWRClient</span><span class="p">(</span><span class="s2">&quot;AA:BB:CC:DD:EE:FF&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">client</span><span class="p">:</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">authenticate</span><span class="p">(</span><span class="n">fast_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="c1"># Read current setpoint</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">setpoint_info</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">get_mode</span><span class="p">()</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="k">if</span> <span class="n">setpoint_info</span><span class="p">:</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Control Mode: </span><span class="si">{</span><span class="n">setpoint_info</span><span class="o">.</span><span class="n">control_mode</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setpoint: </span><span class="si">{</span><span class="n">setpoint_info</span><span class="o">.</span><span class="n">setpoint</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Range: </span><span class="si">{</span><span class="n">setpoint_info</span><span class="o">.</span><span class="n">min_setpoint</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="n">setpoint_info</span><span class="o">.</span><span class="n">max_setpoint</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="control-modes-available-via-operating-panel">Control Modes Available via Operating Panel</h2>
+<h3 id="temperature-control-autoadapt">Temperature Control - AUTOADAPT</h3>
+<p><strong>Description:</strong> Ensures comfort via integrated temperature estimator, suitable for all hot-water recirculation applications with a dedicated return line.</p>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Automatically adjusts flow according to temperature setpoint</li>
+<li>Ensures hot water availability throughout the house</li>
+<li>Meets minimum flow requirement for tankless water heaters</li>
+<li>Flow rate: 1-4 GPM (automatically adjusted)</li>
+<li>Temperature range: 95-102°F (35-39°C)</li>
+</ul>
+<p><strong>Use Case:</strong> General hot-water recirculation with optimal energy efficiency</p>
+<h3 id="temperature-control">Temperature Control</h3>
+<p><strong>Description:</strong> Ensures comfort via flow limits based on predefined pipe diameters.</p>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Maintains temperature between 95-102°F (35-39°C)</li>
+<li>Flow limits designed to reduce flow-accelerated corrosion</li>
+<li>Operates on maximum curve until reaching flow limits</li>
+</ul>
+<p><strong>Flow Limits by Pipe Diameter:</strong></p>
+<ul>
+<li>1/2": 1.5 GPM</li>
+<li>3/4": 2.3 GPM</li>
+<li>1": 3.8 GPM</li>
+</ul>
+<p><strong>Use Case:</strong> Systems where flow-accelerated corrosion is a concern</p>
+<h3 id="continuous-operation-247">Continuous Operation - 24/7</h3>
+<p><strong>Description:</strong> Ensures comfort through continuous operation in constant curve III with flow limits.</p>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Continuous operation</li>
+<li>Flow limits based on predefined pipe diameters</li>
+<li>Reduces flow-accelerated corrosion and noise</li>
+</ul>
+<p><strong>Flow Limits (adjustable via Bluetooth interface):</strong></p>
+<ul>
+<li>1/2": 1.5 GPM</li>
+<li>3/4": 2.3 GPM</li>
+<li>1": 3.8 GPM</li>
+</ul>
+<p><strong>Use Case:</strong> Applications requiring 24/7 hot water availability</p>
+<h2 id="control-modes-available-via-bluetooth-interface">Control Modes Available via Bluetooth Interface</h2>
+<p>The ALPHA HWR supports 5 primary control modes specifically optimized for hot water recirculation.</p>
+<h3 id="1-temperature-control-mode-27">1. Temperature Control (Mode 27)</h3>
+<p><strong>Description:</strong> Controls pump operation to maintain water temperature within a specified range. This is the recommended mode for most DHW applications.</p>
+<p><strong>Features:</strong>
+- <strong>Min/Max Temperature:</strong> Configurable range (default 35-39°C).
+- <strong>AUTOADAPT:</strong> Automatic flow adjustment (1-4 gpm) to maintain comfort and efficiency.
+- <strong>Flow Limits:</strong> Can be limited based on pipe diameter to prevent corrosion.</p>
+<p><strong>Example:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Set range 35-39°C with AUTOADAPT enabled</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>alpha-hwr<span class="w"> </span>control<span class="w"> </span>set-temperature<span class="w"> </span>--min<span class="w"> </span><span class="m">35</span><span class="w"> </span>--max<span class="w"> </span><span class="m">39</span><span class="w"> </span>--autoadapt
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Set range 40-45°C with AUTOADAPT disabled and 1.5 GPM limit</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>alpha-hwr<span class="w"> </span>control<span class="w"> </span>set-temperature<span class="w"> </span>--min<span class="w"> </span><span class="m">40</span><span class="w"> </span>--max<span class="w"> </span><span class="m">45</span><span class="w"> </span>--no-autoadapt<span class="w"> </span>--flow-limit<span class="w"> </span><span class="m">1</span>.5
+</code></pre></div></p>
+<h3 id="2-cycle-time-control-mode-25">2. Cycle Time Control (Mode 25)</h3>
+<p><strong>Description:</strong> Pump operates at maximum curve with configurable on/off cycles.</p>
+<p><strong>Parameters:</strong>
+- <strong>On time:</strong> 1-60 minutes
+- <strong>Off time:</strong> 1-60 minutes</p>
+<p><strong>Example:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Set 5 minutes ON, 15 minutes OFF</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>alpha-hwr<span class="w"> </span>control<span class="w"> </span>set-cycle-time<span class="w"> </span>--on<span class="w"> </span><span class="m">5</span><span class="w"> </span>--off<span class="w"> </span><span class="m">15</span>
+</code></pre></div></p>
+<h3 id="3-constant-curve-constant-speed-mode-2">3. Constant Curve / Constant Speed (Mode 2)</h3>
+<p><strong>Description:</strong> Pump runs at a fixed rotational speed (RPM).</p>
+<p><strong>Features:</strong>
+- <strong>Setpoint:</strong> 1000-4500 RPM.
+- <strong>Flow Limits:</strong> Optional GPM limit to prevent noise and corrosion.</p>
+<p><strong>Example:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Set to 2500 RPM with 2.3 GPM limit (3/4&quot; pipe)</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>alpha-hwr<span class="w"> </span>control<span class="w"> </span>set-speed<span class="w"> </span><span class="m">2500</span><span class="w"> </span>--flow-limit<span class="w"> </span><span class="m">2</span>.3
+</code></pre></div></p>
+<h3 id="4-constant-pressure-mode-0">4. Constant Pressure (Mode 0)</h3>
+<p><strong>Description:</strong> Maintains a fixed head pressure regardless of flow.</p>
+<p><strong>Setpoint:</strong> 0.5-6.0 meters.</p>
+<p><strong>Example:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>alpha-hwr<span class="w"> </span>control<span class="w"> </span>set-pressure<span class="w"> </span><span class="m">1</span>.5
+</code></pre></div></p>
+<h3 id="5-constant-flow-mode-8">5. Constant Flow (Mode 8)</h3>
+<p><strong>Description:</strong> Maintains a fixed flow rate regardless of head pressure.</p>
+<p><strong>Setpoint:</strong> 0.1-3.0 m³/h.</p>
+<p><strong>Example:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>alpha-hwr<span class="w"> </span>control<span class="w"> </span>set-flow<span class="w"> </span><span class="m">0</span>.5
+</code></pre></div></p>
+<hr />
+<h2 id="flow-limitation-and-pipe-diameters">Flow Limitation and Pipe Diameters</h2>
+<p>The ALPHA HWR allows setting a maximum flow limit to prevent <strong>flow-accelerated corrosion (FAC)</strong> and noise in the system. Limits are typically chosen based on pipe diameter:</p>
+<table>
+<thead>
+<tr>
+<th>Pipe Diameter</th>
+<th>Recommended Limit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1/2"</td>
+<td>1.5 GPM</td>
+</tr>
+<tr>
+<td>3/4"</td>
+<td>2.3 GPM</td>
+</tr>
+<tr>
+<td>1"</td>
+<td>3.8 GPM</td>
+</tr>
+</tbody>
+</table>
+<p><strong>CLI:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>alpha-hwr<span class="w"> </span>control<span class="w"> </span>set-flow-limit<span class="w"> </span><span class="m">1</span>.5
+</code></pre></div></p>
+<hr />
+<h2 id="proportional-pressure-mode-1">Proportional Pressure (Mode 1)</h2>
+<p>Proportional pressure mode is also fully supported and adjusts pressure along a curve based on flow.</p>
+<p><strong>CLI:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>alpha-hwr<span class="w"> </span>control<span class="w"> </span>set-proportional<span class="w"> </span><span class="m">1</span>.2
+</code></pre></div></p>
+<hr />
+<h2 id="deprecatedunsupported-modes">Deprecated/Unsupported Modes</h2>
+<p>The following modes are defined in the GENI protocol but are <strong>not recommended</strong> for ALPHA HWR as they are designed for heating systems (radiators/underfloor heating) rather than DHW recirculation:
+- AUTOADAPT Radiator (Mode 13)
+- AUTOADAPT Underfloor (Mode 14)
+- AUTOADAPT Combined (Mode 15)
+- AUTOADAPT Generic (Mode 5)</p>
+<p>Use <strong>Temperature Control (Mode 27)</strong> with the <code>--autoadapt</code> flag instead.</p>
+<h2 id="temperature-range-control">Temperature Range Control</h2>
+<p><strong>Mode ID:</strong> 27<br />
+<strong>Special Handling:</strong> Uses dual setpoints (high/low temperature)</p>
+<p><strong>Description:</strong> Controls pump operation to maintain water temperature within a specified range.</p>
+<p><strong>Setpoints:</strong></p>
+<ul>
+<li><strong>Low Temperature:</strong> Minimum temperature limit</li>
+<li><strong>High Temperature:</strong> Maximum temperature limit</li>
+<li><strong>AutoAdapt Flag:</strong> Enable/disable automatic delta temperature adjustment</li>
+</ul>
+<p><strong>Default Range:</strong> 32.95-41.11°C (91-106°F)<br />
+<strong>Nominal Range (per manual):</strong> 35-39°C (95-102°F)</p>
+<p><strong>Reading Temperature Range:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>alpha-hwr<span class="w"> </span>control<span class="w"> </span>status
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="c1"># Output will show min/max temperatures for this mode</span>
+</code></pre></div>
+<p><strong>Data Source:</strong> Object 91, Sub-ID 430 (TemperatureRangeControlUserSettings, Type 1012)</p>
+<h2 id="setpoint-data-structures">Setpoint Data Structures</h2>
+<h3 id="standard-modes-object-86-sub-id-6">Standard Modes (Object 86, Sub-ID 6)</h3>
+<p><strong>Type 303: OperationRequest</strong></p>
+<p>Structure:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>[ControlSource(1)][OperationMode(1)][ControlMode(1)][Setpoint(4)]
+</code></pre></div>
+<ul>
+<li><code>ControlSource</code>: Source of control command</li>
+<li><code>OperationMode</code>: Current operation mode</li>
+<li><code>ControlMode</code>: Active control mode (0-27)</li>
+<li><code>Setpoint</code>: Target value (float32, big-endian)</li>
+</ul>
+<h3 id="limit-configuration-object-86-sub-ids-11-39">Limit Configuration (Object 86, Sub-IDs 11-39)</h3>
+<p><strong>Type 301: FactoryConfig</strong></p>
+<p><strong>Standard Format (float32):</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>[DefaultSetpoint(4)][MinSetpoint(4)][MaxSetpoint(4)][...]
+</code></pre></div>
+<p><strong>AutoAdapt Generic Format (uint16 with padding):</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>[DefaultSetpoint(2)][Padding(2)][MinSetpoint(2)][Padding(2)][MaxSetpoint(2)][Padding(2)]
+</code></pre></div>
+<p><strong>Sub-ID Mapping:</strong></p>
+<ul>
+<li>Sub 11: AutoAdapt Generic (uint16)</li>
+<li>Sub 13: Constant Speed (float32)</li>
+<li>Sub 15: Constant Pressure (float32)</li>
+<li>Sub 17: Proportional Pressure (float32)</li>
+<li>Sub 19: AutoAdapt Radiator (float32)</li>
+<li>Sub 21: AutoAdapt Underfloor (float32)</li>
+<li>Sub 23: AutoAdapt Combined (float32)</li>
+<li>Sub 39: Constant Flow (float32)</li>
+</ul>
+<h3 id="temperature-range-control-object-91-sub-id-430">Temperature Range Control (Object 91, Sub-ID 430)</h3>
+<p><strong>Type 1012: TemperatureRangeControlUserSettings</strong></p>
+<p>Structure:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>[DeltaTempEnabled(1)][MinTemp(4)][MaxTemp(4)][MinOffTime(1)][MaxOffTime(1)][MinOnTime(1)][MaxOnTime(1)]
+</code></pre></div>
+<ul>
+<li><code>DeltaTempEnabled</code>: AutoAdapt flag (bool)</li>
+<li><code>MinTemp</code>: Low temperature limit (float32, °C)</li>
+<li><code>MaxTemp</code>: High temperature limit (float32, °C)</li>
+<li>Time limits: On/off timing parameters</li>
+</ul>
+<h2 id="unit-conversions">Unit Conversions</h2>
+<p>The library automatically handles unit conversions for display:</p>
+<h3 id="pressure-modes">Pressure Modes</h3>
+<ul>
+<li><strong>Stored as:</strong> Pascals (Pa)</li>
+<li><strong>Displayed as:</strong> Meters of water column (m)</li>
+<li><strong>Conversion:</strong> 1 m H₂O ≈ 9806.65 Pa</li>
+</ul>
+<h3 id="flow-modes">Flow Modes</h3>
+<ul>
+<li><strong>Stored as:</strong> m³/h</li>
+<li><strong>Displayed as:</strong> m³/h (no conversion)</li>
+</ul>
+<h3 id="speed-modes">Speed Modes</h3>
+<ul>
+<li><strong>Stored as:</strong> RPM</li>
+<li><strong>Displayed as:</strong> RPM (no conversion)</li>
+</ul>
+<h3 id="temperature-modes">Temperature Modes</h3>
+<ul>
+<li><strong>Stored as:</strong> °C</li>
+<li><strong>Displayed as:</strong> °C (no conversion)</li>
+</ul>
+<h2 id="best-practices">Best Practices</h2>
+<ol>
+<li><strong>Choose the Right Mode:</strong></li>
+<li>For hot water recirculation: Temperature Control - AUTOADAPT</li>
+<li>For predictable scheduling: Cycle Time Control</li>
+<li>For legacy system replacement: Constant Curve</li>
+<li>For multi-zone systems: Constant Pressure</li>
+<li>
+<p>For external control: Constant Flow</p>
+</li>
+<li>
+<p><strong>Setpoint Selection:</strong></p>
+</li>
+<li>Start with factory defaults</li>
+<li>Adjust based on system performance</li>
+<li>
+<p>Use <code>--limits</code> flag to see allowed ranges</p>
+</li>
+<li>
+<p><strong>Energy Efficiency:</strong></p>
+</li>
+<li>Use AUTOADAPT modes when possible</li>
+<li>Enable scheduling for time-based control</li>
+<li>
+<p>Set appropriate temperature ranges (don't overheat)</p>
+</li>
+<li>
+<p><strong>System Protection:</strong></p>
+</li>
+<li>Respect flow limits for pipe diameter</li>
+<li>Monitor for corrosion in high-flow applications</li>
+<li>Use minimum flow settings for tankless heaters</li>
+</ol>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="../cli_guide/">CLI Guide</a> - Complete CLI command reference</li>
+<li><a href="../../reference/data_models/">Data Models</a> - SetpointInfo model documentation</li>
+<li><a href="../../reference/hardware/">Hardware Reference</a> - Physical specifications</li>
+<li>User Manual: See <code>resources/reference/92992176_0224_ALPHA_HWR_CS_DB.md</code> in the repository</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": "0.1.dev1+g5ceb7604e"}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,3814 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Independent implementation and control documentation for Grundfos ALPHA HWR pumps.">
+      
+      
+      
+      
+        <link rel="prev" href="../layer_by_layer/">
+      
+      
+        <link rel="next" href="../test_vectors/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Checklist - Alpha HWR Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#implementation-checklist" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Alpha HWR Documentation" class="md-header__button md-logo" aria-label="Alpha HWR Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Alpha HWR Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Checklist
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting_started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/cli_guide/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../protocol/architecture/" class="md-tabs__link">
+          
+  
+  
+  Protocol Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  Reimplementation Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/client/" class="md-tabs__link">
+          
+  
+  
+  Python API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/hardware/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../troubleshooting/service_discovery/" class="md-tabs__link">
+          
+  
+  
+  Troubleshooting
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../integrations/esphome/" class="md-tabs__link">
+          
+  
+  
+  Integrations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../TESTING_STRATEGY/" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Alpha HWR Documentation" class="md-nav__button md-logo" aria-label="Alpha HWR Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Alpha HWR Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/quick_start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/cli_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/device-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/understanding_telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Understanding Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/control_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes & Setpoints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/backup_restore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/historical_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/time_management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocol Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Protocol Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/ble_architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BLE Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection & Auth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/wire_format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wire Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry & Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control & Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/control_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/autoadapt_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoAdapt Modes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/schedules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schedule Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/device_info/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Information
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/energy_power/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_12" id="__nav_4_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packet Traces
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Packet Traces
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/01_connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/02_authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/03_telemetry_stream/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry Stream
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/04_set_mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/05_schedule_write/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schedule Write
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reimplementation Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reimplementation Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../layer_by_layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer-by-Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checklist
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#phase-1-core-foundation-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Core Foundation (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 1: Core Foundation (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ble-transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BLE Transport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-2-protocol-layer-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Protocol Layer (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2: Protocol Layer (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#codec-encodingdecoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Codec (Encoding/Decoding)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frame-builder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame Builder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frame-parser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame Parser
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-3-telemetry-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Telemetry (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 3: Telemetry (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Telemetry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advanced-telemetry-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Telemetry (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-4-control-operations-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Control Operations (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 4: Control Operations (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-5-device-information-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Device Information (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 5: Device Information (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-device-info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Device Info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alarms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alarms
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-6-schedule-management-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 6: Schedule Management (OPTIONAL)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 6: Schedule Management (OPTIONAL)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#schedule-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schedule Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-7-configuration-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 7: Configuration (OPTIONAL)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 7: Configuration (OPTIONAL)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#backuprestore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backup/Restore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-8-error-handling-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 8: Error Handling (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 8: Error Handling (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connection-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#protocol-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protocol Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#application-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Application Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-9-testing-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 9: Testing (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 9: Testing (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-10-documentation-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 10: Documentation (RECOMMENDED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 10: Documentation (RECOMMENDED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#code-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#user-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-11-packaging-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 11: Packaging (RECOMMENDED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 11: Packaging (RECOMMENDED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quality-assurance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality Assurance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#success-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Success Criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#language-specific-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language-Specific Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Language-Specific Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#javascripttypescript" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JavaScript/TypeScript
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C/C++
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Go
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#progress-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Progress Tracking
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test_vectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Vectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../common_pitfalls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Pitfalls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data_models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Troubleshooting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/service_discovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Service Discovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integrations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/esphome/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ESPHome / ESP32
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../TESTING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#phase-1-core-foundation-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 1: Core Foundation (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 1: Core Foundation (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ble-transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BLE Transport
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-2-protocol-layer-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2: Protocol Layer (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 2: Protocol Layer (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#codec-encodingdecoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Codec (Encoding/Decoding)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frame-builder" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame Builder
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frame-parser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Frame Parser
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-3-telemetry-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 3: Telemetry (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 3: Telemetry (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Telemetry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advanced-telemetry-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Telemetry (Optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-4-control-operations-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 4: Control Operations (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 4: Control Operations (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-5-device-information-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 5: Device Information (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 5: Device Information (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-device-info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Device Info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alarms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alarms
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-6-schedule-management-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 6: Schedule Management (OPTIONAL)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 6: Schedule Management (OPTIONAL)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#schedule-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schedule Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-7-configuration-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 7: Configuration (OPTIONAL)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 7: Configuration (OPTIONAL)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#backuprestore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backup/Restore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-8-error-handling-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 8: Error Handling (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 8: Error Handling (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connection-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#protocol-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protocol Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#application-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Application Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-9-testing-required" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 9: Testing (REQUIRED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 9: Testing (REQUIRED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unit Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-10-documentation-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 10: Documentation (RECOMMENDED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 10: Documentation (RECOMMENDED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#code-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#user-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#phase-11-packaging-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 11: Packaging (RECOMMENDED)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Phase 11: Packaging (RECOMMENDED)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build &amp; Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quality-assurance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality Assurance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#success-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Success Criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#language-specific-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language-Specific Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Language-Specific Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#javascripttypescript" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JavaScript/TypeScript
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C/C++
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#go" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Go
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#progress-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Progress Tracking
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="implementation-checklist">Implementation Checklist</h1>
+<p>Use this checklist to track your implementation progress. Features are organized by priority and difficulty.</p>
+<h2 id="phase-1-core-foundation-required">Phase 1: Core Foundation (REQUIRED)</h2>
+<h3 id="ble-transport">BLE Transport</h3>
+<ul>
+<li>[ ] Connect to pump via BLE</li>
+<li>[ ] Discover GENI service (<code>0000fdd0-0000-1000-8000-00805f9b34fb</code>)</li>
+<li>[ ] Get TX characteristic (<code>0000fdd1-...</code>)</li>
+<li>[ ] Get RX characteristic (<code>0000fdd2-...</code>)</li>
+<li>[ ] Subscribe to notifications on RX</li>
+<li>[ ] Send packets via TX</li>
+<li>[ ] Disconnect gracefully</li>
+</ul>
+<h3 id="authentication">Authentication</h3>
+<ul>
+<li>[ ] Send 3x Legacy Magic packets</li>
+<li>Packet: <code>27 07 E7 F8 02 03 94 95 96 EB 47</code></li>
+<li>[ ] Send 5x Class 10 Unlock packets</li>
+<li>Packet: <code>27 07 E7 F8 0A 03 56 00 06 C5 5A</code></li>
+<li>[ ] Send Extend 1 packet</li>
+<li>Packet: <code>27 05 E7 F8 0B C1 0F D0 C3</code></li>
+<li>[ ] Send Extend 2 packet</li>
+<li>Packet: <code>27 05 E7 F8 05 C1 4B C3 82</code></li>
+<li>[ ] Verify pump accepts commands after authentication</li>
+</ul>
+<h3 id="session-management">Session Management</h3>
+<ul>
+<li>[ ] Track connection state</li>
+<li>[ ] Track authentication state</li>
+<li>[ ] Implement state guards (ensure_connected, ensure_authenticated)</li>
+<li>[ ] Handle disconnection</li>
+<li>[ ] Handle timeouts</li>
+</ul>
+<h2 id="phase-2-protocol-layer-required">Phase 2: Protocol Layer (REQUIRED)</h2>
+<h3 id="codec-encodingdecoding">Codec (Encoding/Decoding)</h3>
+<ul>
+<li>[ ] Encode IEEE 754 big-endian float</li>
+<li>[ ] Decode IEEE 754 big-endian float</li>
+<li>[ ] Encode uint16 big-endian</li>
+<li>[ ] Decode uint16 big-endian</li>
+<li>[ ] Encode uint32 big-endian</li>
+<li>[ ] Decode uint32 big-endian</li>
+<li>[ ] Calculate CRC-16/MODBUS</li>
+<li>[ ] Validate CRC on received packets</li>
+</ul>
+<h3 id="frame-builder">Frame Builder</h3>
+<ul>
+<li>[ ] Build INFO command (Class 2/3)</li>
+<li>[ ] Build INFO command (Class 10)</li>
+<li>[ ] Build SET command (Class 10)</li>
+<li>[ ] Build READ command (Class 10)</li>
+<li>[ ] Build WRITE command (Class 10)</li>
+<li>[ ] Add CRC to frames</li>
+<li>[ ] Validate frame length</li>
+</ul>
+<h3 id="frame-parser">Frame Parser</h3>
+<ul>
+<li>[ ] Parse start byte (0x27 or 0x24)</li>
+<li>[ ] Extract length field</li>
+<li>[ ] Extract service ID (0xE7)</li>
+<li>[ ] Extract source (0xF8)</li>
+<li>[ ] Extract APDU (class, op-spec, data)</li>
+<li>[ ] Validate CRC</li>
+<li>[ ] Handle invalid frames</li>
+</ul>
+<h2 id="phase-3-telemetry-required">Phase 3: Telemetry (REQUIRED)</h2>
+<h3 id="basic-telemetry">Basic Telemetry</h3>
+<ul>
+<li>[ ] Read motor state (Sub 0x45, Obj 0x57)</li>
+<li>[ ] Grid voltage</li>
+<li>[ ] Current</li>
+<li>[ ] DC power</li>
+<li>[ ] Speed (RPM)</li>
+<li>[ ] Converter temperature</li>
+<li>[ ] Read flow/pressure (Sub 0x122, Obj 0x5D)</li>
+<li>[ ] Flow rate (m³/h)</li>
+<li>[ ] Head (m)</li>
+<li>[ ] Inlet pressure (bar)</li>
+<li>[ ] Outlet pressure (bar)</li>
+<li>[ ] Read pump state (Sub 0x122, Obj 0x93)</li>
+<li>[ ] Run state (stopped/running)</li>
+<li>[ ] Control mode</li>
+<li>[ ] Operating hours</li>
+</ul>
+<h3 id="advanced-telemetry-optional">Advanced Telemetry (Optional)</h3>
+<ul>
+<li>[ ] Read temperature sensor (Sub 0x122, Obj 0x94)</li>
+<li>[ ] Read energy data (Sub 0x118, Obj 0x99)</li>
+<li>[ ] Read vibration data (Sub 0x45, Obj 0xC2)</li>
+<li>[ ] Read extended statistics</li>
+</ul>
+<h2 id="phase-4-control-operations-required">Phase 4: Control Operations (REQUIRED)</h2>
+<h3 id="basic-control">Basic Control</h3>
+<ul>
+<li>[ ] Start pump (Sub 0x5600, Obj 0x603, value=1)</li>
+<li>[ ] Stop pump (Sub 0x5600, Obj 0x603, value=0)</li>
+<li>[ ] Read current mode/setpoint (Sub 0x5600, Obj 0x006)</li>
+</ul>
+<h3 id="control-modes">Control Modes</h3>
+<ul>
+<li>[ ] Set constant pressure mode</li>
+<li>[ ] Convert meters to Pascals</li>
+<li>[ ] Validate range (0.5-10.0m)</li>
+<li>[ ] Send SET command</li>
+<li>[ ] Set differential pressure mode</li>
+<li>[ ] Convert meters to Pascals</li>
+<li>[ ] Validate range</li>
+<li>[ ] Send SET command</li>
+<li>[ ] Set constant flow mode (if supported)</li>
+<li>[ ] Convert m³/h to appropriate units</li>
+<li>[ ] Validate range</li>
+<li>[ ] Send SET command</li>
+<li>[ ] Set proportional pressure mode</li>
+<li>[ ] Validate range (0.0-1.0)</li>
+<li>[ ] Send SET command</li>
+</ul>
+<h2 id="phase-5-device-information-required">Phase 5: Device Information (REQUIRED)</h2>
+<h3 id="basic-device-info">Basic Device Info</h3>
+<ul>
+<li>[ ] Read firmware version</li>
+<li>[ ] Read serial number</li>
+<li>[ ] Read model name</li>
+<li>[ ] Read manufacture date</li>
+</ul>
+<h3 id="statistics">Statistics</h3>
+<ul>
+<li>[ ] Read operating hours</li>
+<li>[ ] Read start count</li>
+<li>[ ] Read energy consumption</li>
+<li>[ ] Read total flow</li>
+</ul>
+<h3 id="alarms">Alarms</h3>
+<ul>
+<li>[ ] Read alarm register</li>
+<li>[ ] Parse alarm bits</li>
+<li>[ ] Map alarm codes to descriptions</li>
+</ul>
+<h2 id="phase-6-schedule-management-optional">Phase 6: Schedule Management (OPTIONAL)</h2>
+<h3 id="schedule-operations">Schedule Operations</h3>
+<ul>
+<li>[ ] Read current schedule</li>
+<li>[ ] Parse schedule entries</li>
+<li>[ ] Add schedule entry (day, start, end)</li>
+<li>[ ] Remove schedule entry</li>
+<li>[ ] Clear all schedules</li>
+<li>[ ] Enable schedule mode</li>
+<li>[ ] Disable schedule mode</li>
+<li>[ ] Validate time format (HH:MM)</li>
+<li>[ ] Validate day of week</li>
+</ul>
+<h2 id="phase-7-configuration-optional">Phase 7: Configuration (OPTIONAL)</h2>
+<h3 id="backuprestore">Backup/Restore</h3>
+<ul>
+<li>[ ] Read all configuration values</li>
+<li>[ ] Serialize to JSON/format</li>
+<li>[ ] Write to file</li>
+<li>[ ] Read from file</li>
+<li>[ ] Deserialize configuration</li>
+<li>[ ] Write configuration to pump</li>
+<li>[ ] Verify configuration after write</li>
+</ul>
+<h3 id="settings">Settings</h3>
+<ul>
+<li>[ ] Read pump settings</li>
+<li>[ ] Update individual settings</li>
+<li>[ ] Validate settings ranges</li>
+<li>[ ] Factory reset (use with caution!)</li>
+</ul>
+<h2 id="phase-8-error-handling-required">Phase 8: Error Handling (REQUIRED)</h2>
+<h3 id="connection-errors">Connection Errors</h3>
+<ul>
+<li>[ ] Handle BLE connection failure</li>
+<li>[ ] Handle authentication failure</li>
+<li>[ ] Handle disconnection during operation</li>
+<li>[ ] Implement reconnection logic</li>
+<li>[ ] Timeout handling</li>
+</ul>
+<h3 id="protocol-errors">Protocol Errors</h3>
+<ul>
+<li>[ ] Handle invalid CRC</li>
+<li>[ ] Handle malformed packets</li>
+<li>[ ] Handle unexpected responses</li>
+<li>[ ] Handle NACK responses</li>
+</ul>
+<h3 id="application-errors">Application Errors</h3>
+<ul>
+<li>[ ] Validate user inputs</li>
+<li>[ ] Provide clear error messages</li>
+<li>[ ] Log errors for debugging</li>
+<li>[ ] Graceful degradation</li>
+</ul>
+<h2 id="phase-9-testing-required">Phase 9: Testing (REQUIRED)</h2>
+<h3 id="unit-tests">Unit Tests</h3>
+<ul>
+<li>[ ] Test codec encode/decode</li>
+<li>[ ] Test CRC calculation</li>
+<li>[ ] Test frame building</li>
+<li>[ ] Test frame parsing</li>
+<li>[ ] Test telemetry decoding</li>
+</ul>
+<h3 id="integration-tests">Integration Tests</h3>
+<ul>
+<li>[ ] Test full authentication sequence</li>
+<li>[ ] Test telemetry reading</li>
+<li>[ ] Test control commands</li>
+<li>[ ] Test schedule operations</li>
+<li>[ ] Test error scenarios</li>
+</ul>
+<h3 id="validation-tests">Validation Tests</h3>
+<ul>
+<li>[ ] Verify test vectors</li>
+<li>[ ] Test with real pump</li>
+<li>[ ] Cross-platform testing</li>
+<li>[ ] Performance testing</li>
+</ul>
+<h2 id="phase-10-documentation-recommended">Phase 10: Documentation (RECOMMENDED)</h2>
+<h3 id="code-documentation">Code Documentation</h3>
+<ul>
+<li>[ ] Document all public APIs</li>
+<li>[ ] Add usage examples</li>
+<li>[ ] Document error conditions</li>
+<li>[ ] Add inline comments for complex logic</li>
+</ul>
+<h3 id="user-documentation">User Documentation</h3>
+<ul>
+<li>[ ] Getting started guide</li>
+<li>[ ] API reference</li>
+<li>[ ] Examples/tutorials</li>
+<li>[ ] Troubleshooting guide</li>
+</ul>
+<h2 id="phase-11-packaging-recommended">Phase 11: Packaging (RECOMMENDED)</h2>
+<h3 id="build-distribution">Build &amp; Distribution</h3>
+<ul>
+<li>[ ] Package for distribution</li>
+<li>[ ] Version management</li>
+<li>[ ] Dependency management</li>
+<li>[ ] CI/CD pipeline</li>
+<li>[ ] Release process</li>
+</ul>
+<h3 id="quality-assurance">Quality Assurance</h3>
+<ul>
+<li>[ ] Code linting</li>
+<li>[ ] Type checking</li>
+<li>[ ] Security audit</li>
+<li>[ ] Performance profiling</li>
+</ul>
+<h2 id="success-criteria">Success Criteria</h2>
+<p>Your implementation is considered <strong>minimal</strong> when:
+- [x] Can connect and authenticate
+- [x] Can read basic telemetry (flow, pressure, speed)
+- [x] Can start/stop pump
+- [x] Can set control modes
+- [x] Handles errors gracefully</p>
+<p>Your implementation is considered <strong>complete</strong> when:
+- [x] All required features implemented
+- [x] Unit tests pass
+- [x] Integration tests pass
+- [x] Test vectors validated
+- [x] Documentation complete</p>
+<p>Your implementation is considered <strong>production-ready</strong> when:
+- [x] Error handling robust
+- [x] Performance optimized
+- [x] Security reviewed
+- [x] Cross-platform tested
+- [x] User feedback incorporated</p>
+<h2 id="language-specific-considerations">Language-Specific Considerations</h2>
+<h3 id="python">Python</h3>
+<ul>
+<li>Use <code>bleak</code> for BLE</li>
+<li>Use <code>asyncio</code> for async operations</li>
+<li>Use <code>struct</code> for binary packing</li>
+<li>Type hints with <code>typing</code></li>
+</ul>
+<h3 id="javascripttypescript">JavaScript/TypeScript</h3>
+<ul>
+<li>Use Web Bluetooth API or <code>noble</code></li>
+<li>Use Promises/async-await</li>
+<li>Use DataView for binary handling</li>
+<li>TypeScript for type safety</li>
+</ul>
+<h3 id="rust">Rust</h3>
+<ul>
+<li>Use <code>btleplug</code> for BLE</li>
+<li>Use <code>tokio</code> for async</li>
+<li>Use <code>byteorder</code> for endianness</li>
+<li>Leverage type system for safety</li>
+</ul>
+<h3 id="cc">C/C++</h3>
+<ul>
+<li>Platform-specific BLE libraries</li>
+<li>Manual memory management</li>
+<li>Use standard network byte order functions</li>
+<li>Consider using smart pointers</li>
+</ul>
+<h3 id="go">Go</h3>
+<ul>
+<li>Use <code>tinygo-org/bluetooth</code> or <code>paypal/gatt</code></li>
+<li>Use goroutines for concurrency</li>
+<li>Use <code>encoding/binary</code> for byte order</li>
+<li>Error handling via return values</li>
+</ul>
+<h2 id="progress-tracking">Progress Tracking</h2>
+<p>Track your progress by marking items as you complete them:</p>
+<ul>
+<li><strong>Phase 1-2</strong>: Core &amp; Protocol (2-3 days)</li>
+<li><strong>Phase 3-5</strong>: Telemetry &amp; Control (3-4 days)</li>
+<li><strong>Phase 6-7</strong>: Advanced Features (2-3 days)</li>
+<li><strong>Phase 8-9</strong>: Error Handling &amp; Testing (2-3 days)</li>
+<li><strong>Phase 10-11</strong>: Documentation &amp; Packaging (1-2 days)</li>
+</ul>
+<p><strong>Total estimated time</strong>: 2-3 weeks for full implementation</p>
+<h2 id="next-steps">Next Steps</h2>
+<ol>
+<li>Start with Phase 1 (Core Foundation)</li>
+<li>Use <a href="../test_vectors/">test_vectors.md</a> to validate each phase</li>
+<li>Refer to <a href="../common_pitfalls/">common_pitfalls.md</a> when stuck</li>
+<li>Review <a href="../architecture/">architecture.md</a> for design guidance</li>
+<li>Follow <a href="../layer_by_layer/">layer_by_layer.md</a> for detailed steps</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": "0.1.dev1+g5ceb7604e"}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

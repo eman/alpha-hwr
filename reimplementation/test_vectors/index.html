@@ -1,0 +1,3961 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Independent implementation and control documentation for Grundfos ALPHA HWR pumps.">
+      
+      
+      
+      
+        <link rel="prev" href="../checklist/">
+      
+      
+        <link rel="next" href="../common_pitfalls/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Test Vectors - Alpha HWR Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#test-vectors" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Alpha HWR Documentation" class="md-header__button md-logo" aria-label="Alpha HWR Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Alpha HWR Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Test Vectors
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="light-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting_started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/cli_guide/" class="md-tabs__link">
+          
+  
+  
+  User Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../protocol/architecture/" class="md-tabs__link">
+          
+  
+  
+  Protocol Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  Reimplementation Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/client/" class="md-tabs__link">
+          
+  
+  
+  Python API
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/hardware/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../troubleshooting/service_discovery/" class="md-tabs__link">
+          
+  
+  
+  Troubleshooting
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../integrations/esphome/" class="md-tabs__link">
+          
+  
+  
+  Integrations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../TESTING_STRATEGY/" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Alpha HWR Documentation" class="md-nav__button md-logo" aria-label="Alpha HWR Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Alpha HWR Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/quick_start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/cli_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/device-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/understanding_telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Understanding Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/control_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes & Setpoints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/backup_restore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/historical_data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/time_management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Protocol Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Protocol Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/ble_architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BLE Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection & Auth
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/wire_format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wire Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry & Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/control/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control & Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/control_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control Modes Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/autoadapt_modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoAdapt Modes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/schedules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schedule Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/device_info/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Device Information
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/energy_power/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & Power
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_12" id="__nav_4_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packet Traces
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Packet Traces
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/01_connection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/02_authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/03_telemetry_stream/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry Stream
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/04_set_mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/packet_traces/05_schedule_write/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Schedule Write
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reimplementation Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reimplementation Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../layer_by_layer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layer-by-Layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../checklist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Vectors
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Vectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-crc-16modbus-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. CRC-16/MODBUS Calculation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. CRC-16/MODBUS Calculation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-11-simple-packet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 1.1: Simple Packet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-12-authentication-packet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 1.2: Authentication Packet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-13-zero-length-payload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 1.3: Zero-Length Payload
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-ieee-754-big-endian-float-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. IEEE 754 Big-Endian Float Encoding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. IEEE 754 Big-Endian Float Encoding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-21-positive-float-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 2.1: Positive Float (1.5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-22-pressure-value-147100-pa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 2.2: Pressure Value (14710.0 Pa)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-23-small-flow-rate-05-m3h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 2.3: Small Flow Rate (0.5 m³/h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-24-zero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 2.4: Zero
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-25-negative-temperature-55c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 2.5: Negative Temperature (-5.5°C)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-uint16-big-endian-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Uint16 Big-Endian Encoding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Uint16 Big-Endian Encoding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-31-small-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 3.1: Small Value
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-32-max-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 3.2: Max Value
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-33-sub-id-0x5600" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 3.3: Sub ID (0x5600)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-uint32-big-endian-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Uint32 Big-Endian Encoding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Uint32 Big-Endian Encoding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-41-register-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 4.1: Register Address
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-42-operating-hours" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 4.2: Operating Hours
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-complete-frame-building" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Complete Frame Building
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Complete Frame Building">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-51-legacy-magic-packet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 5.1: Legacy Magic Packet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-52-class-10-unlock-packet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 5.2: Class 10 Unlock Packet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-53-info-command-read-temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 5.3: Info Command (Read Temperature)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-54-class-10-set-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 5.4: Class 10 SET Command
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-frame-parsing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Frame Parsing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Frame Parsing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-61-parse-response-frame" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 6.1: Parse Response Frame
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-62-parse-telemetry-notification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 6.2: Parse Telemetry Notification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-telemetry-decoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Telemetry Decoding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Telemetry Decoding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-71-motor-state-payload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 7.1: Motor State Payload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-72-flowpressure-payload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 7.2: Flow/Pressure Payload
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-unit-conversions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Unit Conversions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Unit Conversions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-81-meters-to-pascals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 8.1: Meters to Pascals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-82-pascals-to-meters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 8.2: Pascals to Meters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-83-bar-to-pascals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 8.3: Bar to Pascals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-end-to-end-test-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. End-to-End Test Scenarios
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. End-to-End Test Scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scenario-91-read-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 9.1: Read Telemetry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-92-set-control-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 9.2: Set Control Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-error-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Error Cases
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Error Cases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-101-invalid-crc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 10.1: Invalid CRC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-102-invalid-start-byte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 10.2: Invalid Start Byte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-103-length-mismatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 10.3: Length Mismatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-active-query-info-response-parsing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Active Query (INFO) Response Parsing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Active Query (INFO) Response Parsing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-111-flowpressure-query-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 11.1: Flow/Pressure Query Response
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#language-specific-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language-Specific Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Language-Specific Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#javascript" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JavaScript
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference Implementation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../common_pitfalls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common Pitfalls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/client/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/services/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/data_models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Troubleshooting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/service_discovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Service Discovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integrations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/esphome/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ESPHome / ESP32
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../TESTING_STRATEGY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-crc-16modbus-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. CRC-16/MODBUS Calculation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. CRC-16/MODBUS Calculation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-11-simple-packet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 1.1: Simple Packet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-12-authentication-packet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 1.2: Authentication Packet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-13-zero-length-payload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 1.3: Zero-Length Payload
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-ieee-754-big-endian-float-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. IEEE 754 Big-Endian Float Encoding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. IEEE 754 Big-Endian Float Encoding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-21-positive-float-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 2.1: Positive Float (1.5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-22-pressure-value-147100-pa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 2.2: Pressure Value (14710.0 Pa)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-23-small-flow-rate-05-m3h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 2.3: Small Flow Rate (0.5 m³/h)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-24-zero" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 2.4: Zero
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-25-negative-temperature-55c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 2.5: Negative Temperature (-5.5°C)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-uint16-big-endian-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Uint16 Big-Endian Encoding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Uint16 Big-Endian Encoding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-31-small-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 3.1: Small Value
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-32-max-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 3.2: Max Value
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-33-sub-id-0x5600" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 3.3: Sub ID (0x5600)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-uint32-big-endian-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Uint32 Big-Endian Encoding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Uint32 Big-Endian Encoding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-41-register-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 4.1: Register Address
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-42-operating-hours" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 4.2: Operating Hours
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-complete-frame-building" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Complete Frame Building
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Complete Frame Building">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-51-legacy-magic-packet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 5.1: Legacy Magic Packet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-52-class-10-unlock-packet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 5.2: Class 10 Unlock Packet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-53-info-command-read-temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 5.3: Info Command (Read Temperature)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-54-class-10-set-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 5.4: Class 10 SET Command
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-frame-parsing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Frame Parsing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Frame Parsing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-61-parse-response-frame" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 6.1: Parse Response Frame
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-62-parse-telemetry-notification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 6.2: Parse Telemetry Notification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-telemetry-decoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Telemetry Decoding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Telemetry Decoding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-71-motor-state-payload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 7.1: Motor State Payload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-72-flowpressure-payload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 7.2: Flow/Pressure Payload
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-unit-conversions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Unit Conversions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Unit Conversions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-81-meters-to-pascals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 8.1: Meters to Pascals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-82-pascals-to-meters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 8.2: Pascals to Meters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-83-bar-to-pascals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 8.3: Bar to Pascals
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-end-to-end-test-scenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. End-to-End Test Scenarios
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. End-to-End Test Scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scenario-91-read-telemetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 9.1: Read Telemetry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scenario-92-set-control-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario 9.2: Set Control Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-error-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Error Cases
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Error Cases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-101-invalid-crc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 10.1: Invalid CRC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-102-invalid-start-byte" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 10.2: Invalid Start Byte
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-103-length-mismatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 10.3: Length Mismatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-active-query-info-response-parsing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Active Query (INFO) Response Parsing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Active Query (INFO) Response Parsing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-vector-111-flowpressure-query-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Vector 11.1: Flow/Pressure Query Response
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#language-specific-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Language-Specific Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Language-Specific Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#javascript" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JavaScript
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rust
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference Implementation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="test-vectors">Test Vectors</h1>
+<p>This document provides test vectors for validating your implementation. Each section includes inputs, expected outputs, and explanations.</p>
+<h2 id="1-crc-16modbus-calculation">1. CRC-16/MODBUS Calculation</h2>
+<p>All GENI frames use CRC-16/MODBUS (polynomial 0x8005, initial value 0xFFFF).</p>
+<h3 id="test-vector-11-simple-packet">Test Vector 1.1: Simple Packet</h3>
+<p><strong>Input bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>0x27 0x07 0xE7 0xF8 0x02 0x03 0x94 0x95 0x96
+</code></pre></div></p>
+<p><strong>Expected CRC:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>0xEB47
+</code></pre></div></p>
+<p><strong>Breakdown:</strong>
+- CRC bytes: <code>0xEB</code> (high), <code>0x47</code> (low)
+- Full packet: <code>27 07 E7 F8 02 03 94 95 96 EB 47</code></p>
+<p><strong>Validation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">data</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0x27</span><span class="p">,</span> <span class="mh">0x07</span><span class="p">,</span> <span class="mh">0xE7</span><span class="p">,</span> <span class="mh">0xF8</span><span class="p">,</span> <span class="mh">0x02</span><span class="p">,</span> <span class="mh">0x03</span><span class="p">,</span> <span class="mh">0x94</span><span class="p">,</span> <span class="mh">0x95</span><span class="p">,</span> <span class="mh">0x96</span><span class="p">])</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">crc</span> <span class="o">=</span> <span class="n">calculate_crc16_modbus</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">assert</span> <span class="n">crc</span> <span class="o">==</span> <span class="mh">0xEB47</span>
+</code></pre></div></p>
+<h3 id="test-vector-12-authentication-packet">Test Vector 1.2: Authentication Packet</h3>
+<p><strong>Input bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>0x27 0x07 0xE7 0xF8 0x0A 0x03 0x56 0x00 0x06
+</code></pre></div></p>
+<p><strong>Expected CRC:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>0xC55A
+</code></pre></div></p>
+<p><strong>Full packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>27 07 E7 F8 0A 03 56 00 06 C5 5A
+</code></pre></div></p>
+<h3 id="test-vector-13-zero-length-payload">Test Vector 1.3: Zero-Length Payload</h3>
+<p><strong>Input bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>0x27 0x05 0xE7 0xF8
+</code></pre></div></p>
+<p><strong>Expected CRC:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>0x1F0D
+</code></pre></div></p>
+<h2 id="2-ieee-754-big-endian-float-encoding">2. IEEE 754 Big-Endian Float Encoding</h2>
+<p>All float values use IEEE 754 single-precision big-endian format.</p>
+<h3 id="test-vector-21-positive-float-15">Test Vector 2.1: Positive Float (1.5)</h3>
+<p><strong>Decimal Value:</strong> <code>1.5</code></p>
+<p><strong>Expected Bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>0x3F 0xC0 0x00 0x00
+</code></pre></div></p>
+<p><strong>Binary Breakdown:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>Sign: 0 (positive)
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>Exponent: 01111111 (127, biased)
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>Mantissa: 10000000000000000000000
+</code></pre></div></p>
+<p><strong>Validation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">value</span> <span class="o">=</span> <span class="mf">1.5</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">encoded</span> <span class="o">=</span> <span class="n">encode_float_be</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="k">assert</span> <span class="n">encoded</span> <span class="o">==</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0x3F</span><span class="p">,</span> <span class="mh">0xC0</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">])</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">decoded</span> <span class="o">=</span> <span class="n">decode_float_be</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">assert</span> <span class="n">decoded</span> <span class="o">==</span> <span class="mf">1.5</span>
+</code></pre></div></p>
+<h3 id="test-vector-22-pressure-value-147100-pa">Test Vector 2.2: Pressure Value (14710.0 Pa)</h3>
+<p><strong>Decimal Value:</strong> <code>14710.0</code> (1.5m water = 14710 Pa)</p>
+<p><strong>Expected Bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>0x46 0xE5 0xB0 0x00
+</code></pre></div></p>
+<p><strong>Validation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">pressure_pa</span> <span class="o">=</span> <span class="mf">14710.0</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">encoded</span> <span class="o">=</span> <span class="n">encode_float_be</span><span class="p">(</span><span class="n">pressure_pa</span><span class="p">)</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">assert</span> <span class="n">encoded</span> <span class="o">==</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0x46</span><span class="p">,</span> <span class="mh">0xE5</span><span class="p">,</span> <span class="mh">0xB0</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">])</span>
+</code></pre></div></p>
+<h3 id="test-vector-23-small-flow-rate-05-m3h">Test Vector 2.3: Small Flow Rate (0.5 m³/h)</h3>
+<p><strong>Decimal Value:</strong> <code>0.5</code></p>
+<p><strong>Expected Bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>0x3F 0x00 0x00 0x00
+</code></pre></div></p>
+<h3 id="test-vector-24-zero">Test Vector 2.4: Zero</h3>
+<p><strong>Decimal Value:</strong> <code>0.0</code></p>
+<p><strong>Expected Bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>0x00 0x00 0x00 0x00
+</code></pre></div></p>
+<h3 id="test-vector-25-negative-temperature-55c">Test Vector 2.5: Negative Temperature (-5.5°C)</h3>
+<p><strong>Decimal Value:</strong> <code>-5.5</code></p>
+<p><strong>Expected Bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>0xC0 0xB0 0x00 0x00
+</code></pre></div></p>
+<p><strong>Note:</strong> Sign bit is 1 for negative numbers.</p>
+<h2 id="3-uint16-big-endian-encoding">3. Uint16 Big-Endian Encoding</h2>
+<h3 id="test-vector-31-small-value">Test Vector 3.1: Small Value</h3>
+<p><strong>Decimal Value:</strong> <code>256</code></p>
+<p><strong>Expected Bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>0x01 0x00
+</code></pre></div></p>
+<h3 id="test-vector-32-max-value">Test Vector 3.2: Max Value</h3>
+<p><strong>Decimal Value:</strong> <code>65535</code></p>
+<p><strong>Expected Bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>0xFF 0xFF
+</code></pre></div></p>
+<h3 id="test-vector-33-sub-id-0x5600">Test Vector 3.3: Sub ID (0x5600)</h3>
+<p><strong>Decimal Value:</strong> <code>0x5600</code> (22016)</p>
+<p><strong>Expected Bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>0x56 0x00
+</code></pre></div></p>
+<h2 id="4-uint32-big-endian-encoding">4. Uint32 Big-Endian Encoding</h2>
+<h3 id="test-vector-41-register-address">Test Vector 4.1: Register Address</h3>
+<p><strong>Decimal Value:</strong> <code>0x5D012C</code> (6095148)</p>
+<p><strong>Expected Bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>0x00 0x5D 0x01 0x2C
+</code></pre></div></p>
+<h3 id="test-vector-42-operating-hours">Test Vector 4.2: Operating Hours</h3>
+<p><strong>Decimal Value:</strong> <code>123456</code> seconds</p>
+<p><strong>Expected Bytes:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>0x00 0x01 0xE2 0x40
+</code></pre></div></p>
+<h2 id="5-complete-frame-building">5. Complete Frame Building</h2>
+<h3 id="test-vector-51-legacy-magic-packet">Test Vector 5.1: Legacy Magic Packet</h3>
+<p><strong>Purpose:</strong> First authentication packet</p>
+<p><strong>Expected Full Packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>27 07 E7 F8 02 03 94 95 96 EB 47
+</code></pre></div></p>
+<p><strong>Breakdown:</strong>
+- <code>27</code>: Start byte
+- <code>07</code>: Length (7 bytes including start and length)
+- <code>E7</code>: Service ID
+- <code>F8</code>: Source address
+- <code>02 03 94 95 96</code>: Payload (Class 2, OpSpec 0x03, Register 0x9495, Value 0x96)
+- <code>EB 47</code>: CRC-16</p>
+<h3 id="test-vector-52-class-10-unlock-packet">Test Vector 5.2: Class 10 Unlock Packet</h3>
+<p><strong>Purpose:</strong> Unlock Class 10 commands</p>
+<p><strong>Expected Full Packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>27 07 E7 F8 0A 03 56 00 06 C5 5A
+</code></pre></div></p>
+<p><strong>Breakdown:</strong>
+- <code>27</code>: Start byte
+- <code>07</code>: Length
+- <code>E7</code>: Service ID
+- <code>F8</code>: Source
+- <code>0A</code>: Class byte (Class 10)
+- <code>03 56 00 06</code>: APDU (OpSpec 0x03, Sub 0x5600, Obj 0x0006)
+- <code>C5 5A</code>: CRC-16</p>
+<h3 id="test-vector-53-info-command-read-temperature">Test Vector 5.3: Info Command (Read Temperature)</h3>
+<p><strong>Purpose:</strong> Read register 0x5D012C</p>
+<p><strong>Expected Full Packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>27 0B E7 F8 03 02 00 5D 01 2C 00 XX XX
+</code></pre></div></p>
+<p><strong>Breakdown:</strong>
+- <code>27</code>: Start byte
+- <code>0B</code>: Length (11 bytes)
+- <code>E7</code>: Service ID
+- <code>F8</code>: Source
+- <code>03</code>: Class 3
+- <code>02</code>: Op-spec (INFO)
+- <code>00 5D 01 2C</code>: Register address (big-endian)
+- <code>00</code>: Additional byte
+- <code>XX XX</code>: CRC-16 (calculate)</p>
+<h3 id="test-vector-54-class-10-set-command">Test Vector 5.4: Class 10 SET Command</h3>
+<p><strong>Purpose:</strong> Set constant pressure mode to 1.5m</p>
+<p><strong>Parameters:</strong>
+- Sub ID: <code>0x5600</code>
+- Obj ID: <code>0x0601</code>
+- Value: <code>1.5m</code> = <code>14710.0 Pa</code></p>
+<p><strong>Expected Packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>27 10 E7 F8 0A 14 56 00 06 01 46 E5 B0 00 XX XX
+</code></pre></div></p>
+<p><strong>Breakdown:</strong>
+- <code>27</code>: Start byte
+- <code>10</code>: Length (16 bytes)
+- <code>E7</code>: Service ID
+- <code>F8</code>: Source
+- <code>0A</code>: Class 10
+- <code>14</code>: Op-spec (SET)
+- <code>56 00</code>: Sub ID (big-endian)
+- <code>06 01</code>: Obj ID (big-endian)
+- <code>46 E5 B0 00</code>: Float value (14710.0)
+- <code>XX XX</code>: CRC-16 (calculate)</p>
+<h2 id="6-frame-parsing">6. Frame Parsing</h2>
+<h3 id="test-vector-61-parse-response-frame">Test Vector 6.1: Parse Response Frame</h3>
+<p><strong>Input Packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>24 0E E7 20 0A 34 56 00 06 01 46 E5 B0 00 XX XX
+</code></pre></div></p>
+<p><strong>Expected Parsed Result:</strong>
+- Start byte: <code>0x24</code> (response)
+- Length: <code>0x0E</code> (14 bytes)
+- Service ID: <code>0xE7</code>
+- Source: <code>0x20</code> (pump)
+- Class: <code>0x0A</code> (Class 10)
+- Op-spec: <code>0x34</code> (SET response)
+- Sub ID: <code>0x5600</code>
+- Obj ID: <code>0x0601</code>
+- Payload: <code>46 E5 B0 00</code> (float 14710.0)
+- CRC valid: <code>true</code></p>
+<h3 id="test-vector-62-parse-telemetry-notification">Test Vector 6.2: Parse Telemetry Notification</h3>
+<p><strong>Input Packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>24 XX E7 20 0A 34 00 45 00 57 [44 bytes of telemetry] XX XX
+</code></pre></div></p>
+<p><strong>Expected Parsed Result:</strong>
+- Response frame
+- Class 10
+- Sub ID: <code>0x0045</code> (motor state)
+- Obj ID: <code>0x0057</code>
+- Payload: 44 bytes of motor telemetry data</p>
+<h2 id="7-telemetry-decoding">7. Telemetry Decoding</h2>
+<h3 id="test-vector-71-motor-state-payload">Test Vector 7.1: Motor State Payload</h3>
+<p><strong>Input Payload (44 bytes):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>43 66 00 00  // Offset 0-3: Grid voltage (230.0V)
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>3E CC CC CD  // Offset 8-11: Current (0.4A)
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>42 48 00 00  // Offset 16-19: Power (50.0W)
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>44 BB 80 00  // Offset 20-23: Speed (1500.0 RPM)
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>42 28 00 00  // Offset 24-27: Temperature (42.0°C)
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a>...
+</code></pre></div></p>
+<p><strong>Expected Decoded Values:</strong>
+- Grid voltage: <code>230.0 V</code>
+- Current: <code>0.4 A</code>
+- Power: <code>50.0 W</code>
+- Speed: <code>1500.0 RPM</code>
+- Temperature: <code>42.0 °C</code></p>
+<h3 id="test-vector-72-flowpressure-payload">Test Vector 7.2: Flow/Pressure Payload</h3>
+<p><strong>Input Payload (16 bytes):</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>3F 00 00 00  // Offset 0-3: Flow (0.5 m³/h)
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>3F C0 00 00  // Offset 4-7: Head (1.5 m)
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>40 00 00 00  // Offset 8-11: Inlet pressure (2.0 bar)
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>40 40 00 00  // Offset 12-15: Outlet pressure (3.0 bar)
+</code></pre></div></p>
+<p><strong>Expected Decoded Values:</strong>
+- Flow: <code>0.5 m³/h</code>
+- Head: <code>1.5 m</code>
+- Inlet pressure: <code>2.0 bar</code>
+- Outlet pressure: <code>3.0 bar</code></p>
+<h2 id="8-unit-conversions">8. Unit Conversions</h2>
+<h3 id="test-vector-81-meters-to-pascals">Test Vector 8.1: Meters to Pascals</h3>
+<p><strong>Input:</strong> <code>1.5 m</code> (head)</p>
+<p><strong>Calculation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>pascals = meters × 9806.65
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>pascals = 1.5 × 9806.65
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>pascals = 14709.975 ≈ 14710.0
+</code></pre></div></p>
+<p><strong>Expected Output:</strong> <code>14710.0 Pa</code></p>
+<h3 id="test-vector-82-pascals-to-meters">Test Vector 8.2: Pascals to Meters</h3>
+<p><strong>Input:</strong> <code>14710.0 Pa</code></p>
+<p><strong>Calculation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>meters = pascals / 9806.65
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>meters = 14710.0 / 9806.65
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>meters = 1.5
+</code></pre></div></p>
+<p><strong>Expected Output:</strong> <code>1.5 m</code></p>
+<h3 id="test-vector-83-bar-to-pascals">Test Vector 8.3: Bar to Pascals</h3>
+<p><strong>Input:</strong> <code>2.5 bar</code></p>
+<p><strong>Calculation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>pascals = bar × 100000
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>pascals = 2.5 × 100000
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>pascals = 250000.0
+</code></pre></div></p>
+<p><strong>Expected Output:</strong> <code>250000.0 Pa</code></p>
+<h2 id="9-end-to-end-test-scenarios">9. End-to-End Test Scenarios</h2>
+<h3 id="scenario-91-read-telemetry">Scenario 9.1: Read Telemetry</h3>
+<p><strong>Step 1: Send INFO command</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>TX: 27 0D E7 F8 0A 02 00 45 00 57 00 XX XX
+</code></pre></div></p>
+<p><strong>Step 2: Receive response</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>RX: 24 XX E7 20 0A 34 00 45 00 57 [44 bytes] XX XX
+</code></pre></div></p>
+<p><strong>Step 3: Decode motor state</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>Grid: 230.0V
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>Speed: 1500.0 RPM
+<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a>Power: 50.0W
+</code></pre></div></p>
+<h3 id="scenario-92-set-control-mode">Scenario 9.2: Set Control Mode</h3>
+<p><strong>Step 1: Build SET command (1.5m constant pressure)</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>TX: 27 10 E7 F8 0A 14 56 00 06 01 46 E5 B0 00 XX XX
+</code></pre></div></p>
+<p><strong>Step 2: Receive ACK</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>RX: 24 0A E7 20 0A 34 56 00 06 01 XX XX
+</code></pre></div></p>
+<p><strong>Step 3: Verify mode</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>Mode: Constant Pressure
+<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>Setpoint: 1.5m
+</code></pre></div></p>
+<h2 id="10-error-cases">10. Error Cases</h2>
+<h3 id="test-vector-101-invalid-crc">Test Vector 10.1: Invalid CRC</h3>
+<p><strong>Input Packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>27 07 E7 F8 02 03 94 95 96 FF FF
+</code></pre></div></p>
+<p><strong>Expected Result:</strong>
+- CRC validation: <code>FAIL</code>
+- Expected CRC: <code>0xEB47</code>
+- Actual CRC: <code>0xFFFF</code>
+- Action: Reject packet</p>
+<h3 id="test-vector-102-invalid-start-byte">Test Vector 10.2: Invalid Start Byte</h3>
+<p><strong>Input Packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>FF 06 E7 F8 00 67 A3 E3
+</code></pre></div></p>
+<p><strong>Expected Result:</strong>
+- Invalid start byte (expected <code>0x27</code> or <code>0x24</code>)
+- Action: Discard packet</p>
+<h3 id="test-vector-103-length-mismatch">Test Vector 10.3: Length Mismatch</h3>
+<p><strong>Input Packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>27 99 E7 F8 00 67 A3 E3
+</code></pre></div></p>
+<p><strong>Expected Result:</strong>
+- Declared length: <code>0x99</code> (153 bytes)
+- Actual packet: 8 bytes
+- Action: Timeout or discard</p>
+<h2 id="11-active-query-info-response-parsing">11. Active Query (INFO) Response Parsing</h2>
+<p>Modern implementations use INFO queries to poll telemetry. These responses have a different header layout and specific field offsets.</p>
+<h3 id="test-vector-111-flowpressure-query-response">Test Vector 11.1: Flow/Pressure Query Response</h3>
+<p><strong>Purpose</strong>: Parse and decode a 51-byte response to a Flow/Pressure query (OpSpec 0x2B).</p>
+<p><strong>Input Packet:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>24 2F F8 E7 0A 2B 00 02 35 02 00 00 24 39 0A A4 26 46 E5 8A C2 7F FF FF FF 7F FF FF FF 7F FF FF FF 7F FF FF FF 3E F3 B4 8B 40 3F CC D4 3F 60 9F C2 BC 06
+</code></pre></div></p>
+<p><strong>Header Breakdown:</strong>
+- <code>24</code>: Start Delimiter (Response)
+- <code>2F</code>: Length (47 bytes remaining)
+- <code>F8</code>: Destination (Client)
+- <code>E7</code>: Source (Service)
+- <code>0A</code>: Class 10
+- <code>2B</code>: <strong>OpSpec (INFO Response)</strong>
+- <code>00 02</code>: Sequence Number
+- <code>35 02</code>: Identifier (matches Query)
+- <code>00 00</code>: Reserved
+- <code>24</code>: <strong>Data Array Length</strong> (36 bytes = 9 floats)</p>
+<p><strong>Data Array Breakdown (Floats starting at offset 13):</strong>
+- Offset 13 (+0): <code>39 0A A4 26</code> (Reserved/Unknown)
+- Offset 17 (+4): <code>46 E5 8A C2</code> (Reserved/Unknown)
+- Offset 21 (+8): <code>7F FF FF FF</code> (NaN)
+- Offset 25 (+12): <code>7F FF FF FF</code> (NaN)
+- Offset 29 (+16): <code>7F FF FF FF</code> (NaN)
+- Offset 33 (+20): <code>7F FF FF FF</code> (NaN)
+- Offset 37 (+24): <code>3E F3 B4 8B</code> = <strong>0.476 m³/h</strong> (Flow Rate)
+- Offset 41 (+28): <code>40 3F CC D4</code> = <strong>2.997 m</strong> (Head Pressure)
+- Offset 45 (+32): <code>3F 60 9F C2</code> = <strong>0.877 bar</strong> (Inlet Pressure)</p>
+<p><strong>Expected Decoded Values:</strong>
+- Flow: <code>0.476 m³/h</code>
+- Head: <code>2.997 m</code>
+- Inlet Pressure: <code>0.877 bar</code></p>
+<p><strong>Validation:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="n">packet</span> <span class="o">=</span> <span class="nb">bytes</span><span class="o">.</span><span class="n">fromhex</span><span class="p">(</span><span class="s2">&quot;242ff8e70a2b00023502000024390aa42646e58ac27fffffff7fffffff7fffffff7fffffff3ef3b48b403fccd43f609fc2bc06&quot;</span><span class="p">)</span>
+<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a><span class="n">frame</span> <span class="o">=</span> <span class="n">FrameParser</span><span class="o">.</span><span class="n">parse_frame</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+<a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a><span class="k">assert</span> <span class="n">frame</span><span class="o">.</span><span class="n">obj_id</span> <span class="o">==</span> <span class="mh">0x3502</span>
+<a id="__codelineno-42-4" name="__codelineno-42-4" href="#__codelineno-42-4"></a><span class="n">data</span> <span class="o">=</span> <span class="n">TelemetryDecoder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+<a id="__codelineno-42-5" name="__codelineno-42-5" href="#__codelineno-42-5"></a><span class="k">assert</span> <span class="nb">round</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;flow_m3h&quot;</span><span class="p">],</span> <span class="mi">3</span><span class="p">)</span> <span class="o">==</span> <span class="mf">0.476</span>
+<a id="__codelineno-42-6" name="__codelineno-42-6" href="#__codelineno-42-6"></a><span class="k">assert</span> <span class="nb">round</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;head_m&quot;</span><span class="p">],</span> <span class="mi">3</span><span class="p">)</span> <span class="o">==</span> <span class="mf">2.997</span>
+</code></pre></div></p>
+<h2 id="validation-checklist">Validation Checklist</h2>
+<p>Use these test vectors to validate your implementation:</p>
+<ul>
+<li>[ ] CRC calculation matches all test vectors</li>
+<li>[ ] Float encoding produces correct bytes</li>
+<li>[ ] Float decoding produces correct values</li>
+<li>[ ] Uint16/32 encoding is big-endian</li>
+<li>[ ] Frame building produces valid packets</li>
+<li>[ ] Frame parsing extracts correct fields</li>
+<li>[ ] Telemetry decoding matches expected values</li>
+<li>[ ] Unit conversions are accurate</li>
+<li>[ ] Error cases handled correctly</li>
+</ul>
+<h2 id="language-specific-examples">Language-Specific Examples</h2>
+<h3 id="python">Python</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_float_encoding</span><span class="p">():</span>
+<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>    <span class="k">assert</span> <span class="n">encode_float_be</span><span class="p">(</span><span class="mf">1.5</span><span class="p">)</span> <span class="o">==</span> <span class="sa">b</span><span class="s1">&#39;</span><span class="se">\x3f\xc0\x00\x00</span><span class="s1">&#39;</span>
+<a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a>    <span class="k">assert</span> <span class="n">decode_float_be</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;</span><span class="se">\x3f\xc0\x00\x00</span><span class="s1">&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="mf">1.5</span>
+<a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a>
+<a id="__codelineno-43-5" name="__codelineno-43-5" href="#__codelineno-43-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_crc</span><span class="p">():</span>
+<a id="__codelineno-43-6" name="__codelineno-43-6" href="#__codelineno-43-6"></a>    <span class="n">data</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0x27</span><span class="p">,</span> <span class="mh">0x06</span><span class="p">,</span> <span class="mh">0xE7</span><span class="p">,</span> <span class="mh">0xF8</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x67</span><span class="p">])</span>
+<a id="__codelineno-43-7" name="__codelineno-43-7" href="#__codelineno-43-7"></a>    <span class="k">assert</span> <span class="n">calculate_crc16_modbus</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mh">0xA3E3</span>
+</code></pre></div>
+<h3 id="javascript">JavaScript</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="kd">function</span><span class="w"> </span><span class="nx">testFloatEncoding</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">encoded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">encodeFloatBE</span><span class="p">(</span><span class="mf">1.5</span><span class="p">);</span>
+<a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="w">  </span><span class="nx">assert</span><span class="p">.</span><span class="nx">deepEqual</span><span class="p">(</span><span class="nx">encoded</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mh">0x3F</span><span class="p">,</span><span class="w"> </span><span class="mh">0xC0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">]);</span>
+<a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a>
+<a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">decoded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">decodeFloatBE</span><span class="p">([</span><span class="mh">0x3F</span><span class="p">,</span><span class="w"> </span><span class="mh">0xC0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">]);</span>
+<a id="__codelineno-44-6" name="__codelineno-44-6" href="#__codelineno-44-6"></a><span class="w">  </span><span class="nx">assert</span><span class="p">.</span><span class="nx">equal</span><span class="p">(</span><span class="nx">decoded</span><span class="p">,</span><span class="w"> </span><span class="mf">1.5</span><span class="p">);</span>
+<a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="rust">Rust</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a><span class="cp">#[test]</span>
+<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a><span class="k">fn</span><span class="w"> </span><span class="nf">test_float_encoding</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-45-3" name="__codelineno-45-3" href="#__codelineno-45-3"></a><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">encoded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">encode_float_be</span><span class="p">(</span><span class="mf">1.5</span><span class="p">);</span>
+<a id="__codelineno-45-4" name="__codelineno-45-4" href="#__codelineno-45-4"></a><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">encoded</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="mh">0x3F</span><span class="p">,</span><span class="w"> </span><span class="mh">0xC0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">]);</span>
+<a id="__codelineno-45-5" name="__codelineno-45-5" href="#__codelineno-45-5"></a>
+<a id="__codelineno-45-6" name="__codelineno-45-6" href="#__codelineno-45-6"></a><span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">decoded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">decode_float_be</span><span class="p">(</span><span class="o">&amp;</span><span class="p">[</span><span class="mh">0x3F</span><span class="p">,</span><span class="w"> </span><span class="mh">0xC0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">]);</span>
+<a id="__codelineno-45-7" name="__codelineno-45-7" href="#__codelineno-45-7"></a><span class="w">    </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">decoded</span><span class="p">,</span><span class="w"> </span><span class="mf">1.5</span><span class="p">);</span>
+<a id="__codelineno-45-8" name="__codelineno-45-8" href="#__codelineno-45-8"></a><span class="p">}</span>
+</code></pre></div>
+<h2 id="reference-implementation">Reference Implementation</h2>
+<p>See the Python implementation for complete examples:
+- <code>src/alpha_hwr/protocol_new/codec.py</code> - Encoding/decoding
+- <code>src/alpha_hwr/protocol_new/frame_builder.py</code> - Frame construction
+- <code>src/alpha_hwr/protocol_new/frame_parser.py</code> - Frame parsing
+- <code>tests/protocol_new/</code> - Test suite with all vectors</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<p>If your implementation fails validation:</p>
+<ol>
+<li><strong>CRC mismatch</strong>: Verify polynomial (0x8005) and initial value (0xFFFF)</li>
+<li><strong>Float encoding wrong</strong>: Ensure big-endian (network byte order)</li>
+<li><strong>Frame parsing fails</strong>: Check byte offsets and endianness</li>
+<li><strong>Telemetry values wrong</strong>: Verify payload offsets from documentation</li>
+</ol>
+<h2 id="next-steps">Next Steps</h2>
+<ol>
+<li>Implement each function with test vectors</li>
+<li>Validate against all test cases</li>
+<li>Test with real pump hardware</li>
+<li>Report any discrepancies or issues</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": "0.1.dev1+g5ceb7604e"}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
