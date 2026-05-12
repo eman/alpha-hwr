@@ -1,6 +1,5 @@
 site_name: Alpha HWR Documentation
 site_description: Independent implementation and control documentation for Grundfos ALPHA HWR pumps.
-version: "0.5.0"
 
 theme:
   name: material
