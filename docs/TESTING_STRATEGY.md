@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the testing strategy for the alpha-hwr library, designed to ensure reliability, maintainability, and serve as a reference for other language implementations.
+This document describes the testing strategy for the alpha-hwr library, designed to ensure reliability and maintainability, and to serve as a reference for other language implementations.
 
 ## Testing Pyramid
 
