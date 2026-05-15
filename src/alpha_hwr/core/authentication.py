@@ -335,22 +335,20 @@ class AuthenticationHandler:
 
         Notes
         -----
-        - Both packets sent in parallel for efficiency
-        - Order may not matter, but we maintain observed sequence
-        - These packets "seal" the authentication
+        - Packets MUST be sent sequentially: EXTEND_1 then EXTEND_2.
+        - A 50ms gap between them is required for strict firmware (e.g.
+          BLE software V06.00.01). Parallel delivery was observed to
+          cause premature disconnection on those devices (issue #24).
+        - Order is empirically established from packet captures; see
+          docs/protocol/packet_traces/02_authentication.md.
         """
-        async with asyncio.TaskGroup() as tg:
-            # Send both extension packets in parallel
-            tg.create_task(
-                self.ble_writer.write_gatt_char(
-                    self.GENI_CHAR_UUID, self.EXTEND_2, response=False
-                )
-            )
-            tg.create_task(
-                self.ble_writer.write_gatt_char(
-                    self.GENI_CHAR_UUID, self.EXTEND_1, response=False
-                )
-            )
+        await self.ble_writer.write_gatt_char(
+            self.GENI_CHAR_UUID, self.EXTEND_1, response=False
+        )
+        await asyncio.sleep(0.05)
+        await self.ble_writer.write_gatt_char(
+            self.GENI_CHAR_UUID, self.EXTEND_2, response=False
+        )
 
 
 # ==========================================================================
@@ -421,9 +419,10 @@ For implementing authentication in other languages:
        sleep(50ms)
    sleep(200ms)
    
-   # Stage 3: Extensions
-   ble.write(GENI_UUID, EXTEND_2)
+   # Stage 3: Extensions (sequential, EXTEND_1 before EXTEND_2)
    ble.write(GENI_UUID, EXTEND_1)
+   sleep(50ms)
+   ble.write(GENI_UUID, EXTEND_2)
    sleep(500ms)
    ```
 
