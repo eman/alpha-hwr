@@ -221,7 +221,7 @@ class AuthenticationHandler:
         This method executes the three-stage authentication sequence:
         1. Legacy magic burst (3x repeats, 50ms intervals)
         2. Class 10 unlock burst (5x repeats, 50ms intervals)
-        3. Extension packets (2 packets in parallel)
+        3. Extension packets (EXTEND_1 then EXTEND_2, 50ms apart)
 
         Timing Considerations
         ---------------------
@@ -230,7 +230,10 @@ class AuthenticationHandler:
         - Total sequence time: ~1 second
 
         Args:
-            fast_mode: If True, skips delays for testing purposes.
+            fast_mode: If True, skips all delays (inter-packet and
+                inter-stage). Intended for unit tests only; do not use
+                against real hardware as the pump requires the timing
+                gaps to process each stage.
 
         Returns:
             bool
@@ -258,7 +261,7 @@ class AuthenticationHandler:
 
             # Stage 3: Extension Packets (session establishment)
             logger.debug("Stage 3: Sending extension packets...")
-            await self.send_extension_packets()
+            await self.send_extension_packets(delay=0 if fast_mode else 0.05)
             if not fast_mode:
                 await asyncio.sleep(0.5)  # Final stabilization
 
@@ -325,13 +328,21 @@ class AuthenticationHandler:
                 if delay > 0:
                     await asyncio.sleep(delay)
 
-    async def send_extension_packets(self) -> None:
+    async def send_extension_packets(self, delay: float = 0.05) -> None:
         """
         Send authentication extension packets.
 
         Stage 3 of authentication. Sends two extension packets that
         complete the handshake and establish the session. These packets
         may negotiate capabilities or extend the authentication timeout.
+
+        Parameters
+        ----------
+        delay : float, default=0.05
+            Delay in seconds between EXTEND_1 and EXTEND_2. Required by
+            strict firmware (e.g. BLE V06.00.01) to process each packet
+            before the next arrives. Pass 0 only in unit tests
+            (via fast_mode=True on authenticate()).
 
         Notes
         -----
@@ -345,7 +356,8 @@ class AuthenticationHandler:
         await self.ble_writer.write_gatt_char(
             self.GENI_CHAR_UUID, self.EXTEND_1, response=False
         )
-        await asyncio.sleep(0.05)
+        if delay > 0:
+            await asyncio.sleep(delay)
         await self.ble_writer.write_gatt_char(
             self.GENI_CHAR_UUID, self.EXTEND_2, response=False
         )

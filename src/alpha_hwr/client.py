@@ -84,6 +84,7 @@ C:
 
 from __future__ import annotations
 
+import inspect
 import logging
 import sys
 from importlib.metadata import version as _pkg_version
@@ -130,7 +131,14 @@ def _make_bleak_client(address: str, adapter: str | None) -> BleakClient:
     if not adapter:
         return BleakClient(address)
 
-    bleak_major = int(_pkg_version("bleak").split(".")[0])
+    try:
+        bleak_major = int(_pkg_version("bleak").split(".")[0])
+    except Exception:
+        # importlib.metadata may lack dist info for editable/vendored installs.
+        # Fall back to inspecting the BleakClient signature at runtime.
+        sig = inspect.signature(BleakClient.__init__)
+        bleak_major = 3 if "bluez" in sig.parameters else 0
+
     if bleak_major >= 3:
         if sys.platform.startswith("linux"):
             return BleakClient(address, bluez={"adapter": adapter})
