@@ -177,7 +177,7 @@ alpha-hwr control set-autoadapt-combined --value 3.5
 
 ## Testing Methodology
 
-### Testing Methodology
+### Test Commands
 
 ```bash
 # Test mode switching
