@@ -88,6 +88,11 @@ async def _run(address: str | None, verbose: bool) -> int:
 
     try:
         async with AlphaHWRClient(address) as client:
+            # Services are guaranteed non-None inside the context manager.
+            assert client.device_info is not None
+            assert client.telemetry is not None
+            assert client.control is not None
+
             print("Connected and authenticated successfully.")
             passed.append("Connection and authentication")
 
@@ -137,11 +142,12 @@ async def _run(address: str | None, verbose: bool) -> int:
             try:
                 mode_info = await client.control.get_mode()
                 if mode_info:
-                    mode_name = (
-                        mode_info.control_mode.name
-                        if hasattr(mode_info.control_mode, "name")
-                        else f"unknown({mode_info.control_mode})"
-                    )
+                    from alpha_hwr.constants import ControlMode
+
+                    if isinstance(mode_info.control_mode, ControlMode):
+                        mode_name = mode_info.control_mode.name
+                    else:
+                        mode_name = f"unknown({mode_info.control_mode})"
                     print(f"  Mode    : {mode_name}")
                     value, unit = mode_info.get_display_value()
                     print(f"  Setpoint: {value:.2f} {unit}")
