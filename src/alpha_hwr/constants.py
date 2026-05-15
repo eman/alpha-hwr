@@ -39,8 +39,8 @@ AUTH_LEGACY_MAGIC = bytes.fromhex("2707e7f80203949596eb47")
 AUTH_CLASS10_MAGIC = bytes.fromhex("2707e7f80a03560006c55a")
 
 # Auth Extend Packets
-AUTH_EXTEND_1 = bytes.fromhex("2705e7f80bc10fd0c3")
-AUTH_EXTEND_2 = bytes.fromhex("2705e7f805c14bc382")
+AUTH_EXTEND_1 = bytes.fromhex("2705e7f805c14bc382")
+AUTH_EXTEND_2 = bytes.fromhex("2705e7f80bc10fd0c3")
 
 
 # ============================================================================
