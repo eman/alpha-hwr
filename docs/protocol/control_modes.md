@@ -1,6 +1,6 @@
 # Control Modes - Complete Support Matrix
 
-This document covers all 32 control modes defined in the GENI protocol and their support status on the Grundfos ALPHA HWR pump.
+This document provides an overview of all 32 control modes defined in the GENI protocol and their support status on the Grundfos ALPHA HWR pump.
 
 ## Executive Summary
 
@@ -184,7 +184,6 @@ alpha-hwr control set-temperature --min 35 --max 39
 **Hardware Support:**
 -   Mode switching works reliably (mode byte 0x19, suffix 0x38 0xC6 0x70 0x00)
 -   Successfully operates on ALPHA HWR hardware
--   Exposed in Grundfos GO mobile app
 -   Supports configurable ON/OFF durations (1-60 minutes)
 
 **Implementation:**
@@ -318,7 +317,7 @@ These methods still exist in the service layer for GENI protocol compatibility b
 ### For Developers
 
 1. **No Further Investigation Needed:** All GENI protocol modes have been verified for ALPHA HWR compatibility.
-2. **Mode 25 Protocol:** See issue #14 for ongoing work to reverse engineer cycle time parameter protocol.
+2. **Mode 25 Protocol:** See issue #14 for ongoing work to document the cycle time parameter protocol.
 3. **Documentation Complete:** Support matrix is fully documented for the 5 ALPHA HWR modes.
 
 ---

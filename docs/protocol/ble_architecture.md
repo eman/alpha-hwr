@@ -200,7 +200,7 @@ ObjID: 16-bit identifier (big-endian)
 
 ### Object IDs and SubIDs
 
-**Key Objects:**
+**Objects:**
 
 | Object | SubID Range | Type | Purpose |
 | :--- | :--- | :--- | :--- |
@@ -450,7 +450,7 @@ The ALPHA HWR BLE architecture uses:
 3. **GENI protocol** for operations (Class 10 DataObjects)
 4. **Schedule layers** for application logic (5 independent SubIDs)
 
-**Key Takeaways:**
+**Summary:**
 
 - Schedule layers are **SubIDs within Object 84**, not separate BLE characteristics
 - Multi-chunk splitting is **critical** for packets >20 bytes

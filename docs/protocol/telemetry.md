@@ -151,7 +151,7 @@ Older firmware or specific integration scenarios might require active polling in
 * **Command**: `READ` (OpCode `0x03`)
 * **Frame Start**: `0x27` (Request)
 
-### Key Registers
+### Registers
 
 | Register Address | Name | Data Contained |
 | :--- | :--- | :--- |

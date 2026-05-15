@@ -177,7 +177,7 @@ class Transport:
                 self._response_buffer.clear()
 ```
 
-**Key Points:**
+**Notes:**
 - Frame start: `0x24` (response) or `0x27` (request)
 - Expected length: `packet[1] + 4` (length field + start byte + length byte + 2-byte CRC)
 - Buffer fragments until complete
@@ -457,7 +457,7 @@ Decoded floats from offset 13:
   [5] 0x45653AD0 = 3667.7 RPM (speed)
 ```
 
-**Key Differences:**
+**Differences:**
 | Aspect | Passive Notification (0x0E) | Register-Read Response (0x30/0x2b) |
 |--------|---------------------------|----------------------------------|
 | **OpSpec** | 0x0E | 0x30, 0x2b, 0x14, etc |
@@ -635,7 +635,7 @@ def parse_frame(data):
         raise InvalidFrame()
 ```
 
-**Key:**
+**Legend:**
 - `0x27` = Request (from client to pump)
 - `0x24` = Response (from pump to client)
 
@@ -899,8 +899,6 @@ assert session.is_authenticated()
 ### Use BLE Debugging Tools
 
 - **nRF Connect** - Monitor BLE traffic
-- **Wireshark** - Capture BLE packets
-- **Logic Analyzer** - Hardware-level debugging
 
 ---
 

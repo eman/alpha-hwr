@@ -107,7 +107,7 @@ stateDiagram-v2
 
 ## 6. Layer Responsibilities
 
-| Layer | Responsibility | Key Components |
+| Layer | Responsibility | Components |
 | :--- | :--- | :--- |
 | **Application** | User Interface | CLI, Scripts |
 | **Client** | Unified API | `AlphaHWRClient` |

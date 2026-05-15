@@ -120,7 +120,7 @@ async def to_code(config):
 
 ### 2. Protocol Constants (`alpha_hwr.h`)
 
-Key sections of the header file:
+Sections of the header file:
 
 ```cpp
 #pragma once

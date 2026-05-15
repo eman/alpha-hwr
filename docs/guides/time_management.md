@@ -6,7 +6,7 @@ The Grundfos ALPHA HWR pump maintains an internal real-time clock (RTC) used for
 
 The pump's timekeeping is managed via GENI DataObjects (Class 10). While older protocols used simple Unix timestamps (Class 14/16), modern firmware relies on **Object 94**, which provides a structured date and time representation (Year, Month, Day, Hour, Minute, Second, etc.).
 
-### Key Objects
+### Objects
 
 | Object | SubID | Name | Description |
 | :--- | :--- | :--- | :--- |

@@ -33,7 +33,7 @@ The ALPHA HWR pump uses the GENI protocol over Bluetooth Low Energy (BLE). This 
 
 - Grundfos ALPHA HWR pump (any variant)
 - BLE-capable computer or device
-- BLE debugging tools (nRF Connect, Wireshark with BTLE, etc.)
+- BLE debugging tools (nRF Connect, LightBlue, etc.)
 
 ## Implementation Approach
 
@@ -116,7 +116,7 @@ graph TD
 ```
 
 
-### Key Concepts
+### Concepts
 
 #### 1. Authentication
 The pump requires a specific sequence of "magic packets" to unlock:

@@ -1,6 +1,6 @@
 # Understanding Pump Telemetry
 
-This guide explains the key metrics reported by the ALPHA HWR pump and how to interpret them for optimal system performance.
+This guide explains the metrics reported by the ALPHA HWR pump and how to interpret them for optimal system performance.
 
 ## Core Metrics
 
