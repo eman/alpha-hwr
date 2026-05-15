@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the testing strategy for the alpha-hwr library, covering reliability, maintainability, and serving as a reference for other language implementations.
+This document describes the testing strategy for the alpha-hwr library, designed to ensure reliability, maintainability, and serve as a reference for other language implementations.
 
 ## Testing Pyramid
 
@@ -261,7 +261,7 @@ tests/
 │
 └── fixtures/
     ├── conftest.py              # Pytest fixtures
-    ├── sample_packets.py        # Real packet captures
+    ├── sample_packets.py        # Protocol sample data
     └── test_vectors.py          # Protocol test vectors
 ```
 
@@ -284,8 +284,8 @@ tests/
 
 ## Test Data & Fixtures
 
-### Real Packet Captures
-Store real packet captures for validation:
+### Protocol Sample Data
+Store known-good protocol frames for validation:
 
 ```python
 # tests/fixtures/sample_packets.py

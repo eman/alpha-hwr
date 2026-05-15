@@ -23,7 +23,7 @@ The ALPHA HWR supports **5 independent schedule layers** that allow complex sche
 - **Layer 3 (SubID 1003)**: Seasonal/temporary adjustments
 - **Layer 4 (SubID 1004)**: Special events or overrides
 
-**Key Features:**
+**Features:**
 - Each layer contains a full 7-day schedule (42 bytes)
 - Layers can have **overlapping time windows** (e.g., Layer 0 and Layer 1 both active on Monday)
 - The pump operates whenever **any layer** is active
@@ -118,7 +118,7 @@ await client.delete_schedule()
 ## Unsupported Features
 
 ### Alternative Schedules
-Traffic analysis and hardware probing confirmed that "Alternative Schedule" slots (typically associated with SubIDs 1100+) are **not supported** on this firmware version. The `ClockProgramOverview` (Obj 84, Sub 1) reports `max_nof_alternative_events_per_day = 0`.
+Testing confirmed that "Alternative Schedule" slots (typically associated with SubIDs 1100+) are **not supported** on this firmware version. The `ClockProgramOverview` (Obj 84, Sub 1) reports `max_nof_alternative_events_per_day = 0`.
 
 ## Python Implementation
 
@@ -220,7 +220,7 @@ Different schedule operations require different OpSpec codes:
 - `0x93` = `(4 << 5) | 19` = OpSpec 4, Length 19
 - `0xB3` = `(5 << 5) | 19` = OpSpec 5, Length 19
 
-**Key Differences:**
+**Differences:**
 - **OpSpec 0x93**: Used for enable/disable (Type 218 ClockProgramOverview, 10 bytes)
 - **OpSpec 0xB3**: Used for schedule writes (Type 222 ClockProgramWeekDayInterval, 42 bytes)
 - The OpSpec determines which structure type the pump expects
@@ -613,7 +613,7 @@ alpha-hwr schedule
 
 ## Schedule Validation
 
-The library validates schedule entries to prevent conflicts and errors.
+The library includes validation for schedule entries to prevent conflicts and errors.
 
 ### ScheduleEntry Model
 

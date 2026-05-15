@@ -16,7 +16,7 @@ Unlike basic telemetry which is real-time, historical data allows you to analyze
 
 ## Historical Trends (Object 53)
 
-The pump maintains two resolutions of trend data for key metrics:
+The pump maintains two resolutions of trend data:
 1. **High Resolution**: Last 10 cycles.
 2. **Standard Resolution**: Last 100 cycles.
 

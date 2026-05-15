@@ -255,7 +255,7 @@ custom_component:
 - [ ] Authentication packets sent successfully
 - [ ] Telemetry notifications received
 
-## Key Takeaway
+## Summary
 
 **The most reliable discovery method is to match by Grundfos Company ID (`0000fe5d-...`) in BLE service data, since all ALPHA HWR pumps advertise this regardless of firmware version. Alternatively, match by device name pattern ("ALPHA_").**
 
