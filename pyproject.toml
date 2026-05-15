@@ -51,7 +51,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "bleak>=0.19.0",
+    "bleak>=0.19.0",  # 3.x supported; adapter kwarg handled via _make_bleak_client
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "typer>=0.9.0",
