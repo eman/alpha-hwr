@@ -196,7 +196,7 @@ All these OpSpecs use the 7-byte header before data:
 [OpSpec] [Seq-H] [Seq-L] [ID-H] [ID-L] [Res-H] [Res-L] [DataLen] [Data...]
 ```
 
-The key difference is that OpSpec 0x09 contains **uint16 codes** rather than **IEEE 754 floats**.
+The main difference is that OpSpec 0x09 contains **uint16 codes** rather than **IEEE 754 floats**.
 
 ## Integration Notes
 
@@ -235,13 +235,13 @@ text_sensor:
 
 ### Initial Confusion (Now Resolved)
 
-Early Python implementations incorrectly expected **OpSpec 0x13** for alarm responses. This was based on speculation before hardware validation.
+Early Python implementations incorrectly expected **OpSpec 0x13** for alarm responses. This was based on speculation before testing against actual hardware.
 
-**Hardware validation (ESPHome, Feb 2025)** confirmed that the pump actually responds with **OpSpec 0x09**, using the standard Active Query Response format.
+**Testing** confirmed that the pump actually responds with **OpSpec 0x09**, using the standard Active Query Response format.
 
-### Key Discovery
+### Discovery
 
-The breakthrough came from analyzing 100+ real packet captures showing consistent OpSpec 0x09 responses with data value `0x0000`, which was initially misinterpreted as "not supported." In reality, `0x0000` simply means "no active alarms."
+Testing against real hardware revealed consistent OpSpec 0x09 responses with data value `0x0000`, which was initially misinterpreted as "not supported." In reality, `0x0000` simply means "no active alarms."
 
 ## References
 
@@ -254,7 +254,7 @@ The breakthrough came from analyzing 100+ real packet captures showing consisten
 
 This documentation is based on:
 
-- 100+ real packet captures from ALPHA HWR pump (Feb 2025)
+- Real-world testing with an ALPHA HWR pump
 - Successful ESPHome C++ implementation (tested on ESP32-C3)
 - Cross-validation between Python and ESPHome implementations
 - Protocol documentation at https://eman.github.io/alpha-hwr/reimplementation/

@@ -1,6 +1,6 @@
 # Layer-by-Layer Implementation Guide
 
-This guide walks through implementing the ALPHA HWR protocol step-by-step, from lowest to highest layer. Follow this order to build a working implementation incrementally with testable milestones at each stage.
+This guide walks through implementing the ALPHA HWR protocol step-by-step, from lowest to highest layer. Follow this order to build a working implementation incrementally.
 
 ## Table of Contents
 
@@ -78,9 +78,6 @@ async def discover_pump(serial_number=None):
     raise Exception("Pump not found")
 ```
 
-**Test Milestone**:
-- [x] Can discover pump by name
-- [x] Returns correct device address
 
 ---
 
@@ -119,10 +116,6 @@ async def connect_to_pump(device_address):
     return (client, tx_char, rx_char)
 ```
 
-**Test Milestone**:
-- [x] Successfully connects to pump
-- [x] Discovers GENI service
-- [x] Can access TX/RX characteristics
 
 ---
 
@@ -143,9 +136,6 @@ async def enable_notifications(client, rx_char):
     await client.start_notify(rx_char, notification_handler)
 ```
 
-**Test Milestone**:
-- [x] Notifications enabled without error
-- [x] Handler receives data when pump sends
 
 ---
 
@@ -171,10 +161,6 @@ async def receive_packet(timeout=5.0):
     raise TimeoutError("No response from pump")
 ```
 
-**Test Milestone**:
-- [x] Can send arbitrary bytes
-- [x] Can receive responses
-- [x] Timeout works correctly
 
 ---
 
@@ -217,10 +203,6 @@ assert calc_crc16_modbus(b"\x07\xe7\xf8\x0a\x04\x00\x85") == 0x1202
 assert calc_crc16_modbus(b"\x06\xe7\xf8\x00\x67") == 0xE3A3
 ```
 
-**Test Milestone**:
-- [x] Matches all test vectors
-- [x] Handles empty input
-- [x] Handles large inputs
 
 ---
 
@@ -259,10 +241,6 @@ assert decode_float_be(bytes([0x3F, 0xC0, 0x00, 0x00])) == 1.5
 assert abs(decode_float_be(bytes([0x46, 0x65, 0xB0, 0x00])) - 14710.0) < 0.1
 ```
 
-**Test Milestone**:
-- [x] Encodes all test values correctly
-- [x] Decodes all test values correctly
-- [x] Round-trip conversion (encode → decode) is accurate
 
 ---
 
@@ -296,10 +274,6 @@ assert encode_uint16_be(0x0601) == bytes([0x06, 0x01])
 assert decode_uint16_be(bytes([0x56, 0x00])) == 0x5600
 ```
 
-**Test Milestone**:
-- [x] Encodes correctly
-- [x] Decodes correctly
-- [x] Handles edge cases (0, max value)
 
 ---
 
@@ -384,10 +358,6 @@ assert packet[4] == 0x0A  # Class 10
 assert len(packet) == 12  # Header (4) + APDU (6) + CRC (2)
 ```
 
-**Test Milestone**:
-- [x] Builds valid INFO command
-- [x] CRC is correct
-- [x] Length field is correct
 
 ---
 
@@ -450,10 +420,6 @@ assert packet[5] == 0x84  # OpSpec: SET (0x80) + 4 bytes (0x04)
 assert len(packet) == 16  # Header (4) + APDU (10: class, opspec, ids, data) + CRC (2)
 ```
 
-**Test Milestone**:
-- [x] Builds valid SET command
-- [x] OpSpec encodes data length correctly
-- [x] CRC is correct
 
 ---
 
@@ -538,10 +504,6 @@ assert frame["obj_id"] == 0x0057
 assert len(frame["payload"]) == 4
 ```
 
-**Test Milestone**:
-- [x] Parses valid responses
-- [x] Detects CRC errors
-- [x] Extracts payload correctly
 
 ---
 
@@ -592,10 +554,6 @@ async def authenticate(tx_char):
     await asyncio.sleep(0.1)  # Longer delay after final packet
 ```
 
-**Test Milestone**:
-- [x] Sends all packets without error
-- [x] Respects timing delays
-- [x] After authentication, commands work
 
 See [02_authentication.md](../protocol/packet_traces/02_authentication.md) for detailed explanation.
 
@@ -663,10 +621,6 @@ class Session:
             raise Exception(f"Operation requires authenticated session, current state: {self.state}")
 ```
 
-**Test Milestone**:
-- [x] State transitions work correctly
-- [x] Guards prevent invalid operations
-- [x] Error state is set on failures
 
 ---
 
@@ -736,10 +690,6 @@ class TelemetryService:
         }
 ```
 
-**Test Milestone**:
-- [x] Successfully reads motor state
-- [x] Successfully reads flow/pressure
-- [x] Parses values correctly
 
 ---
 
@@ -796,10 +746,6 @@ class ControlService:
             raise Exception("Stop command failed")
 ```
 
-**Test Milestone**:
-- [x] Successfully sets mode
-- [x] Successfully stops pump
-- [x] Detects errors
 
 ---
 
@@ -857,7 +803,3 @@ async def main():
         print(f"Flow: {flow['flow_m3h']} m³/h")
 ```
 
-**Test Milestone**:
-- [x] Context manager works
-- [x] Services accessible
-- [x] Clean disconnect

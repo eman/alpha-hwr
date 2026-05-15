@@ -25,7 +25,7 @@ graph TD
 - `session.py` - Connection state machine
 - `transport.py` - BLE send/receive abstraction
 
-**Key Responsibilities**:
+**Responsibilities**:
 - Manage BLE connection lifecycle
 - Execute authentication sequence
 - Handle packet transmission/reception
@@ -40,7 +40,7 @@ graph TD
 - `frame_parser.py` - Parse GENI frames
 - `telemetry_decoder.py` - Decode telemetry payloads
 
-**Key Responsibilities**:
+**Responsibilities**:
 - Build valid GENI protocol packets
 - Parse received packets
 - Calculate CRC checksums
@@ -56,7 +56,7 @@ graph TD
 - `schedule.py` - Schedule management
 - `configuration.py` - Backup/restore
 
-**Key Responsibilities**:
+**Responsibilities**:
 - Expose high-level operations
 - Handle complex multi-step workflows
 - Validate inputs
@@ -67,7 +67,7 @@ graph TD
 
 **File**: `client.py`
 
-**Key Responsibilities**:
+**Responsibilities**:
 - Single entry point for applications
 - Manage service lifecycles
 - Handle connection/disconnection
@@ -187,7 +187,7 @@ stateDiagram-v2
 - **RECEIVING**: Processing notification
 - **ERROR**: Communication failure
 
-## Key Design Patterns
+## Design Patterns
 
 ### 1. Layered Architecture
 Each layer has clear boundaries and responsibilities. Upper layers depend only on adjacent lower layers.

@@ -177,12 +177,9 @@ alpha-hwr control set-autoadapt-combined --value 3.5
 
 ## Testing Methodology
 
-### Hardware Probing
+### Test Commands
 
 ```bash
-# Probe for configuration SubIDs
-python probe_autoadapt_config.py <DEVICE_ADDRESS>
-
 # Test mode switching
 python test_mode_support.py <DEVICE_ADDRESS>
 
