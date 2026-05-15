@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime, time
+from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
-from typing import ClassVar
 from alpha_hwr.constants import (
+    FACTOR_CELSIUS_TO_FAHRENHEIT,
     FACTOR_M3H_TO_GPM,
     FACTOR_M_TO_FT,
     FACTOR_M_TO_PSI,
-    FACTOR_CELSIUS_TO_FAHRENHEIT,
+    ControlMode,
 )
 
 
@@ -137,9 +137,9 @@ class SetpointInfo(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
-    control_mode: int = Field(description="Active control mode ID")
+    control_mode: ControlMode | int = Field(description="Active control mode ID")
     operation_mode: int = Field(description="Operation mode")
-    setpoint: float = Field(description="Current setpoint value (raw)")
+    setpoint: float = Field(description="Current setpoint value (in user-facing units: m for pressure, m³/h for flow, RPM for speed, °C for temperature)")
     min_setpoint: float | None = Field(
         default=None, description="Minimum allowed setpoint"
     )
@@ -163,6 +163,15 @@ class SetpointInfo(BaseModel):
         description="True if Delta Temperature control (AutoAdapt) is enabled",
     )
 
+    @field_validator("control_mode", mode="before")
+    @classmethod
+    def _coerce_control_mode(cls, v: object) -> ControlMode | int:
+        """Coerce raw int to ControlMode enum where possible."""
+        try:
+            return ControlMode(int(v))  # type: ignore[arg-type]
+        except (ValueError, TypeError):
+            return int(v)  # type: ignore[arg-type]
+
     def get_display_value(self) -> tuple[float, str]:
         """
         Get setpoint value with appropriate unit based on control mode.
@@ -171,16 +180,17 @@ class SetpointInfo(BaseModel):
             Tuple of (value, unit_string)
 
         Notes:
-            - CONSTANT_PRESSURE (0): Returns meters (m) - raw value is in Pascals, converted to m H2O
-            - PROPORTIONAL_PRESSURE (1): Returns meters (m) - raw value is in Pascals
-            - CONSTANT_FLOW (8): Returns m³/h - raw value is already in m³/h
-            - CONSTANT_SPEED (2): Returns RPM - raw value is already in RPM
-            - CONSTANT_TEMPERATURE (6): Returns °C - raw value is already in °C
-            - Others: Returns raw value with "units"
-        """
-        from .constants import ControlMode
+            All setpoint values are stored in user-facing units (the
+            ControlService converts raw pump units before storing):
 
-        # Pressure modes (Pascals  meters of water column)
+            - Pressure modes: stored in meters of water column (m H2O)
+            - Flow modes: stored in m³/h
+            - Speed mode: stored in RPM
+            - Temperature modes: stored in °C
+        """
+
+        # Pressure modes: stored in meters of water column (ControlService
+        # converts from raw Pa before storing in this field).
         if self.control_mode in (
             ControlMode.CONSTANT_PRESSURE,
             ControlMode.PROPORTIONAL_PRESSURE,
@@ -190,9 +200,7 @@ class SetpointInfo(BaseModel):
             ControlMode.AUTO_ADAPT_UNDERFLOOR,
             ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
         ):
-            # Convert Pascals to meters of water column (1 m H2O ≈ 9806.65 Pa)
-            meters = self.setpoint / 9806.65
-            return (meters, "m")
+            return (self.setpoint, "m")
 
         # Flow modes (already in m³/h)
         elif self.control_mode in (
@@ -233,9 +241,7 @@ class SetpointInfo(BaseModel):
         if self.min_setpoint is None or self.max_setpoint is None:
             return None
 
-        from .constants import ControlMode
-
-        # Use same conversion logic as get_display_value()
+        # Pressure modes: stored in meters (same convention as get_display_value)
         if self.control_mode in (
             ControlMode.CONSTANT_PRESSURE,
             ControlMode.PROPORTIONAL_PRESSURE,
@@ -245,9 +251,10 @@ class SetpointInfo(BaseModel):
             ControlMode.AUTO_ADAPT_UNDERFLOOR,
             ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
         ):
-            min_val = self.min_setpoint / 9806.65
-            max_val = self.max_setpoint / 9806.65
-            return ((min_val, "m"), (max_val, "m"))
+            return (
+                (self.min_setpoint, "m"),
+                (self.max_setpoint, "m"),
+            )
 
         elif self.control_mode in (
             ControlMode.CONSTANT_FLOW,
