@@ -8,7 +8,7 @@ the motor-state query and the flow/pressure or temperature queries.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -16,6 +16,8 @@ from alpha_hwr.core.session import Session
 from alpha_hwr.core.transport import Transport
 from alpha_hwr.models import TelemetryData
 from alpha_hwr.services.telemetry import TelemetryService
+
+_PATCH_SLEEP = "alpha_hwr.services.telemetry.asyncio.sleep"
 
 
 def _make_service(
@@ -65,13 +67,14 @@ async def test_disconnect_after_motor_state_skips_flow_query() -> None:
     """If disconnected after motor state, flow/pressure query must not run."""
     service, transport = _make_service(connected_after_motor_state=False)
 
-    result = await service.read_once()
+    with patch(_PATCH_SLEEP):
+        result = await service.read_once()
 
     assert isinstance(result, TelemetryData)
     # query() is called once (motor state) then the guard returns early;
     # it must NOT be called for flow/pressure or temperature
     assert transport.query.call_count == 1, (
-        f"Expected 1 query call (motor state only), got {transport.query.call_count}"
+        f"Expected 1 query (motor state only), got {transport.query.call_count}"
     )
 
 
@@ -80,7 +83,8 @@ async def test_disconnect_after_motor_state_returns_partial_telemetry() -> None:
     """Partial telemetry (with None fields) is returned rather than raising."""
     service, _ = _make_service(connected_after_motor_state=False)
 
-    result = await service.read_once()
+    with patch(_PATCH_SLEEP):
+        result = await service.read_once()
 
     # flow_m3h and head_m must still be None (not populated) but the call
     # must succeed without raising.
@@ -101,7 +105,8 @@ async def test_disconnect_before_temperature_skips_temp_query() -> None:
         connected_after_flow_pressure=False,
     )
 
-    result = await service.read_once()
+    with patch(_PATCH_SLEEP):
+        result = await service.read_once()
 
     assert isinstance(result, TelemetryData)
     # motor-state + flow/pressure = 2 calls; temperature must be skipped
@@ -120,7 +125,8 @@ async def test_disconnect_before_temperature_returns_partial_telemetry() -> (
         connected_after_flow_pressure=False,
     )
 
-    result = await service.read_once()
+    with patch(_PATCH_SLEEP):
+        result = await service.read_once()
 
     assert result.media_temperature_c is None
 
@@ -144,7 +150,8 @@ async def test_all_connected_runs_all_three_queries() -> None:
     service._has_motor_state_stream = False
     service._has_flow_stream = False
 
-    await service.read_once()
+    with patch(_PATCH_SLEEP):
+        await service.read_once()
 
     assert transport.query.call_count == 3, (
         f"Expected 3 query calls, got {transport.query.call_count}"

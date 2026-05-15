@@ -137,9 +137,16 @@ class SetpointInfo(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
-    control_mode: ControlMode | int = Field(description="Active control mode ID")
+    control_mode: ControlMode | int = Field(
+        description="Active control mode ID"
+    )
     operation_mode: int = Field(description="Operation mode")
-    setpoint: float = Field(description="Current setpoint value (in user-facing units: m for pressure, m³/h for flow, RPM for speed, °C for temperature)")
+    setpoint: float = Field(
+        description=(
+            "Current setpoint in user-facing units: "
+            "m for pressure, m³/h for flow, RPM for speed, °C for temperature"
+        )
+    )
     min_setpoint: float | None = Field(
         default=None, description="Minimum allowed setpoint"
     )
@@ -167,10 +174,14 @@ class SetpointInfo(BaseModel):
     @classmethod
     def _coerce_control_mode(cls, v: object) -> ControlMode | int:
         """Coerce raw int to ControlMode enum where possible."""
+        if not isinstance(v, int):
+            raise ValueError(
+                f"control_mode must be an int, got {type(v).__name__}"
+            )
         try:
-            return ControlMode(int(v))  # type: ignore[arg-type]
-        except (ValueError, TypeError):
-            return int(v)  # type: ignore[arg-type]
+            return ControlMode(v)
+        except ValueError:
+            return v
 
     def get_display_value(self) -> tuple[float, str]:
         """

@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Authentication extension packet ordering**: `send_extension_packets()` was
+  sending EXTEND_1 and EXTEND_2 concurrently (via `asyncio.TaskGroup`) with the
+  wrong submission order. The correct sequence is EXTEND_1 then EXTEND_2 with a
+  50ms gap. Parallel or reversed delivery caused premature disconnection (#24).
+- **`SetpointInfo.control_mode` type**: Field was typed as bare `int`, causing
+  `AttributeError` on `.name` access. A `field_validator` now coerces known
+  values to `ControlMode`; unknown values remain as `int`.
+- **Double Pa→m conversion**: `ControlService.get_mode()` already converted
+  pressure setpoints from Pascals to metres, but `get_display_value()` and
+  `get_limits_display()` divided by 9806.65 a second time. Both model methods
+  now return the stored value directly for pressure modes.
+- **Disconnection guard in `read_once()`**: Added `transport.is_connected()`
+  checks before the flow/pressure and temperature queries. A mid-sequence
+  disconnect now returns partial telemetry instead of raising a `BleakError`.
+
+### Changed
+
+- **Minimum Bleak version bumped to 3.0.0** (previously `>=0.19.0`). Bleak 3.0
+  removed the `adapter=` keyword argument; the library now uses the Bleak 3.x
+  `bluez={"adapter": ...}` form on Linux and ignores the argument on other
+  platforms. Users pinned to Bleak 0.x–2.x must upgrade.
+
 ## [0.5.0] - 2026-02-21
 
 ### Fixed

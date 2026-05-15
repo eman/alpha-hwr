@@ -5,7 +5,7 @@ Hardware verification script for issue #24 regression testing.
 Connects to a local ALPHA HWR pump via BLE, reads telemetry and device
 information to verify the fix for:
   - Sequential extension packet ordering (EXTEND_1 then EXTEND_2)
-  - Bleak 3.x compatibility (_make_bleak_client adapter handling)
+  - Bleak 3.x adapter handling
   - Disconnection guard in read_once (is_connected checks)
 
 Usage:
@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 
 import typer
@@ -30,6 +31,13 @@ from alpha_hwr.client import AlphaHWRClient
 app = typer.Typer(add_completion=False)
 
 
+def _pkg_ver(name: str) -> str:
+    try:
+        return pkg_version(name)
+    except PackageNotFoundError:
+        return "unknown"
+
+
 def _setup_logging(verbose: bool) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
@@ -37,16 +45,17 @@ def _setup_logging(verbose: bool) -> None:
         format="%(asctime)s %(name)s %(levelname)s: %(message)s",
     )
     if not verbose:
-        # Suppress noisy third-party loggers unless verbose
         logging.getLogger("bleak").setLevel(logging.WARNING)
 
 
 async def _run(address: str | None, verbose: bool) -> int:
     _setup_logging(verbose)
 
-    bleak_ver = pkg_version("bleak")
-    alpha_ver = pkg_version("alpha-hwr")
-    print(f"alpha-hwr {alpha_ver}  |  bleak {bleak_ver}  |  Python {sys.version.split()[0]}")
+    print(
+        f"alpha-hwr {_pkg_ver('alpha-hwr')}"
+        f"  |  bleak {_pkg_ver('bleak')}"
+        f"  |  Python {sys.version.split()[0]}"
+    )
     print()
 
     # ------------------------------------------------------------------ #
@@ -56,7 +65,10 @@ async def _run(address: str | None, verbose: bool) -> int:
         print("Scanning for ALPHA HWR pumps (10 s)...")
         devices = await AlphaHWRClient.discover(timeout=10.0)
         if not devices:
-            print("ERROR: No ALPHA HWR pumps found. Is the device powered on and in range?")
+            print(
+                "ERROR: No ALPHA HWR pumps found."
+                " Is the device powered on and in range?"
+            )
             return 1
         print(f"Found {len(devices)} pump(s):")
         for d in devices:
@@ -102,9 +114,9 @@ async def _run(address: str | None, verbose: bool) -> int:
             try:
                 telemetry = await client.telemetry.read_once()
                 if telemetry is not None:
-                    print(f"  Flow     : {telemetry.flow_m3h} m3/h")
-                    print(f"  Head     : {telemetry.head_m} m")
-                    print(f"  Power    : {telemetry.power_w} W")
+                    print(f"  Flow  : {telemetry.flow_m3h} m3/h")
+                    print(f"  Head  : {telemetry.head_m} m")
+                    print(f"  Power : {telemetry.power_w} W")
                     if telemetry.flow_m3h is not None:
                         passed.append("Telemetry flow_m3h populated")
                     else:
@@ -130,7 +142,7 @@ async def _run(address: str | None, verbose: bool) -> int:
                         if hasattr(mode_info.control_mode, "name")
                         else f"unknown({mode_info.control_mode})"
                     )
-                    print(f"  Mode : {mode_name}")
+                    print(f"  Mode    : {mode_name}")
                     value, unit = mode_info.get_display_value()
                     print(f"  Setpoint: {value:.2f} {unit}")
                     passed.append("Control mode read")
@@ -157,8 +169,15 @@ async def _run(address: str | None, verbose: bool) -> int:
     for item in failed:
         print(f"  FAIL  {item}")
 
-    regression_keywords = ["Service Discovery", "BleakError", "regression", "None"]
-    regressions = [f for f in failed if any(k in f for k in regression_keywords)]
+    regression_keywords = [
+        "Service Discovery",
+        "BleakError",
+        "regression",
+        "None",
+    ]
+    regressions = [
+        f for f in failed if any(k in f for k in regression_keywords)
+    ]
     if regressions:
         print("\nPotential regressions detected (see FAIL lines above).")
         return 2
@@ -174,11 +193,16 @@ async def _run(address: str | None, verbose: bool) -> int:
 @app.command()
 def main(
     address: str | None = typer.Option(
-        None, "--address", "-a", help="BLE device address. Auto-discovers if omitted."
+        None,
+        "--address",
+        "-a",
+        help="BLE device address. Auto-discovers if omitted.",
     ),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging."),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable debug logging."
+    ),
 ) -> None:
-    """Verify hardware connectivity and firmware info for issue #24 regression testing."""
+    """Verify hardware connectivity and firmware for issue #24 regression."""
     exit_code = asyncio.run(_run(address, verbose))
     raise SystemExit(exit_code)
 
