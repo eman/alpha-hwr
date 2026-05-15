@@ -339,17 +339,16 @@ class AuthenticationHandler:
         Parameters
         ----------
         delay : float, default=0.05
-            Delay in seconds between EXTEND_1 and EXTEND_2. Required by
-            strict firmware (e.g. BLE V06.00.01) to process each packet
-            before the next arrives. Pass 0 only in unit tests
-            (via fast_mode=True on authenticate()).
+            Delay in seconds between EXTEND_1 and EXTEND_2. Required for
+            the pump to process each packet before the next arrives.
+            Pass 0 only in unit tests (via fast_mode=True on authenticate()).
 
         Notes
         -----
         - Packets MUST be sent sequentially: EXTEND_1 then EXTEND_2.
-        - A 50ms gap between them is required for strict firmware (e.g.
-          BLE software V06.00.01). Parallel delivery was observed to
-          cause premature disconnection on those devices (issue #24).
+        - A 50ms gap between them is required for the pump to process
+          EXTEND_1 before EXTEND_2 arrives. Sending them in parallel
+          causes premature disconnection (issue #24).
         - Order is empirically established from packet captures; see
           docs/protocol/packet_traces/02_authentication.md.
         """

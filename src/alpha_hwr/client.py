@@ -84,10 +84,8 @@ C:
 
 from __future__ import annotations
 
-import inspect
 import logging
 import sys
-from importlib.metadata import version as _pkg_version
 from types import TracebackType
 from typing import Self
 
@@ -112,40 +110,6 @@ from .services import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _make_bleak_client(address: str, adapter: str | None) -> BleakClient:
-    """Construct a BleakClient compatible with both Bleak 2.x and 3.x.
-
-    The ``adapter`` keyword argument was deprecated in Bleak 3.0. On Linux
-    (BlueZ) the replacement is the ``bluez`` argument; on other platforms the
-    adapter concept does not apply and the argument is omitted.
-
-    Args:
-        address: BLE device address.
-        adapter: Optional BlueZ adapter name (e.g. ``"hci1"``). Linux only.
-
-    Returns:
-        Configured BleakClient instance.
-    """
-    if not adapter:
-        return BleakClient(address)
-
-    try:
-        bleak_major = int(_pkg_version("bleak").split(".")[0])
-    except Exception:
-        # importlib.metadata may lack dist info for editable/vendored installs.
-        # Fall back to inspecting the BleakClient signature at runtime.
-        sig = inspect.signature(BleakClient.__init__)
-        bleak_major = 3 if "bluez" in sig.parameters else 0
-
-    if bleak_major >= 3:
-        if sys.platform.startswith("linux"):
-            return BleakClient(address, bluez={"adapter": adapter})
-        # adapter is a BlueZ-only concept; ignore on other platforms
-        return BleakClient(address)
-
-    return BleakClient(address, adapter=adapter)
 
 
 class AlphaHWRClient:
@@ -322,7 +286,12 @@ class AlphaHWRClient:
             # Create BLE client
             if self.address is None:
                 raise ValueError("BLE device address is not set")
-            self._bleak_client = _make_bleak_client(self.address, self.adapter)
+            if self.adapter and sys.platform.startswith("linux"):
+                self._bleak_client = BleakClient(
+                    self.address, bluez={"adapter": self.adapter}
+                )
+            else:
+                self._bleak_client = BleakClient(self.address)
 
             # Connect to device
             await self._bleak_client.connect(timeout=timeout)
