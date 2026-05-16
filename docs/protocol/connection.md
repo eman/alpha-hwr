@@ -19,9 +19,9 @@ All communication (commands and telemetry) happens over a single GATT Characteri
 *   **Properties**: `Write`, `Notify`
 
 ### Pairing
-The device typically requests **Pairing/Bonding** upon connection.
+The device requires **Pairing/Bonding** for normal use.
 *   **Level**: `Just Works` (No PIN usually required, though some models might prompt).
-*   **Requirement**: Bonding is recommended. While some commands might work without it, stable Schedule downloading (HCI layer) and consistent reconnection often rely on a bonded state.
+*   **Requirement**: Bonding is recommended. While some commands might work without it, telemetry, control, stable Schedule downloading (HCI layer), and consistent reconnection are much more reliable after bonding.
 
 ## 2. Authentication Handshake ("Unlock")
 

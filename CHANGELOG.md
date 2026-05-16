@@ -3,6 +3,11 @@
 
 ## [Unreleased]
 
+### Documentation
+
+- Clarified that ALPHA HWR pumps should be paired/bonded with the host before
+  telemetry and control are expected to work reliably.
+
 
 ## [0.6.0] - 2026-05-15
 

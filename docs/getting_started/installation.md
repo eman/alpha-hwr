@@ -11,6 +11,10 @@ This guide covers how to install the `alpha-hwr` library and its dependencies.
     *   **macOS**: Supported for Control and Telemetry (Schedule download is currently restricted by the OS).
     *   **Windows**: Supported for Control and Telemetry.
 
+**Pairing / Bonding:** The pump usually needs to be paired with the host
+before telemetry is reliable. If the OS or Grundfos app prompts you to pair on
+first connection, complete that step before testing the library.
+
 ## Installing via pip
 
 *Note: The package is not yet on PyPI. Installation is currently from source.*

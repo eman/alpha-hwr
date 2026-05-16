@@ -189,6 +189,21 @@ void gatt_discover_complete_callback() {
 3. Check pump firmware version (see Class 7 ID 50 after auth)
 4. Force re-pair: delete bonding data, reconnect
 
+### Issue 1b: Telemetry Works Only After Manual Pairing
+
+**Symptoms:**
+- Authentication appears to succeed, but telemetry is empty or unreliable
+- The first successful read happens only after pairing from the OS prompt or
+  the Grundfos app
+
+**Cause:**
+- The pump has not been bonded with the host yet
+
+**Solution:**
+1. Pair the pump on the host before testing the library
+2. Accept any Bluetooth pairing prompt shown by the operating system
+3. If needed, remove the old bond and pair again
+
 ### Issue 2: Multiple Pumps Nearby
 
 **Symptoms:**
