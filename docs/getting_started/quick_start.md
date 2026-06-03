@@ -2,6 +2,10 @@
 
 This guide will help you connect to your Grundfos ALPHA HWR pump, authenticate, and read live telemetry data using Python.
 
+Before you start, make sure the pump is paired/bonded with the laptop or host
+you plan to use. On first connection, the operating system may show a pairing
+prompt; accept it before expecting telemetry.
+
 ## 1. Scan for the Device
 
 First, you need to find the Bluetooth address of your pump. You can use any BLE scanner app (like nRF Connect) or a simple Python script using `bleak`.

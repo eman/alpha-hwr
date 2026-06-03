@@ -1,11 +1,15 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Documentation
+
+- Clarified that ALPHA HWR pumps should be paired/bonded with the host before
+  telemetry and control are expected to work reliably.
+
+
+## [0.6.0] - 2026-05-15
 
 ### Fixed
 

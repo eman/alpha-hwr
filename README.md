@@ -10,7 +10,7 @@ Python library and CLI for controlling Grundfos ALPHA HWR pumps via Bluetooth Lo
 
 ## Features
 
-- Automatic discovery and pairing with ALPHA HWR pumps
+- Automatic discovery and guidance for pairing/bonding ALPHA HWR pumps
 - Stream telemetry data (flow, pressure, power, temperature)
 - Set pump modes and setpoints with automatic validation
 - Create and manage time-based operation schedules
@@ -26,6 +26,10 @@ pip install alpha-hwr
 ```
 
 **Requirements:** Python 3.13+ with Bluetooth Low Energy support
+
+> **Important:** Most pumps require the host to be paired/bonded before
+> telemetry and control work reliably. If your OS prompts for pairing on first
+> connect, accept it before trying to read data.
 
 ## Quick Start
 
