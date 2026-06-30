@@ -28,8 +28,8 @@ class TestPacketCreation:
         # Derived from constants.py
         assert AUTH_LEGACY_MAGIC == bytes.fromhex("2707e7f80203949596eb47")
         assert AUTH_CLASS10_MAGIC == bytes.fromhex("2707e7f80a03560006c55a")
-        assert AUTH_EXTEND_1 == bytes.fromhex("2705e7f80bc10fd0c3")
-        assert AUTH_EXTEND_2 == bytes.fromhex("2705e7f805c14bc382")
+        assert AUTH_EXTEND_1 == bytes.fromhex("2705e7f805c14bc382")
+        assert AUTH_EXTEND_2 == bytes.fromhex("2705e7f80bc10fd0c3")
 
     def test_build_read_request_electrical(self):
         """Verify construction of 3-byte Register Read Request."""

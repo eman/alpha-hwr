@@ -94,7 +94,7 @@ class AuthenticationHandler:
     CLASS10_UNLOCK : bytes
         Primary unlock packet (Class 10, Sub 0x5600, Obj 0x0006)
     EXTEND_1, EXTEND_2 : bytes
-        Extension packets to complete handshake
+        Extension packets to complete handshake (sent in order)
 
     Notes
     -----
@@ -160,7 +160,7 @@ class AuthenticationHandler:
     # ==========================================================================
     # EXTENSION PACKET 1
     # ==========================================================================
-    # Frame: 27 05 E7 F8 0B C1 0F D0 C3
+    # Frame: 27 05 E7 F8 05 C1 4B C3 82
     #
     # Purpose: Extend authentication session (Part 1)
     #
@@ -168,17 +168,18 @@ class AuthenticationHandler:
     #   27          - Frame start
     #   05          - Length (5 bytes)
     #   E7 F8       - Service ID
-    #   0B          - Class 11 (or Class 0, OpSpec 0x0B - protocol variant)
-    #   C1 0F       - Command/data sequence
-    #   D0 C3       - CRC-16-CCITT
+    #   05          - Class 5 (extension protocol)
+    #   C1 4B       - Command/data sequence
+    #   C3 82       - CRC-16-CCITT
     #
-    # Note: This is likely a session extension or capability negotiation
-    EXTEND_1 = bytes.fromhex("2705e7f80bc10fd0c3")
+    # Note: Must be sent before EXTEND_2. Order documented in
+    # docs/protocol/connection.md Step C, observed from Grundfos app.
+    EXTEND_1 = bytes.fromhex("2705e7f805c14bc382")
 
     # ==========================================================================
     # EXTENSION PACKET 2
     # ==========================================================================
-    # Frame: 27 05 E7 F8 05 C1 4B C3 82
+    # Frame: 27 05 E7 F8 0B C1 0F D0 C3
     #
     # Purpose: Extend authentication session (Part 2)
     #
@@ -186,10 +187,10 @@ class AuthenticationHandler:
     #   27          - Frame start
     #   05          - Length (5 bytes)
     #   E7 F8       - Service ID
-    #   05          - Class 5 (or different operation)
-    #   C1 4B       - Command/data sequence
-    #   C3 82       - CRC-16-CCITT
-    EXTEND_2 = bytes.fromhex("2705e7f805c14bc382")
+    #   0B          - Class 11 (session extension)
+    #   C1 0F       - Command/data sequence
+    #   D0 C3       - CRC-16-CCITT
+    EXTEND_2 = bytes.fromhex("2705e7f80bc10fd0c3")
 
     # GENI characteristic UUID (where packets are written)
     GENI_CHAR_UUID = "859cffd1-036e-432a-aa28-1a0085b87ba9"
@@ -221,7 +222,7 @@ class AuthenticationHandler:
         This method executes the three-stage authentication sequence:
         1. Legacy magic burst (3x repeats, 50ms intervals)
         2. Class 10 unlock burst (5x repeats, 50ms intervals)
-        3. Extension packets (2 packets in parallel)
+        3. Extension packets (EXTEND_1 then EXTEND_2, 50ms apart)
 
         Timing Considerations
         ---------------------
@@ -230,7 +231,10 @@ class AuthenticationHandler:
         - Total sequence time: ~1 second
 
         Args:
-            fast_mode: If True, skips delays for testing purposes.
+            fast_mode: If True, skips all delays (inter-packet and
+                inter-stage). Intended for unit tests only; do not use
+                against real hardware as the pump requires the timing
+                gaps to process each stage.
 
         Returns:
             bool
@@ -258,7 +262,7 @@ class AuthenticationHandler:
 
             # Stage 3: Extension Packets (session establishment)
             logger.debug("Stage 3: Sending extension packets...")
-            await self.send_extension_packets()
+            await self.send_extension_packets(delay=0 if fast_mode else 0.05)
             if not fast_mode:
                 await asyncio.sleep(0.5)  # Final stabilization
 
@@ -325,7 +329,7 @@ class AuthenticationHandler:
                 if delay > 0:
                     await asyncio.sleep(delay)
 
-    async def send_extension_packets(self) -> None:
+    async def send_extension_packets(self, delay: float = 0.05) -> None:
         """
         Send authentication extension packets.
 
@@ -333,24 +337,30 @@ class AuthenticationHandler:
         complete the handshake and establish the session. These packets
         may negotiate capabilities or extend the authentication timeout.
 
+        Parameters
+        ----------
+        delay : float, default=0.05
+            Delay in seconds between EXTEND_1 and EXTEND_2. Required for
+            the pump to process each packet before the next arrives.
+            Pass 0 only in unit tests (via fast_mode=True on authenticate()).
+
         Notes
         -----
-        - Both packets sent in parallel for efficiency
-        - Order may not matter, but we maintain observed sequence
-        - These packets "seal" the authentication
+        - Packets MUST be sent sequentially: EXTEND_1 then EXTEND_2.
+        - A 50ms gap between them is required for the pump to process
+          EXTEND_1 before EXTEND_2 arrives. Sending them in parallel
+          causes premature disconnection (issue #24).
+        - Order is empirically established from packet captures; see
+          docs/protocol/packet_traces/02_authentication.md.
         """
-        async with asyncio.TaskGroup() as tg:
-            # Send both extension packets in parallel
-            tg.create_task(
-                self.ble_writer.write_gatt_char(
-                    self.GENI_CHAR_UUID, self.EXTEND_2, response=False
-                )
-            )
-            tg.create_task(
-                self.ble_writer.write_gatt_char(
-                    self.GENI_CHAR_UUID, self.EXTEND_1, response=False
-                )
-            )
+        await self.ble_writer.write_gatt_char(
+            self.GENI_CHAR_UUID, self.EXTEND_1, response=False
+        )
+        if delay > 0:
+            await asyncio.sleep(delay)
+        await self.ble_writer.write_gatt_char(
+            self.GENI_CHAR_UUID, self.EXTEND_2, response=False
+        )
 
 
 # ==========================================================================
@@ -389,8 +399,8 @@ For implementing authentication in other languages:
    
    - LEGACY_MAGIC: 27 07 E7 F8 02 03 94 95 96 EB 47
    - CLASS10_UNLOCK: 27 07 E7 F8 0A 03 56 00 06 C5 5A
-   - EXTEND_1: 27 05 E7 F8 0B C1 0F D0 C3
-   - EXTEND_2: 27 05 E7 F8 05 C1 4B C3 82
+   - EXTEND_1: 27 05 E7 F8 05 C1 4B C3 82
+   - EXTEND_2: 27 05 E7 F8 0B C1 0F D0 C3
 
 3. Timing Requirements
    --------------------
@@ -421,9 +431,10 @@ For implementing authentication in other languages:
        sleep(50ms)
    sleep(200ms)
    
-   # Stage 3: Extensions
-   ble.write(GENI_UUID, EXTEND_2)
+   # Stage 3: Extensions (sequential, EXTEND_1 before EXTEND_2)
    ble.write(GENI_UUID, EXTEND_1)
+   sleep(50ms)
+   ble.write(GENI_UUID, EXTEND_2)
    sleep(500ms)
    ```
 

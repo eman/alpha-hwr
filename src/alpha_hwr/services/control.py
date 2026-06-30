@@ -426,11 +426,18 @@ class ControlService(BaseService):
                         ">f", data[offset + 3 : offset + 7]
                     )[0]
 
-                    # Convert pressure setpoints from Pascals back to meters (standard for ALPHA HWR)
-                    # Modes: CONSTANT_PRESSURE (0), PROPORTIONAL_PRESSURE (2)
+                    # Convert pressure setpoints from Pascals to meters of
+                    # water column (standard for ALPHA HWR). All pressure
+                    # control modes send Pa on the wire; we convert here so
+                    # SetpointInfo always stores user-facing units (m H2O).
                     if control_mode in (
                         ControlMode.CONSTANT_PRESSURE,
                         ControlMode.PROPORTIONAL_PRESSURE,
+                        ControlMode.CONSTANT_DIFF_PRESSURE,
+                        ControlMode.PROPORTIONAL_DIFF_PRESSURE,
+                        ControlMode.AUTO_ADAPT_RADIATOR,
+                        ControlMode.AUTO_ADAPT_UNDERFLOOR,
+                        ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
                     ):
                         setpoint = setpoint / 9806.65
 
@@ -492,7 +499,7 @@ class ControlService(BaseService):
                             )
 
                             return SetpointInfo(
-                                control_mode=control_mode,
+                                control_mode=self._current_mode,
                                 operation_mode=operation_mode,
                                 setpoint=min_temp,  # Low temperature
                                 min_setpoint=min_temp,
@@ -510,7 +517,7 @@ class ControlService(BaseService):
                             # Fall through to return basic setpoint
 
                     return SetpointInfo(
-                        control_mode=control_mode,
+                        control_mode=self._current_mode,
                         operation_mode=operation_mode,
                         setpoint=setpoint,
                         is_remote=is_remote,

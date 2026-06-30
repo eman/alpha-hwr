@@ -115,46 +115,6 @@ for _ in range(5):
 
 ### Hex Dump
 ```
-27 05 E7 F8 0B C1 0F D0 C3
-```
-
-### Byte-by-Byte Breakdown
-
-| Offset | Byte | Name | Description |
-|--------|------|------|-------------|
-| 0 | `0x27` | Start Byte | Request frame |
-| 1 | `0x05` | Length | 5 bytes |
-| 2 | `0xE7` | Service ID | GENI service |
-| 3 | `0xF8` | Source | Client |
-| 4 | `0x0B` | Class | Class 11 (Session extension) |
-| 5 | `0xC1` | OpSpec | Extension command 1 |
-| 6 | `0x0F` | Data | Extension parameter |
-| 7 | `0xD0` | CRC High | CRC-16-CCITT high byte |
-| 8 | `0xC3` | CRC Low | CRC-16-CCITT low byte |
-
-### Purpose
-Enables extended functionality (schedules, configuration, advanced telemetry).
-
-### Repetition
-Send **exactly once**.
-
-### Expected Response
-None.
-
-### Implementation
-```python
-EXTEND_1 = bytes.fromhex("2705e7f80bc10fd0c3")
-
-await tx_char.write_value(EXTEND_1)
-await asyncio.sleep(0.05)
-```
-
----
-
-## Packet 10: Extend 2
-
-### Hex Dump
-```
 27 05 E7 F8 05 C1 4B C3 82
 ```
 
@@ -167,13 +127,13 @@ await asyncio.sleep(0.05)
 | 2 | `0xE7` | Service ID | GENI service |
 | 3 | `0xF8` | Source | Client |
 | 4 | `0x05` | Class | Class 5 (Extension protocol) |
-| 5 | `0xC1` | OpSpec | Extension command 2 |
+| 5 | `0xC1` | OpSpec | Extension command 1 |
 | 6 | `0x4B` | Data | Extension parameter |
 | 7 | `0xC3` | CRC High | CRC-16-CCITT high byte |
 | 8 | `0x82` | CRC Low | CRC-16-CCITT low byte |
 
 ### Purpose
-Final authentication step. Enables full access to all pump features.
+First extension packet. Sent before Extend 2 (order documented in connection.md Step C, observed from Grundfos app).
 
 ### Repetition
 Send **exactly once**.
@@ -183,7 +143,47 @@ None.
 
 ### Implementation
 ```python
-EXTEND_2 = bytes.fromhex("2705e7f805c14bc382")
+EXTEND_1 = bytes.fromhex("2705e7f805c14bc382")
+
+await tx_char.write_value(EXTEND_1)
+await asyncio.sleep(0.05)
+```
+
+---
+
+## Packet 10: Extend 2
+
+### Hex Dump
+```
+27 05 E7 F8 0B C1 0F D0 C3
+```
+
+### Byte-by-Byte Breakdown
+
+| Offset | Byte | Name | Description |
+|--------|------|------|-------------|
+| 0 | `0x27` | Start Byte | Request frame |
+| 1 | `0x05` | Length | 5 bytes |
+| 2 | `0xE7` | Service ID | GENI service |
+| 3 | `0xF8` | Source | Client |
+| 4 | `0x0B` | Class | Class 11 (Session extension) |
+| 5 | `0xC1` | OpSpec | Extension command 2 |
+| 6 | `0x0F` | Data | Extension parameter |
+| 7 | `0xD0` | CRC High | CRC-16-CCITT high byte |
+| 8 | `0xC3` | CRC Low | CRC-16-CCITT low byte |
+
+### Purpose
+Second extension packet. Enables full access to all pump features.
+
+### Repetition
+Send **exactly once**.
+
+### Expected Response
+None.
+
+### Implementation
+```python
+EXTEND_2 = bytes.fromhex("2705e7f80bc10fd0c3")
 
 await tx_char.write_value(EXTEND_2)
 await asyncio.sleep(0.1)
@@ -202,8 +202,8 @@ from bleak import BleakClient
 # Authentication packets (pre-calculated with CRC)
 LEGACY_MAGIC = bytes.fromhex("2707e7f80203949596eb47")
 CLASS10_UNLOCK = bytes.fromhex("2707e7f80a03560006c55a")
-EXTEND_1 = bytes.fromhex("2705e7f80bc10fd0c3")
-EXTEND_2 = bytes.fromhex("2705e7f805c14bc382")
+EXTEND_1 = bytes.fromhex("2705e7f805c14bc382")
+EXTEND_2 = bytes.fromhex("2705e7f80bc10fd0c3")
 
 # BLE UUIDs
 GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
@@ -267,8 +267,8 @@ if __name__ == "__main__":
 // Authentication packets
 const LEGACY_MAGIC = new Uint8Array([0x27, 0x07, 0xE7, 0xF8, 0x02, 0x03, 0x94, 0x95, 0x96, 0xEB, 0x47]);
 const CLASS10_UNLOCK = new Uint8Array([0x27, 0x07, 0xE7, 0xF8, 0x0A, 0x03, 0x56, 0x00, 0x06, 0xC5, 0x5A]);
-const EXTEND_1 = new Uint8Array([0x27, 0x05, 0xE7, 0xF8, 0x0B, 0xC1, 0x0F, 0xD0, 0xC3]);
-const EXTEND_2 = new Uint8Array([0x27, 0x05, 0xE7, 0xF8, 0x05, 0xC1, 0x4B, 0xC3, 0x82]);
+const EXTEND_1 = new Uint8Array([0x27, 0x05, 0xE7, 0xF8, 0x05, 0xC1, 0x4B, 0xC3, 0x82]);
+const EXTEND_2 = new Uint8Array([0x27, 0x05, 0xE7, 0xF8, 0x0B, 0xC1, 0x0F, 0xD0, 0xC3]);
 
 async function authenticate(txCharacteristic) {
   // Step 1: Legacy Magic (3x)

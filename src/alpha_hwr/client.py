@@ -85,6 +85,7 @@ C:
 from __future__ import annotations
 
 import logging
+import sys
 from types import TracebackType
 from typing import Self
 
@@ -285,7 +286,12 @@ class AlphaHWRClient:
             # Create BLE client
             if self.address is None:
                 raise ValueError("BLE device address is not set")
-            self._bleak_client = BleakClient(self.address, adapter=self.adapter)
+            if self.adapter and sys.platform.startswith("linux"):
+                self._bleak_client = BleakClient(
+                    self.address, bluez={"adapter": self.adapter}
+                )
+            else:
+                self._bleak_client = BleakClient(self.address)
 
             # Connect to device
             await self._bleak_client.connect(timeout=timeout)

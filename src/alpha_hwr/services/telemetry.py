@@ -250,6 +250,9 @@ class TelemetryService:
 
         # 2. Query Flow/Pressure (if no active stream)
         if not self._has_flow_stream:
+            if not self.transport.is_connected():
+                logger.debug("Pump disconnected after motor state query")
+                return self._telemetry
             try:
                 req = FrameBuilder.build_class10_read(
                     0x5D0122
@@ -276,6 +279,9 @@ class TelemetryService:
         await asyncio.sleep(0.05)
 
         # 3. Query Temperatures (always poll)
+        if not self.transport.is_connected():
+            logger.debug("Pump disconnected before temperature query")
+            return self._telemetry
         try:
             req = FrameBuilder.build_class10_read(
                 0x5D012C
