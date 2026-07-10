@@ -3,6 +3,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Misleading error on mid-read disconnect**: `_read_class10_object()` now
+  raises `ConnectionError` when the BLE link drops while waiting for a
+  response, instead of silently returning `None`. Previously a disconnect
+  during `control status` (or any other Class 10 read) surfaced as
+  "Setpoint data too short or missing: 0 bytes" / "Could not read control
+  mode", masking the real cause. The CLI now reports "Pump disconnected
+  from BLE while reading Object X/Y" instead.
+
 ### Documentation
 
 - Clarified that ALPHA HWR pumps should be paired/bonded with the host before

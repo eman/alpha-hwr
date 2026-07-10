@@ -221,18 +221,36 @@ class TelemetryService:
             # Accept Class 10 data responses
             return packet[4] == 0x0A
 
+        async def _query_with_retry(req: bytes, name: str) -> bytes | None:
+            for attempt in range(1, 4):  # Up to 3 attempts
+                resp = await self.transport.query(
+                    req, timeout=2.0, match_func=is_response_not_notification
+                )
+                logger.debug(
+                    f"{name} response: {resp.hex() if resp else 'None'} (len={len(resp) if resp else 0})"
+                )
+                if resp:
+                    return resp
+                if not self.transport.is_connected():
+                    logger.debug(f"Pump disconnected after {name} query")
+                    return None
+                if attempt < 3:
+                    logger.debug(f"{name} query failed, sending wake burst and retrying...")
+                    await self.transport.send_wake_burst()
+                    await asyncio.sleep(0.2)
+            return None
+
+        # Wake the pump up before starting the sequence of queries.
+        # This prevents the pump from disconnecting if it is asleep right after auth.
+        await self.transport.send_wake_burst()
+
         # 1. Query Motor State (if no active stream)
         if not self._has_motor_state_stream:
             try:
                 req = FrameBuilder.build_class10_read(
                     0x570045
                 )  # Motor state register
-                resp = await self.transport.query(
-                    req, timeout=2.0, match_func=is_response_not_notification
-                )
-                logger.debug(
-                    f"MOTOR_STATE response: {resp.hex() if resp else 'None'} (len={len(resp) if resp else 0})"
-                )
+                resp = await _query_with_retry(req, "MOTOR_STATE")
                 if resp:
                     frame = FrameParser.parse_frame(resp)
                     if frame.valid and frame.class_byte == 0x0A:
@@ -257,12 +275,7 @@ class TelemetryService:
                 req = FrameBuilder.build_class10_read(
                     0x5D0122
                 )  # Flow/pressure register
-                resp = await self.transport.query(
-                    req, timeout=2.0, match_func=is_response_not_notification
-                )
-                logger.debug(
-                    f"FLOW_PRESSURE response: {resp.hex() if resp else 'None'} (len={len(resp) if resp else 0})"
-                )
+                resp = await _query_with_retry(req, "FLOW_PRESSURE")
                 if resp:
                     frame = FrameParser.parse_frame(resp)
                     if frame.valid and frame.class_byte == 0x0A:
@@ -286,12 +299,7 @@ class TelemetryService:
             req = FrameBuilder.build_class10_read(
                 0x5D012C
             )  # Temperature register
-            resp = await self.transport.query(
-                req, timeout=2.0, match_func=is_response_not_notification
-            )
-            logger.debug(
-                f"TEMPERATURE response: {resp.hex() if resp else 'None'} (len={len(resp) if resp else 0})"
-            )
+            resp = await _query_with_retry(req, "TEMPERATURE")
             if resp:
                 frame = FrameParser.parse_frame(resp)
                 if frame.valid and frame.class_byte == 0x0A:

@@ -248,21 +248,28 @@ class AuthenticationHandler:
         try:
             # Stage 1: Legacy Magic Burst (backward compatibility)
             logger.debug("Stage 1: Sending legacy magic burst (3x repeats)...")
-            await self.send_legacy_burst(delay=0 if fast_mode else 0.05)
-            if not fast_mode:
+            await self.send_legacy_burst(repeats=3, delay=0 if fast_mode else 0.1)
+            if fast_mode:
+                # When resuming a session, usually only Stage 3 is strictly required
+                # but we send all for robustness
+                pass
+            elif not fast_mode:
                 await asyncio.sleep(0.1)  # Allow processing time
 
-            # Stage 2: Class 10 Unlock Burst (primary auth)
-            logger.debug(
-                "Stage 2: Sending Class 10 unlock burst (5x repeats)..."
-            )
-            await self.send_class10_burst(delay=0 if fast_mode else 0.05)
-            if not fast_mode:
-                await asyncio.sleep(0.2)  # Allow authentication to complete
+            # Stage 2: Class 10 Unlock (required for DataObjects)
+            logger.debug("Stage 2: Sending Class 10 unlock burst (5x repeats)...")
+            delay = 0 if fast_mode else 0.1
+            for _ in range(5):
+                await self.ble_writer.write_gatt_char(
+                    self.GENI_CHAR_UUID, self.CLASS10_UNLOCK, response=False
+                )
+                if delay > 0:
+                    await asyncio.sleep(delay)
 
             # Stage 3: Extension Packets (session establishment)
             logger.debug("Stage 3: Sending extension packets...")
-            await self.send_extension_packets(delay=0 if fast_mode else 0.05)
+            await self.send_extension_packets(delay=0 if fast_mode else 0.1)
+
             if not fast_mode:
                 await asyncio.sleep(0.5)  # Final stabilization
 
@@ -274,7 +281,7 @@ class AuthenticationHandler:
             return False
 
     async def send_legacy_burst(
-        self, repeats: int = 3, delay: float = 0.05
+        self, repeats: int = 7, delay: float = 0.05
     ) -> None:
         """
         Send legacy magic packet burst.

@@ -33,7 +33,7 @@ CLASS_10 = 0x0A
 # Authentication Sequences
 # ============================================================================
 # Legacy/Nested Magic Packet
-AUTH_LEGACY_MAGIC = bytes.fromhex("2707e7f80203949596eb47")
+AUTH_LEGACY_MAGIC = bytes.fromhex("2707fff802039495964f91")
 
 # Class 10 Unlock Packet
 AUTH_CLASS10_MAGIC = bytes.fromhex("2707e7f80a03560006c55a")

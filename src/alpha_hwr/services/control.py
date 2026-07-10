@@ -965,10 +965,10 @@ class ControlService(BaseService):
         # Payload (14 bytes)
         apdu.append(0x01 if autoadapt else 0x00)  # DeltaTempEnabled
         apdu.extend(encode_float_be(min_temp))
+        apdu.extend(encode_float_be(max_temp))
         
-        # The remaining 9 bytes in the App capture
+        # Default time limits (5 bytes)
         apdu.extend(bytes([
-            0x00, 0x00, 0x00, 0x16, 
             0x00, 0x00, 0x00, 0x16, 
             0x00
         ]))

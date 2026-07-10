@@ -484,6 +484,49 @@ class Transport:
             logger.debug("Query timeout waiting for matching response")
             return None
 
+    async def send_wake_burst(
+        self,
+        repeats: int = 3,
+        packet_delay: float = 0.1,
+        wake_delay: float = 0.3,
+    ) -> None:
+        """
+        Send a wake-up burst to rouse a sleeping GENI controller.
+
+        Some GENI controllers enter a low-power sleep state between
+        operations (e.g. right after the authentication handshake, or
+        after the connection has been idle). A read issued while the
+        controller is asleep goes unanswered, and on some platforms a
+        second read attempt shortly after can even trip a full BLE
+        disconnect. Sending a short burst of keep-alive packets first
+        wakes the controller so the actual read gets a response.
+
+        Parameters
+        ----------
+        repeats : int, default=3
+            Number of keep-alive packets to send.
+        packet_delay : float, default=0.1
+            Delay between each keep-alive packet.
+        wake_delay : float, default=0.3
+            Delay after the burst to allow the controller to wake up
+            before issuing the real request.
+
+        Notes
+        -----
+        See docs/protocol/ble_architecture.md ("Keep-Alive Burst") for the
+        protocol rationale behind this sequence.
+        """
+        from ..protocol.frame_builder import FrameBuilder
+
+        keep_alive_packet = FrameBuilder.build_command_info(0x02, 0x01)
+
+        for _ in range(repeats):
+            await self.write(keep_alive_packet, response=False)
+            await asyncio.sleep(packet_delay)
+
+        await asyncio.sleep(wake_delay)
+        logger.debug("Wake burst sent")
+
     async def start_keep_alive(self, interval: float = 30.0) -> None:
         """
         Start keep-alive task.
