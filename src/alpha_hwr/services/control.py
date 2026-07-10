@@ -81,6 +81,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Optional
 
+from ..exceptions import ConnectionError
 from ..models import SetpointInfo
 from ..constants import ControlMode
 from ..protocol.codec import encode_float_be, encode_uint16_be
@@ -377,6 +378,10 @@ class ControlService(BaseService):
             SetpointInfo with current control mode, operation mode, and setpoint value,
             or None if read failed
 
+        Raises:
+            ConnectionError: If the BLE connection to the pump drops while
+                waiting for the response.
+
         Example:
             >>> info = await control.get_mode()
             >>> if info and info.control_mode == ControlMode.CONSTANT_PRESSURE:
@@ -396,7 +401,10 @@ class ControlService(BaseService):
             from ..constants import ControlMode
 
             # Read Class 10: Object 86, Sub-ID 6 (overall_operation_local_request_obj)
-            data = await self._read_class10_object(86, 6)
+            # Retry: this is often the first read issued right after the
+            # authentication handshake, and the pump can briefly be
+            # unresponsive while it finishes settling into the new session.
+            data = await self._read_class10_object(86, 6, retries=3)
 
             if data and len(data) >= 10:
                 logger.debug(
@@ -532,6 +540,11 @@ class ControlService(BaseService):
                 logger.warning(
                     f"Setpoint data too short or missing: {len(data) if data else 0} bytes"
                 )
+
+        except ConnectionError:
+            # The pump dropped the BLE connection mid-read - propagate so
+            # the caller can report this distinctly from "no data read".
+            raise
 
         except Exception as e:
             logger.debug(f"Failed to read setpoint: {e}")
@@ -936,25 +949,29 @@ class ControlService(BaseService):
             return False
 
         # 2. Write temperature range to Object 91, Sub-ID 430
-        # Payload format (Type 1012):
-        # [DeltaTempEnabled(1)][MinTemp(4)][MaxTemp(4)][TimeLimits(4)]
-        # Total size 13 bytes
-
-        # Build 13-byte structure data
-        struct_data = bytearray()
-        struct_data.append(0x01 if autoadapt else 0x00)  # DeltaTempEnabled
-        struct_data.extend(encode_float_be(min_temp))
-        struct_data.extend(encode_float_be(max_temp))
-        struct_data.extend(
-            bytes([0x05, 0x3C, 0x01, 0x1E])
-        )  # Default time limits
-
-        # Build APDU: [Class][OpSpec][ObjID][SubH][SubL][Reserved][Type(2)][Size(2)][Data...]
-        # Using Object 91, Sub 430
-        apdu = bytearray(
-            [0x0A, 0xB3, 91, 0x01, 0xAE, 0x00, 0xF4, 0x03, 0x00, 0x00, 0x0D]
-        )
-        apdu.extend(struct_data)
+        # Payload must match exactly what is read back (no Type ID bytes, 14 bytes data)
+        # Build APDU manually to match exactly what Grundfos GO app sends
+        # App sends: [Class 10] [OpSpec 0x97] [ObjID 91] [SubH 01] [SubL AE] [TypeH 03] [TypeL F4] [Reserved 02] [Size 00 00 0E] [Data...]
+        apdu = bytearray([
+            0x0A,  # Class 10
+            0x97,  # OpSpec 0x97 = SET + 23 bytes
+            0x5B,  # Obj-ID (91 = 0x5B)
+            0x01, 0xAE,  # Sub-ID (430 = 0x01AE)
+            0x03, 0xF4,  # Type Code (1012 = 0x03F4)
+            0x02,  # Reserved
+            0x00, 0x00, 0x0E,  # Size (14 bytes)
+        ])
+        
+        # Payload (14 bytes)
+        apdu.append(0x01 if autoadapt else 0x00)  # DeltaTempEnabled
+        apdu.extend(encode_float_be(min_temp))
+        
+        # The remaining 9 bytes in the App capture
+        apdu.extend(bytes([
+            0x00, 0x00, 0x00, 0x16, 
+            0x00, 0x00, 0x00, 0x16, 
+            0x00
+        ]))
 
         req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
         if await self._send_with_retry(req, "Set Temperature Range (Obj 91)"):
