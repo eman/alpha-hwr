@@ -309,8 +309,8 @@ class ControlService(BaseService):
 
         logger.info("Enabling Remote Mode...")
 
-        # Class 3: 03 C1 07
-        apdu = bytes([0x03, 0xC1, 0x07])
+        # Class 3: 03 81 07
+        apdu = bytes([0x03, 0x81, 0x07])
         cmd = self._build_geni_packet(0xF8, 0xE7, apdu)
 
         return await self._send_with_retry(cmd, "Enable Remote")
@@ -338,8 +338,8 @@ class ControlService(BaseService):
 
         logger.info("Disabling Remote Mode (Auto)...")
 
-        # Class 3: 03 C1 06
-        apdu = bytes([0x03, 0xC1, 0x06])
+        # Class 3: 03 81 08
+        apdu = bytes([0x03, 0x81, 0x08])
         cmd = self._build_geni_packet(0xF8, 0xE7, apdu)
 
         return await self._send_with_retry(cmd, "Disable Remote")
