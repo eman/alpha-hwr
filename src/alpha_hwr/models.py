@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import UTC, datetime, time
 from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -22,7 +22,8 @@ class TelemetryData(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
     timestamp: datetime = Field(
-        default_factory=datetime.now, description="Time of reading"
+        default_factory=lambda: datetime.now(UTC),
+        description="Time of reading (UTC-aware)",
     )
 
     # Primary Metrics
@@ -729,7 +730,7 @@ class AdvancedTelemetry(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Detailed temperatures
     converter_temperature_c: float | None = Field(
