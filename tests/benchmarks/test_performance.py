@@ -239,8 +239,8 @@ class TestMemoryPerformance:
     @pytest.mark.skip("Requires memory_profiler")
     def test_client_memory_footprint(self):
         """Measure client memory footprint."""
-        from memory_profiler import (
-            memory_usage,  # type: ignore[import-not-found]
+        from memory_profiler import (  # type: ignore[import-not-found]
+            memory_usage,
         )
 
         def create_client():
