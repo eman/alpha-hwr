@@ -11,13 +11,13 @@ This document covers common mistakes when implementing the ALPHA HWR protocol an
 **Wrong:**
 ```python
 # Little-endian (incorrect)
-value = struct.unpack('<f', data)[0]  # Note the '<'
+value = struct.unpack("<f", data)[0]  # Note the '<'
 ```
 
 **Correct:**
 ```python
 # Big-endian (network byte order)
-value = struct.unpack('>f', data)[0]  # Note the '>'
+value = struct.unpack(">f", data)[0]  # Note the '>'
 ```
 
 **Why:** GENI protocol uses network byte order (big-endian) for all multi-byte values.
@@ -123,6 +123,7 @@ response = await asyncio.wait_for(get_response(), timeout=5.0)
 def notification_handler(sender, data):
     process_response(data)
 
+
 await rx_char.start_notify(notification_handler)
 
 # Now commands will get responses
@@ -157,7 +158,7 @@ def notification_handler(sender, data):
 class Transport:
     def __init__(self):
         self._response_buffer = bytearray()
-    
+
     def notification_handler(self, sender, data):
         # Check if this starts a new packet
         if len(data) > 0 and data[0] in (0x24, 0x27):
@@ -166,10 +167,12 @@ class Transport:
         else:
             # Continuation - append to buffer
             self._response_buffer.extend(data)
-        
+
         # Check if packet is complete
         if len(self._response_buffer) >= 2:
-            expected_len = self._response_buffer[1] + 4  # len + start + len + CRC
+            expected_len = (
+                self._response_buffer[1] + 4
+            )  # len + start + len + CRC
             if len(self._response_buffer) >= expected_len:
                 # Complete packet!
                 full_packet = bytes(self._response_buffer)
@@ -225,12 +228,18 @@ async def write(self, data: bytes, response: bool = False):
     """Write data, splitting if needed for BLE MTU."""
     if len(data) > 20:
         # Split at 20-byte boundary
-        await self.client.write_gatt_char(GENI_CHAR_UUID, data[:20], response=response)
+        await self.client.write_gatt_char(
+            GENI_CHAR_UUID, data[:20], response=response
+        )
         await asyncio.sleep(0.01)  # 10ms delay between chunks
-        await self.client.write_gatt_char(GENI_CHAR_UUID, data[20:], response=response)
+        await self.client.write_gatt_char(
+            GENI_CHAR_UUID, data[20:], response=response
+        )
     else:
         # Single write for short packets
-        await self.client.write_gatt_char(GENI_CHAR_UUID, data, response=response)
+        await self.client.write_gatt_char(
+            GENI_CHAR_UUID, data, response=response
+        )
 ```
 
 **Why This Happens:**
@@ -250,11 +259,11 @@ Command: 2717e7f80a9354000100da0100000a02050005010100000000b44e
 Must be written as:
 ```python
 # Chunk 1 (20 bytes)
-await write(bytes.fromhex('2717e7f80a9354000100da0100000a0205000500'))
+await write(bytes.fromhex("2717e7f80a9354000100da0100000a0205000500"))
 await asyncio.sleep(0.01)
 
-# Chunk 2 (7 bytes) 
-await write(bytes.fromhex('0100000000b44e'))
+# Chunk 2 (7 bytes)
+await write(bytes.fromhex("0100000000b44e"))
 ```
 
 **Detection:**
@@ -311,8 +320,9 @@ if response[4] == 0x02:  # Class 2 = error
 
 **Correct:**
 ```python
-# Send telemetry query  
+# Send telemetry query
 await tx_char.write_value(telemetry_request)
+
 
 # Filter function to skip errors and passive notifications
 def is_telemetry_data(packet):
@@ -327,10 +337,10 @@ def is_telemetry_data(packet):
     # Accept Class 10 data responses
     return packet[4] == 0x0A
 
+
 # Wait for ACTUAL data, skipping error responses
 response = await wait_for_matching_response(
-    timeout=2.0,
-    match_func=is_telemetry_data
+    timeout=2.0, match_func=is_telemetry_data
 )
 ```
 
@@ -390,24 +400,24 @@ def decode_register_read_motor(packet):
     # Skip to offset 13 where float data starts
     offset = 13
     floats = []
-    
+
     # Extract floats (big-endian IEEE 754)
     while offset + 4 <= len(packet) - 2:  # Leave room for CRC
-        val = struct.unpack('>f', packet[offset:offset+4])[0]
+        val = struct.unpack(">f", packet[offset : offset + 4])[0]
         # Check for NaN marker (0x7FFFFFFF)
         if math.isnan(val) or abs(val) > 1e15:
             floats.append(None)
         else:
             floats.append(val)
         offset += 4
-    
+
     # Map floats to telemetry fields
     return {
-        'voltage_ac_v': floats[0] if len(floats) > 0 else None,   # Offset 13-16
-        'voltage_dc_v': floats[1] if len(floats) > 1 else None,   # Offset 17-20
-        'current_a': floats[2] if len(floats) > 2 else None,      # Offset 21-24
-        'power_w': floats[3] if len(floats) > 3 else None,        # Offset 25-28
-        'speed_rpm': floats[5] if len(floats) > 5 else None,      # Offset 33-36
+        "voltage_ac_v": floats[0] if len(floats) > 0 else None,  # Offset 13-16
+        "voltage_dc_v": floats[1] if len(floats) > 1 else None,  # Offset 17-20
+        "current_a": floats[2] if len(floats) > 2 else None,  # Offset 21-24
+        "power_w": floats[3] if len(floats) > 3 else None,  # Offset 25-28
+        "speed_rpm": floats[5] if len(floats) > 5 else None,  # Offset 33-36
     }
 ```
 
@@ -415,12 +425,12 @@ def decode_register_read_motor(packet):
 ```python
 def decode_register_read_flow(packet):
     floats = extract_floats_from_offset_13(packet)
-    
+
     return {
-        'flow_m3h': floats[0] if len(floats) > 0 else None,
-        'head_m': floats[1] if len(floats) > 1 else None,
-        'inlet_pressure_bar': floats[2] if len(floats) > 2 else None,
-        'outlet_pressure_bar': floats[3] if len(floats) > 3 else None,
+        "flow_m3h": floats[0] if len(floats) > 0 else None,
+        "head_m": floats[1] if len(floats) > 1 else None,
+        "inlet_pressure_bar": floats[2] if len(floats) > 2 else None,
+        "outlet_pressure_bar": floats[3] if len(floats) > 3 else None,
     }
 ```
 
@@ -428,11 +438,11 @@ def decode_register_read_flow(packet):
 ```python
 def decode_telemetry(packet):
     opspec = packet[5] if len(packet) > 5 else 0
-    
+
     if opspec == 0x0E:
         # Passive notification - use standard decoder
         return decode_standard_notification(packet)
-    elif opspec in (0x30, 0x2b, 0x14):
+    elif opspec in (0x30, 0x2B, 0x14):
         # Register-read response - use packed float decoder
         return decode_register_read_response(packet)
     else:
@@ -469,12 +479,14 @@ Decoded floats from offset 13:
 **Validation:**
 ```python
 # Test with known packet
-motor_response = bytes.fromhex('2434f8e70a300001000300002942eee5aa4327d6003e1bf800415a29c04158cde045653ad0...')
+motor_response = bytes.fromhex(
+    "2434f8e70a300001000300002942eee5aa4327d6003e1bf800415a29c04158cde045653ad0..."
+)
 
 data = decode_register_read_motor(motor_response)
-assert 118 <= data['voltage_ac_v'] <= 120  # ~119V
-assert 13 <= data['power_w'] <= 14         # ~13.6W
-assert 3600 <= data['speed_rpm'] <= 3700   # ~3667 RPM
+assert 118 <= data["voltage_ac_v"] <= 120  # ~119V
+assert 13 <= data["power_w"] <= 14  # ~13.6W
+assert 3600 <= data["speed_rpm"] <= 3700  # ~3667 RPM
 ```
 
 ---
@@ -525,18 +537,18 @@ Bytes:  [27][07] E7 F8 02 03 94 95 96 EB 47
 
 **Wrong:**
 ```python
-grid_voltage = decode_float(payload[0:4])    # Correct
-current = decode_float(payload[4:8])         # Wrong! Skip 4 bytes
-power = decode_float(payload[8:12])          # Wrong!
+grid_voltage = decode_float(payload[0:4])  # Correct
+current = decode_float(payload[4:8])  # Wrong! Skip 4 bytes
+power = decode_float(payload[8:12])  # Wrong!
 ```
 
 **Correct:**
 ```python
-grid_voltage = decode_float(payload[0:4])    # Offset 0-3
-current = decode_float(payload[8:12])        # Offset 8-11 (skip 4 bytes!)
-power = decode_float(payload[16:20])         # Offset 16-19 (skip gaps)
-speed = decode_float(payload[20:24])         # Offset 20-23
-temp = decode_float(payload[24:28])          # Offset 24-27
+grid_voltage = decode_float(payload[0:4])  # Offset 0-3
+current = decode_float(payload[8:12])  # Offset 8-11 (skip 4 bytes!)
+power = decode_float(payload[16:20])  # Offset 16-19 (skip gaps)
+speed = decode_float(payload[20:24])  # Offset 20-23
+temp = decode_float(payload[24:28])  # Offset 24-27
 ```
 
 **Why:** Telemetry payloads have gaps (reserved bytes). Always check documentation.
@@ -589,10 +601,7 @@ assert pascals_to_meters(14710.0) ≈ 1.5
 **Wrong:**
 ```python
 # Two commands sent at same time
-asyncio.gather(
-    read_telemetry(),
-    set_mode(...)
-)
+asyncio.gather(read_telemetry(), set_mode(...))
 # Responses get mixed up!
 ```
 
@@ -868,12 +877,14 @@ If you're still stuck:
 
 ```python
 def log_packet(direction, packet):
-    hex_str = packet.hex(' ')
+    hex_str = packet.hex(" ")
     print(f"{direction}: {hex_str}")
+
 
 # Log all packets
 await tx_char.write_value(packet)
 log_packet("TX", packet)
+
 
 # In notification handler
 def on_notification(sender, data):

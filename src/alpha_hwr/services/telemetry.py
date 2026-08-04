@@ -75,12 +75,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from ..models import TelemetryData, AdvancedTelemetry
-from ..protocol.frame_builder import FrameBuilder
+from ..exceptions import READ_ERRORS
+from ..models import AdvancedTelemetry, TelemetryData
 from ..protocol import FrameParser, TelemetryDecoder
+from ..protocol.frame_builder import FrameBuilder
 
 if TYPE_CHECKING:
     from alpha_hwr.core.session import Session
@@ -141,6 +143,9 @@ class TelemetryService:
         # Stream detection flags
         self._has_motor_state_stream = False
         self._has_flow_stream = False
+
+        # Whether the controller still needs a wake burst before the next read
+        self._needs_wake = True
 
     @property
     def current(self) -> TelemetryData:
@@ -221,29 +226,65 @@ class TelemetryService:
             # Accept Class 10 data responses
             return packet[4] == 0x0A
 
+        async def _query_with_retry(req: bytes, name: str) -> bytes | None:
+            for attempt in range(1, 4):  # Up to 3 attempts
+                resp = await self.transport.query(
+                    req, timeout=2.0, match_func=is_response_not_notification
+                )
+                logger.debug(
+                    f"{name} response: {resp.hex() if resp else 'None'} (len={len(resp) if resp else 0})"
+                )
+                if resp:
+                    return resp
+                if not self.transport.is_connected():
+                    logger.debug(f"Pump disconnected after {name} query")
+                    # The next read happens on a fresh connection, which
+                    # starts with a sleeping controller again.
+                    self._needs_wake = True
+                    return None
+                if attempt < 3:
+                    logger.debug(
+                        f"{name} query failed, sending wake burst and retrying..."
+                    )
+                    await self.transport.send_wake_burst()
+                    self._needs_wake = False
+                    await asyncio.sleep(0.2)
+            return None
+
+        # Wake the pump before the first read of a session. The controller is
+        # often still asleep right after auth, and a read issued while it
+        # sleeps goes unanswered (or trips a disconnect). Once it has answered
+        # we stop paying the ~0.6s burst on every read: the retry path above
+        # re-wakes it if it dozes off again.
+        if self._needs_wake:
+            try:
+                await self.transport.send_wake_burst()
+                self._needs_wake = False
+            except READ_ERRORS as e:
+                # A failed wake burst must not abort the read: fall through
+                # and let the per-register retries deal with a controller
+                # that is unresponsive. _needs_wake stays set so the next
+                # read tries to wake it again.
+                logger.debug(f"Pre-read wake burst failed: {e}")
+
         # 1. Query Motor State (if no active stream)
         if not self._has_motor_state_stream:
             try:
                 req = FrameBuilder.build_class10_read(
                     0x570045
                 )  # Motor state register
-                resp = await self.transport.query(
-                    req, timeout=2.0, match_func=is_response_not_notification
-                )
-                logger.debug(
-                    f"MOTOR_STATE response: {resp.hex() if resp else 'None'} (len={len(resp) if resp else 0})"
-                )
+                resp = await _query_with_retry(req, "MOTOR_STATE")
                 if resp:
                     frame = FrameParser.parse_frame(resp)
                     if frame.valid and frame.class_byte == 0x0A:
                         updates = TelemetryDecoder.decode(frame)
                         logger.debug(f"MOTOR_STATE updates: {updates}")
                         if updates:
-                            updates["timestamp"] = datetime.now()
+                            updates["timestamp"] = datetime.now(UTC)
                             self._telemetry = self._telemetry.model_copy(
                                 update=updates
                             )
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.debug(f"Failed to read motor state: {e}")
 
         await asyncio.sleep(0.05)
@@ -257,23 +298,18 @@ class TelemetryService:
                 req = FrameBuilder.build_class10_read(
                     0x5D0122
                 )  # Flow/pressure register
-                resp = await self.transport.query(
-                    req, timeout=2.0, match_func=is_response_not_notification
-                )
-                logger.debug(
-                    f"FLOW_PRESSURE response: {resp.hex() if resp else 'None'} (len={len(resp) if resp else 0})"
-                )
+                resp = await _query_with_retry(req, "FLOW_PRESSURE")
                 if resp:
                     frame = FrameParser.parse_frame(resp)
                     if frame.valid and frame.class_byte == 0x0A:
                         updates = TelemetryDecoder.decode(frame)
                         logger.debug(f"FLOW_PRESSURE updates: {updates}")
                         if updates:
-                            updates["timestamp"] = datetime.now()
+                            updates["timestamp"] = datetime.now(UTC)
                             self._telemetry = self._telemetry.model_copy(
                                 update=updates
                             )
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.debug(f"Failed to read flow/pressure: {e}")
 
         await asyncio.sleep(0.05)
@@ -286,23 +322,18 @@ class TelemetryService:
             req = FrameBuilder.build_class10_read(
                 0x5D012C
             )  # Temperature register
-            resp = await self.transport.query(
-                req, timeout=2.0, match_func=is_response_not_notification
-            )
-            logger.debug(
-                f"TEMPERATURE response: {resp.hex() if resp else 'None'} (len={len(resp) if resp else 0})"
-            )
+            resp = await _query_with_retry(req, "TEMPERATURE")
             if resp:
                 frame = FrameParser.parse_frame(resp)
                 if frame.valid and frame.class_byte == 0x0A:
                     updates = TelemetryDecoder.decode(frame)
                     logger.debug(f"TEMPERATURE updates: {updates}")
                     if updates:
-                        updates["timestamp"] = datetime.now()
+                        updates["timestamp"] = datetime.now(UTC)
                         self._telemetry = self._telemetry.model_copy(
                             update=updates
                         )
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.debug(f"Failed to read temperatures: {e}")
 
         await asyncio.sleep(0.05)
@@ -444,7 +475,7 @@ class TelemetryService:
 
             # Update telemetry state
             if basic_updates:
-                basic_updates["timestamp"] = datetime.now()
+                basic_updates["timestamp"] = datetime.now(UTC)
                 self._telemetry = self._telemetry.model_copy(
                     update=basic_updates
                 )
@@ -464,5 +495,5 @@ class TelemetryService:
                 f"Telemetry updated from notification: {telemetry_data}"
             )
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to parse telemetry notification: {e}")

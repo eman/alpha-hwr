@@ -26,14 +26,16 @@ from alpha_hwr import AlphaHWRClient
 
 async with AlphaHWRClient("AA:BB:CC:DD:EE:FF") as client:
     await client.authenticate(fast_mode=True)
-    
+
     # Read current setpoint
     setpoint_info = await client.control.get_mode()
-    
+
     if setpoint_info:
         print(f"Control Mode: {setpoint_info.control_mode.name}")
         print(f"Setpoint: {setpoint_info.setpoint}")
-        print(f"Range: {setpoint_info.min_setpoint} - {setpoint_info.max_setpoint}")
+        print(
+            f"Range: {setpoint_info.min_setpoint} - {setpoint_info.max_setpoint}"
+        )
 ```
 
 ## Control Modes Available via Operating Panel

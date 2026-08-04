@@ -1,6 +1,8 @@
 from typing import Optional
+
+from pydantic import Field, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, model_validator
+
 from .utils import resolve_platform_address
 
 
@@ -12,11 +14,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    device_address: Optional[str] = Field(
+    device_address: str | None = Field(
         None,
         description="BLE Device Address (UUID on macOS, MAC on Linux/Windows). Supports comma-separated lists.",
     )
-    adapter: Optional[str] = Field(
+    adapter: str | None = Field(
         None, description="BLE Adapter (Linux hci0, etc.)"
     )
     connection_timeout: float = Field(
@@ -44,16 +46,15 @@ def get_settings() -> Settings:
     if _settings is None:
         try:
             _settings = Settings()  # type: ignore
-        except Exception as e:
-            # If env vars are missing, we might fail.
-            # We should probably raise or return a default
-            # For now, let's raise to satisfy mypy and safety.
-            raise RuntimeError(f"Failed to load settings: {e}")
+        except ValidationError as e:
+            # Missing or malformed env vars: surface a clear failure
+            # rather than handing back a half-built Settings.
+            raise RuntimeError(f"Failed to load settings: {e}") from e
 
     return _settings
 
 
-def load_settings(device_address: Optional[str] = None, **kwargs) -> Settings:
+def load_settings(device_address: str | None = None, **kwargs) -> Settings:
     """Load settings with overrides."""
     # Create a temporary dict for overrides
     overrides = {k: v for k, v in kwargs.items() if v is not None}

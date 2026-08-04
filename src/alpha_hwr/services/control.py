@@ -79,12 +79,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar
 
-from ..models import SetpointInfo
 from ..constants import ControlMode
-from ..protocol.codec import encode_float_be, encode_uint16_be
+from ..exceptions import READ_ERRORS, ConnectionError
+from ..models import SetpointInfo
 from ..protocol import FrameBuilder
+from ..protocol.codec import encode_float_be, encode_uint16_be
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -142,7 +143,7 @@ class ControlService(BaseService):
 
     # Control Mode Mapping for ALPHA HWR
     # Value -> Mode Byte used in control payload
-    _MODE_BYTE_MAP = {
+    _MODE_BYTE_MAP: ClassVar[dict[int, int]] = {
         0: 0x00,  # CONSTANT_PRESSURE
         1: 0x01,  # PROPORTIONAL_PRESSURE
         2: 0x02,  # CONSTANT_SPEED
@@ -154,7 +155,7 @@ class ControlService(BaseService):
     # Default suffix bytes per mode, used for start/stop when no
     # explicit setpoint is given.  Values come from the Grundfos GO
     # app traffic captures.
-    _MODE_SUFFIX_MAP: dict[int, bytes] = {
+    _MODE_SUFFIX_MAP: ClassVar[dict[int, bytes]] = {
         0x00: bytes([0x45, 0x65, 0x70, 0x00]),  # Pressure
         0x01: bytes([0x45, 0x65, 0x70, 0x00]),  # Proportional Pressure
         0x02: bytes([0x45, 0x65, 0x70, 0x00]),  # Speed
@@ -167,7 +168,7 @@ class ControlService(BaseService):
         self,
         transport: Transport,
         session: Session,
-        schedule_service: Optional["ScheduleService"] = None,
+        schedule_service: ScheduleService | None = None,
     ) -> None:
         """
         Initialize control service.
@@ -181,7 +182,7 @@ class ControlService(BaseService):
         self._current_mode: ControlMode | int = ControlMode.CONSTANT_SPEED
         self._schedule_service = schedule_service
 
-    async def start(self, mode: Optional[int] = None) -> bool:
+    async def start(self, mode: int | None = None) -> bool:
         """
         Start the pump.
 
@@ -206,7 +207,7 @@ class ControlService(BaseService):
 
         return await self._send_control_request(mode_val, start=True)
 
-    async def stop(self, mode: Optional[int] = None) -> bool:
+    async def stop(self, mode: int | None = None) -> bool:
         """
         Stop the pump.
 
@@ -301,7 +302,8 @@ class ControlService(BaseService):
             >>> await control.start()
 
         Implementation Notes:
-            - Uses Class 3 command: [0x03, 0xC1, 0x07]
+            - Uses Class 3 command: [0x03, 0x81, 0x07]
+              (OpSpec 0x81 = SET; command ID 7 = REMOTE)
             - Service ID: 0xE7, Source: 0xF8
         """
         self.session.ensure_authenticated()
@@ -316,26 +318,29 @@ class ControlService(BaseService):
 
     async def disable_remote_mode(self) -> bool:
         """
-        Disable remote control mode (return to Auto).
+        Disable remote control mode (hand control back to the pump).
 
-        Disables remote control mode (Class 3 command ID 6), returning the pump
-        to automatic operation. The pump will resume normal operation based on
-        its internal logic and local controls.
+        Sends Class 3 command ID 8 (LOCAL), returning the pump to local
+        control. The pump resumes normal operation based on its internal
+        logic and local controls.
 
         Returns:
             True if remote mode was disabled successfully, False otherwise
 
         Example:
             >>> await control.disable_remote_mode()
-            >>> # Pump returns to automatic operation
+            >>> # Pump returns to local control
 
         Implementation Notes:
-            - Uses Class 3 command: [0x03, 0xC1, 0x06]
+            - Uses Class 3 command: [0x03, 0x81, 0x08]
+              (OpSpec 0x81 = SET; command ID 8 = LOCAL)
+            - Previously sent command ID 6 (START) with OpSpec 0xC1
+              (INFO), which did not release remote mode
             - Service ID: 0xE7, Source: 0xF8
         """
         self.session.ensure_authenticated()
 
-        logger.info("Disabling Remote Mode (Auto)...")
+        logger.info("Disabling Remote Mode (LOCAL)...")
 
         # Class 3: 03 C1 06
         apdu = bytes([0x03, 0xC1, 0x06])
@@ -366,7 +371,7 @@ class ControlService(BaseService):
 
         return False
 
-    async def get_mode(self) -> Optional[SetpointInfo]:
+    async def get_mode(self) -> SetpointInfo | None:
         """
         Get the current control mode and setpoint information.
 
@@ -376,6 +381,10 @@ class ControlService(BaseService):
         Returns:
             SetpointInfo with current control mode, operation mode, and setpoint value,
             or None if read failed
+
+        Raises:
+            ConnectionError: If the BLE connection to the pump drops while
+                waiting for the response.
 
         Example:
             >>> info = await control.get_mode()
@@ -393,10 +402,14 @@ class ControlService(BaseService):
 
         try:
             import struct
+
             from ..constants import ControlMode
 
             # Read Class 10: Object 86, Sub-ID 6 (overall_operation_local_request_obj)
-            data = await self._read_class10_object(86, 6)
+            # Retry: this is often the first read issued right after the
+            # authentication handshake, and the pump can briefly be
+            # unresponsive while it finishes settling into the new session.
+            data = await self._read_class10_object(86, 6, retries=3)
 
             if data and len(data) >= 10:
                 logger.debug(
@@ -533,7 +546,12 @@ class ControlService(BaseService):
                     f"Setpoint data too short or missing: {len(data) if data else 0} bytes"
                 )
 
-        except Exception as e:
+        except ConnectionError:
+            # The pump dropped the BLE connection mid-read - propagate so
+            # the caller can report this distinctly from "no data read".
+            raise
+
+        except READ_ERRORS as e:
             logger.debug(f"Failed to read setpoint: {e}")
             import traceback
 
@@ -744,7 +762,7 @@ class ControlService(BaseService):
             )
             return False
 
-        mode, register_id = heating_map[heating_type]
+        mode, _register_id = heating_map[heating_type]
 
         # Set mode first
         if not await self.set_mode(mode):
@@ -936,25 +954,32 @@ class ControlService(BaseService):
             return False
 
         # 2. Write temperature range to Object 91, Sub-ID 430
-        # Payload format (Type 1012):
-        # [DeltaTempEnabled(1)][MinTemp(4)][MaxTemp(4)][TimeLimits(4)]
-        # Total size 13 bytes
-
-        # Build 13-byte structure data
-        struct_data = bytearray()
-        struct_data.append(0x01 if autoadapt else 0x00)  # DeltaTempEnabled
-        struct_data.extend(encode_float_be(min_temp))
-        struct_data.extend(encode_float_be(max_temp))
-        struct_data.extend(
-            bytes([0x05, 0x3C, 0x01, 0x1E])
-        )  # Default time limits
-
-        # Build APDU: [Class][OpSpec][ObjID][SubH][SubL][Reserved][Type(2)][Size(2)][Data...]
-        # Using Object 91, Sub 430
+        # Payload must match exactly what is read back (no Type ID bytes, 14 bytes data)
+        # Build APDU manually to match exactly what Grundfos GO app sends
+        # App sends: [Class 10] [OpSpec 0x97] [ObjID 91] [SubH 01] [SubL AE] [TypeH 03] [TypeL F4] [Reserved 02] [Size 00 00 0E] [Data...]
         apdu = bytearray(
-            [0x0A, 0xB3, 91, 0x01, 0xAE, 0x00, 0xF4, 0x03, 0x00, 0x00, 0x0D]
+            [
+                0x0A,  # Class 10
+                0x97,  # OpSpec 0x97 = SET + 23 bytes
+                0x5B,  # Obj-ID (91 = 0x5B)
+                0x01,
+                0xAE,  # Sub-ID (430 = 0x01AE)
+                0x03,
+                0xF4,  # Type Code (1012 = 0x03F4)
+                0x02,  # Reserved
+                0x00,
+                0x00,
+                0x0E,  # Size (14 bytes)
+            ]
         )
-        apdu.extend(struct_data)
+
+        # Payload (14 bytes)
+        apdu.append(0x01 if autoadapt else 0x00)  # DeltaTempEnabled
+        apdu.extend(encode_float_be(min_temp))
+        apdu.extend(encode_float_be(max_temp))
+
+        # Default time limits (5 bytes)
+        apdu.extend(bytes([0x00, 0x00, 0x00, 0x16, 0x00]))
 
         req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
         if await self._send_with_retry(req, "Set Temperature Range (Obj 91)"):
@@ -1064,11 +1089,11 @@ class ControlService(BaseService):
 
             return True
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to write cycle time configuration: {e}")
             return False
 
-    async def get_cycle_time_config(self) -> Optional[tuple[int, int]]:
+    async def get_cycle_time_config(self) -> tuple[int, int] | None:
         """
         Get current cycle time configuration for Mode 25 (DHW_ON_OFF_CONTROL).
 
@@ -1099,7 +1124,7 @@ class ControlService(BaseService):
             )
             return (on_time, off_time)
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to read cycle time configuration: {e}")
             return None
 
@@ -1177,7 +1202,7 @@ class ControlService(BaseService):
                 # Consider successful either way (some commands don't respond)
                 return True
 
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.warning(
                     f"{description} attempt {attempt + 1} failed: {e}"
                 )

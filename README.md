@@ -55,6 +55,7 @@ alpha-hwr control set-pressure 1.5 AA:BB:CC:DD:EE:FF
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def main():
     # Connect to pump (auto-discovery or specific address)
     async with AlphaHWRClient("AA:BB:CC:DD:EE:FF") as client:
@@ -63,14 +64,15 @@ async def main():
         print(f"Flow: {telemetry.flow_m3h} m³/h")
         print(f"Head: {telemetry.head_m} m")
         print(f"Power: {telemetry.power_w} W")
-        
+
         # Set constant pressure mode
         await client.control.set_constant_pressure(1.5)  # 1.5 meters
-        
+
         # Read device info
         info = await client.device_info.read_info()
         print(f"Serial: {info.serial_number}")
         print(f"Software: {info.software_version}")
+
 
 asyncio.run(main())
 ```
@@ -108,9 +110,11 @@ Proportional Pressure (0.5-6.0 m) is also fully supported.
 async with AlphaHWRClient(address) as client:
     # Stream telemetry updates
     async for telemetry in client.telemetry.monitor():
-        print(f"Flow: {telemetry.flow_m3h:.2f} m³/h, "
-              f"Head: {telemetry.head_m:.2f} m, "
-              f"Power: {telemetry.power_w:.1f} W")
+        print(
+            f"Flow: {telemetry.flow_m3h:.2f} m³/h, "
+            f"Head: {telemetry.head_m:.2f} m, "
+            f"Power: {telemetry.power_w:.1f} W"
+        )
 ```
 
 ### Manage Schedules
@@ -126,9 +130,9 @@ async with AlphaHWRClient(address) as client:
         begin_minute=0,
         end_hour=8,
         end_minute=30,
-        layer=0
+        layer=0,
     )
-    
+
     # Write schedule and enable it
     await client.schedule.write_entries([entry], layer=0)
     await client.schedule.enable()

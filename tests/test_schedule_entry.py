@@ -2,9 +2,10 @@
 Tests for ScheduleEntry model and validation logic.
 """
 
+from unittest.mock import Mock
+
 import pytest
 from pydantic import ValidationError
-from unittest.mock import Mock
 
 from alpha_hwr.models import ScheduleEntry
 from alpha_hwr.services import ScheduleService

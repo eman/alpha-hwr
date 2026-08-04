@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import UTC, datetime, time
 from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -22,7 +22,8 @@ class TelemetryData(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
     timestamp: datetime = Field(
-        default_factory=datetime.now, description="Time of reading"
+        default_factory=lambda: datetime.now(UTC),
+        description="Time of reading (UTC-aware)",
     )
 
     # Primary Metrics
@@ -175,7 +176,7 @@ class SetpointInfo(BaseModel):
     def _coerce_control_mode(cls, v: object) -> ControlMode | int:
         """Coerce raw int to ControlMode enum where possible."""
         if not isinstance(v, int):
-            raise ValueError(
+            raise TypeError(
                 f"control_mode must be an int, got {type(v).__name__}"
             )
         try:
@@ -491,7 +492,7 @@ class ScheduleEntry(BaseModel):
         end_mins = self.end_hour * 60 + self.end_minute
         return end_mins < begin_mins
 
-    def overlaps_with(self, other: "ScheduleEntry") -> bool:
+    def overlaps_with(self, other: ScheduleEntry) -> bool:
         """
         Check if this entry overlaps with another entry.
 
@@ -607,7 +608,7 @@ class ScheduleEntry(BaseModel):
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ScheduleEntry":
+    def from_dict(cls, data: dict) -> ScheduleEntry:
         """
         Create ScheduleEntry from dictionary (e.g., from get_schedule() output).
 
@@ -655,9 +656,7 @@ class ScheduleEntry(BaseModel):
         )
 
     @classmethod
-    def from_bytes(
-        cls, data: bytes, day: str, layer: int = 0
-    ) -> "ScheduleEntry":
+    def from_bytes(cls, data: bytes, day: str, layer: int = 0) -> ScheduleEntry:
         """
         Parse from 6-byte binary format.
 
@@ -731,7 +730,7 @@ class AdvancedTelemetry(BaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Detailed temperatures
     converter_temperature_c: float | None = Field(

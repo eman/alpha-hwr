@@ -210,52 +210,55 @@ GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
 TX_CHAR_UUID = "0000fdd1-0000-1000-8000-00805f9b34fb"
 RX_CHAR_UUID = "0000fdd2-0000-1000-8000-00805f9b34fb"
 
+
 async def authenticate(client: BleakClient):
     """Perform full authentication sequence."""
-    
+
     # Get TX characteristic
     tx_char = client.services.get_characteristic(TX_CHAR_UUID)
-    
+
     # Step 1: Legacy Magic (3x)
     print("Sending Legacy Magic packets...")
     for i in range(3):
         await tx_char.write_value(LEGACY_MAGIC)
-        print(f"  Sent {i+1}/3: {LEGACY_MAGIC.hex(' ')}")
+        print(f"  Sent {i + 1}/3: {LEGACY_MAGIC.hex(' ')}")
         await asyncio.sleep(0.05)
-    
+
     # Step 2: Class 10 Unlock (5x)
     print("Sending Class 10 Unlock packets...")
     for i in range(5):
         await tx_char.write_value(CLASS10_UNLOCK)
-        print(f"  Sent {i+1}/5: {CLASS10_UNLOCK.hex(' ')}")
+        print(f"  Sent {i + 1}/5: {CLASS10_UNLOCK.hex(' ')}")
         await asyncio.sleep(0.05)
-    
+
     # Step 3: Extend 1 (1x)
     print("Sending Extend 1...")
     await tx_char.write_value(EXTEND_1)
     print(f"  Sent: {EXTEND_1.hex(' ')}")
     await asyncio.sleep(0.05)
-    
+
     # Step 4: Extend 2 (1x)
     print("Sending Extend 2...")
     await tx_char.write_value(EXTEND_2)
     print(f"  Sent: {EXTEND_2.hex(' ')}")
     await asyncio.sleep(0.1)
-    
+
     print("Authentication complete!")
+
 
 async def main():
     # Connect to pump
     address = "XX:XX:XX:XX:XX:XX"  # Replace with pump address
-    
+
     async with BleakClient(address) as client:
         print(f"Connected to {address}")
-        
+
         # Perform authentication
         await authenticate(client)
-        
+
         # Now ready for commands
         print("Pump is now authenticated and ready for commands")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

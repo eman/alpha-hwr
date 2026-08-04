@@ -6,10 +6,10 @@ Tests frame construction with CRC validation for all operation types.
 
 import pytest
 
-from alpha_hwr.protocol.frame_builder import FrameBuilder
+from alpha_hwr.constants import CLASS_10, FRAME_START, SERVICE_ID_HIGH
 from alpha_hwr.protocol.codec import encode_float_be
-from alpha_hwr.utils import calc_crc16_read, calc_crc16
-from alpha_hwr.constants import FRAME_START, SERVICE_ID_HIGH, CLASS_10
+from alpha_hwr.protocol.frame_builder import FrameBuilder
+from alpha_hwr.utils import calc_crc16, calc_crc16_read
 
 
 class TestFrameBuilderBasics:

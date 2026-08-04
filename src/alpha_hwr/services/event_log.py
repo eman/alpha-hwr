@@ -73,9 +73,10 @@ from __future__ import annotations
 import logging
 import struct
 import warnings
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
+from ..exceptions import READ_ERRORS
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -120,7 +121,7 @@ class EventLogService(BaseService):
         """
         super().__init__(transport, session)
 
-    async def get_entry(self, index: int) -> Optional[EventLogEntry]:
+    async def get_entry(self, index: int) -> EventLogEntry | None:
         """
         Read a single event log entry from the pump.
 
@@ -169,7 +170,7 @@ class EventLogService(BaseService):
 
             return self._parse_entry(payload[:16], index, subid)
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Error reading event log entry {index}: {e}")
             return None
 
@@ -203,7 +204,7 @@ class EventLogService(BaseService):
 
         return entries
 
-    async def get_metadata(self) -> Optional[EventLogMetadata]:
+    async def get_metadata(self) -> EventLogMetadata | None:
         """
         Read event log metadata from the pump.
 
@@ -265,7 +266,7 @@ class EventLogService(BaseService):
                 raw_hex=payload.hex(),
             )
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Error reading event log metadata: {e}")
             return None
 
@@ -300,7 +301,7 @@ class EventLogService(BaseService):
 
     def _parse_entry(
         self, raw_data: bytes, index: int, subid: int
-    ) -> Optional[EventLogEntry]:
+    ) -> EventLogEntry | None:
         """
         Parse a 16-byte event log entry.
 
@@ -326,7 +327,7 @@ class EventLogService(BaseService):
 
             # Parse Unix timestamp (big-endian uint32)
             timestamp_raw = struct.unpack(">I", raw_data[10:14])[0]
-            timestamp = datetime.fromtimestamp(timestamp_raw, tz=timezone.utc)
+            timestamp = datetime.fromtimestamp(timestamp_raw, tz=UTC)
 
             return EventLogEntry(
                 index=index,
@@ -338,6 +339,6 @@ class EventLogService(BaseService):
                 raw_hex=raw_data.hex(),
             )
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Error parsing event log entry: {e}")
             return None

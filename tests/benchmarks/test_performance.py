@@ -15,13 +15,17 @@ tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
-import pytest  # noqa: E402
-import time  # noqa: E402
-import asyncio  # noqa: E402
+import asyncio
+import time
 
-from mocks.mock_pump import MockPump  # noqa: E402
-from alpha_hwr.protocol.codec import encode_float_be, decode_float_be  # noqa: E402
-from alpha_hwr.protocol import FrameBuilder, FrameParser  # noqa: E402
+import pytest
+from mocks.mock_pump import MockPump
+
+from alpha_hwr.protocol import FrameBuilder, FrameParser
+from alpha_hwr.protocol.codec import (
+    decode_float_be,
+    encode_float_be,
+)
 
 
 class TestCodecPerformance:
@@ -161,7 +165,9 @@ class TestEndToEndPerformance:
     async def test_connect_authenticate_read_cycle(self):
         """Benchmark complete connect→auth→read cycle."""
         from unittest.mock import AsyncMock, patch
+
         from mocks.mock_transport import MockBleakClient
+
         from alpha_hwr.client import AlphaHWRClient
 
         with (
@@ -192,7 +198,9 @@ class TestEndToEndPerformance:
     async def test_rapid_telemetry_reads(self):
         """Benchmark rapid consecutive telemetry reads."""
         from unittest.mock import AsyncMock, patch
+
         from mocks.mock_transport import MockBleakClient
+
         from alpha_hwr.client import AlphaHWRClient
 
         with (
@@ -231,7 +239,9 @@ class TestMemoryPerformance:
     @pytest.mark.skip("Requires memory_profiler")
     def test_client_memory_footprint(self):
         """Measure client memory footprint."""
-        from memory_profiler import memory_usage  # type: ignore[import-not-found]
+        from memory_profiler import (  # type: ignore[import-not-found]
+            memory_usage,
+        )
 
         def create_client():
             from alpha_hwr.client import AlphaHWRClient

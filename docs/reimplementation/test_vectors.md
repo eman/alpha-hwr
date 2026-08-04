@@ -497,7 +497,9 @@ Modern implementations use INFO queries to poll telemetry. These responses have 
 
 **Validation:**
 ```python
-packet = bytes.fromhex("242ff8e70a2b00023502000024390aa42646e58ac27fffffff7fffffff7fffffff7fffffff3ef3b48b403fccd43f609fc2bc06")
+packet = bytes.fromhex(
+    "242ff8e70a2b00023502000024390aa42646e58ac27fffffff7fffffff7fffffff7fffffff3ef3b48b403fccd43f609fc2bc06"
+)
 frame = FrameParser.parse_frame(packet)
 assert frame.obj_id == 0x3502
 data = TelemetryDecoder.decode(frame)
@@ -525,8 +527,9 @@ Use these test vectors to validate your implementation:
 
 ```python
 def test_float_encoding():
-    assert encode_float_be(1.5) == b'\x3f\xc0\x00\x00'
-    assert decode_float_be(b'\x3f\xc0\x00\x00') == 1.5
+    assert encode_float_be(1.5) == b"\x3f\xc0\x00\x00"
+    assert decode_float_be(b"\x3f\xc0\x00\x00") == 1.5
+
 
 def test_crc():
     data = bytes([0x27, 0x06, 0xE7, 0xF8, 0x00, 0x67])

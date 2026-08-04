@@ -11,8 +11,11 @@ Provides common methods for:
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
+
+from ..exceptions import READ_ERRORS, ConnectionError
 
 if TYPE_CHECKING:
     from alpha_hwr.core.session import Session
@@ -45,8 +48,12 @@ class BaseService:
         self.session = session
 
     async def _read_class10_object(
-        self, obj_id: int, sub_id: int
-    ) -> Optional[bytes]:
+        self,
+        obj_id: int,
+        sub_id: int,
+        retries: int = 1,
+        retry_delay: float = 0.2,
+    ) -> bytes | None:
         """
         Read a Class 10 (Configuration) object with SubID.
 
@@ -56,9 +63,27 @@ class BaseService:
         Args:
             obj_id: Object ID (0-255)
             sub_id: Sub-ID (0-65535)
+            retries: Number of attempts before giving up (default 1, i.e.
+                no retry). Some object/sub-ID pairs are read in bulk over a
+                known range where a missing response legitimately means "no
+                data" (e.g. an empty event-log slot or an unsupported trend
+                series), so retries must stay opt-in rather than automatic.
+                Pass a higher value for one-off status reads (such as the
+                control mode query right after authentication) where the
+                pump may briefly be unresponsive while it finishes settling
+                and a missing response really does mean "try again".
+            retry_delay: Delay in seconds between attempts.
 
         Returns:
             Data bytes (payload only, without frame header/CRC), or None if read failed
+
+        Raises:
+            ConnectionError: If the BLE connection to the pump is found to
+                have dropped while waiting for a response. This is
+                distinct from a plain timeout (which returns None) because
+                a lost connection means every subsequent read will fail
+                the same way, so callers should stop and surface a clear
+                error instead of reporting "no data".
 
         Example:
             >>> data = await self._read_class10_object(93, 1)  # Read statistics
@@ -90,35 +115,83 @@ class BaseService:
             crc = calc_crc16_read(frame_without_crc[1:])
             frame = frame_without_crc + bytes([(crc >> 8) & 0xFF, crc & 0xFF])
 
-            logger.debug(f"Reading Class 10 Object {obj_id} SubID {sub_id}")
-
             def match_class10_response(p: bytes) -> bool:
                 """Match Class 10 response packet."""
                 return len(p) > 6 and p[4] == 0x0A
 
-            response = await self.transport.query(
-                frame,
-                match_func=match_class10_response,
-                timeout=3.0,
-            )
-
-            if response and len(response) > 12:
-                # Extract data: skip frame header (10 bytes) and CRC (2 bytes)
-                # Frame structure: [STX][LEN][DST][SRC][Class][OpSpec][ObjH][ObjL][SubH][SubL][DATA...][CRC_H][CRC_L]
-                payload = response[10:-2]
+            for attempt in range(1, retries + 1):
                 logger.debug(
-                    f"Read Object {obj_id}/{sub_id}: {len(payload)} bytes"
+                    f"Reading Class 10 Object {obj_id} SubID {sub_id} "
+                    f"(attempt {attempt}/{retries})"
                 )
-                return payload
 
-            logger.debug(f"No response for Object {obj_id}/{sub_id}")
+                response = await self.transport.query(
+                    frame,
+                    match_func=match_class10_response,
+                    timeout=3.0,
+                )
+
+                if response and len(response) > 12:
+                    # Extract data: skip frame header (10 bytes) and CRC (2 bytes)
+                    # Frame structure: [STX][LEN][DST][SRC][Class][OpSpec][ObjH][ObjL][SubH][SubL][DATA...][CRC_H][CRC_L]
+                    payload = response[10:-2]
+                    logger.debug(
+                        f"Read Object {obj_id}/{sub_id}: {len(payload)} bytes"
+                    )
+                    return payload
+
+                logger.debug(
+                    f"No response for Object {obj_id}/{sub_id} "
+                    f"(attempt {attempt}/{retries})"
+                )
+
+                if not self.transport.is_connected():
+                    # The connection dropped out from under us. Every
+                    # further attempt (and every other read on this
+                    # session) will fail identically, so raise instead of
+                    # quietly returning None - the caller needs to know
+                    # this isn't "no data", it's a lost BLE link.
+                    raise ConnectionError(
+                        f"Pump disconnected from BLE while reading "
+                        f"Object {obj_id}/{sub_id}"
+                    )
+
+                if attempt < retries:
+                    # The pump's GENI controller may be asleep (common right
+                    # after authentication or after an idle period). Wake it
+                    # with a keep-alive burst before retrying instead of
+                    # just re-sending the same request, since a bare retry
+                    # can otherwise trip a full BLE disconnect on some
+                    # platforms. See docs/protocol/ble_architecture.md.
+                    await self.transport.send_wake_burst()
+                    if retry_delay > 0:
+                        await asyncio.sleep(retry_delay)
+
             return None
 
-        except Exception as e:
+        except ConnectionError:
+            # Let disconnect errors propagate - see docstring above.
+            raise
+
+        except READ_ERRORS as e:
+            # A dropped link can also surface as a transport error rather
+            # than an unanswered read (e.g. BleakError out of
+            # write_gatt_char). That is still a disconnect, not "no data",
+            # so it gets the same treatment as the branch above.
+            if not self.transport.is_connected():
+                raise ConnectionError(
+                    f"Pump disconnected from BLE while reading "
+                    f"Object {obj_id}/{sub_id}"
+                ) from e
             logger.debug(f"Error reading Object {obj_id} SubID {sub_id}: {e}")
             return None
 
-    async def _read_class7_string(self, string_id: int) -> Optional[str]:
+    async def _read_class7_string(
+        self,
+        string_id: int,
+        retries: int = 1,
+        retry_delay: float = 0.2,
+    ) -> str | None:
         """
         Read a Class 7 string (device info strings).
 
@@ -127,6 +200,11 @@ class BaseService:
 
         Args:
             string_id: String ID to read
+            retries: Number of attempts before giving up (default 1, i.e.
+                no retry). Pass a higher value for critical reads where a
+                missing response likely means the pump hasn't finished
+                settling yet rather than "this string does not exist".
+            retry_delay: Delay in seconds between attempts.
 
         Returns:
             String value, or None if read failed
@@ -151,30 +229,42 @@ class BaseService:
                 """Match Class 7 response."""
                 return len(p) > 6 and p[4] == 0x07
 
-            response = await self.transport.query(
-                frame,
-                match_func=match_class7,
-                timeout=3.0,
-            )
+            for attempt in range(1, retries + 1):
+                response = await self.transport.query(
+                    frame,
+                    match_func=match_class7,
+                    timeout=3.0,
+                )
 
-            if response and len(response) > 9:
-                # Extract string data: skip frame header (7 bytes) and CRC (2 bytes)
-                # Frame: [STX][LEN][DST][SRC][Class][Cmd][ID][...STRING...][CRC_H][CRC_L]
-                string_data = response[7:-2]
+                if response and len(response) > 9:
+                    # Extract string data: skip frame header (7 bytes) and CRC (2 bytes)
+                    # Frame: [STX][LEN][DST][SRC][Class][Cmd][ID][...STRING...][CRC_H][CRC_L]
+                    string_data = response[7:-2]
+                    logger.debug(
+                        f"Raw string data for ID {string_id}: {string_data.hex()}"
+                    )
+                    # Decode as UTF-8, strip null terminators and whitespace
+                    string_value = (
+                        string_data.decode("utf-8", errors="ignore")
+                        .rstrip("\x00")
+                        .strip()
+                    )
+                    return string_value if string_value else None
+
                 logger.debug(
-                    f"Raw string data for ID {string_id}: {string_data.hex()}"
+                    f"No response for string {string_id} "
+                    f"(attempt {attempt}/{retries})"
                 )
-                # Decode as UTF-8, strip null terminators and whitespace
-                string_value = (
-                    string_data.decode("utf-8", errors="ignore")
-                    .rstrip("\x00")
-                    .strip()
-                )
-                return string_value if string_value else None
+                if attempt < retries:
+                    # See _read_class10_object for why we wake the GENI
+                    # controller before retrying instead of just resending.
+                    await self.transport.send_wake_burst()
+                    if retry_delay > 0:
+                        await asyncio.sleep(retry_delay)
 
             return None
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.debug(f"Failed to read Class 7 string {string_id}: {e}")
             return None
 

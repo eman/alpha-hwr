@@ -52,9 +52,10 @@ from __future__ import annotations
 
 import logging
 import struct
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
+from ..exceptions import READ_ERRORS
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -103,7 +104,7 @@ class HistoryService(BaseService):
         """
         super().__init__(transport, session)
 
-    async def get_trend_data(self) -> Optional[TrendDataCollection]:
+    async def get_trend_data(self) -> TrendDataCollection | None:
         """
         Retrieve all historical trend data from the pump.
 
@@ -217,7 +218,7 @@ class HistoryService(BaseService):
                 power_on_time_series=power_time_series,
             )
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Error fetching trend data: {e}")
             import traceback
 
@@ -226,7 +227,7 @@ class HistoryService(BaseService):
 
     async def get_cycle_timestamps(
         self, count: int = 10
-    ) -> Optional[list[datetime]]:
+    ) -> list[datetime] | None:
         """
         Get timestamps of recent pump cycles.
 
@@ -263,17 +264,17 @@ class HistoryService(BaseService):
                 if ts < 946684800:  # Jan 1, 2000
                     ts += 946684800
 
-                result.append(datetime.fromtimestamp(ts))
+                result.append(datetime.fromtimestamp(ts, tz=UTC))
 
             return result
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Error fetching cycle timestamps: {e}")
             return None
 
     # Helper methods
 
-    async def _read_timestamp_map(self, subid: int) -> Optional[dict[str, Any]]:
+    async def _read_timestamp_map(self, subid: int) -> dict[str, Any] | None:
         """
         Read timestamp map from Object 88.
 
@@ -314,13 +315,13 @@ class HistoryService(BaseService):
                 "cycle_type": 10 if subid == 13300 else 100,
             }
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Error reading timestamp map {subid}: {e}")
             return None
 
     async def _read_trend_values(
         self, obj_id: int, subid: int
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Read trend data values from Object 53.
 
@@ -370,7 +371,7 @@ class HistoryService(BaseService):
                 )
                 return None
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(
                 f"Error reading trend values Obj{obj_id}/Sub{subid}: {e}"
             )
@@ -384,7 +385,7 @@ class HistoryService(BaseService):
         timestamps_10: list[int],
         timestamps_100: list[int],
         scale: float = 1.0,
-    ) -> Optional[TrendDataSeries]:
+    ) -> TrendDataSeries | None:
         """
         Build a TrendDataSeries from raw data and timestamps.
 
@@ -418,7 +419,7 @@ class HistoryService(BaseService):
 
                     points_10.append(
                         TrendDataPoint(
-                            timestamp=datetime.fromtimestamp(ts),
+                            timestamp=datetime.fromtimestamp(ts, tz=UTC),
                             value=val_scaled,
                         )
                     )
@@ -437,7 +438,7 @@ class HistoryService(BaseService):
 
                     points_100.append(
                         TrendDataPoint(
-                            timestamp=datetime.fromtimestamp(ts),
+                            timestamp=datetime.fromtimestamp(ts, tz=UTC),
                             value=val_scaled,
                         )
                     )
@@ -449,6 +450,6 @@ class HistoryService(BaseService):
                 cycle_100_points=points_100,
             )
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Error building series '{name}': {e}")
             return None

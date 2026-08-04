@@ -19,6 +19,11 @@ from alpha_hwr.services.telemetry import TelemetryService
 
 _PATCH_SLEEP = "alpha_hwr.services.telemetry.asyncio.sleep"
 
+# A well-formed but undecodable Class 10 response. read_once() only needs a
+# truthy response here: a falsy one would send it down the retry path, which
+# is exercised separately in test_telemetry_query_retry.py.
+_STUB_RESPONSE = bytes.fromhex("2707e7f80a0300000000")
+
 
 def _make_service(
     *,
@@ -37,9 +42,10 @@ def _make_service(
         (service, transport_mock) tuple.
     """
     transport = MagicMock(spec=Transport)
-    transport.query = AsyncMock(return_value=None)
-    # Return connected=True for the initial ensure_connected check, then
-    # the scripted values for the two guards.
+    transport.query = AsyncMock(return_value=_STUB_RESPONSE)
+    transport.send_wake_burst = AsyncMock()
+    # Every query answers, so is_connected() is consulted only at the two
+    # inter-query guards - once before flow/pressure, once before temperature.
     transport.is_connected = MagicMock(
         side_effect=[
             connected_after_motor_state,
@@ -140,7 +146,8 @@ async def test_disconnect_before_temperature_returns_partial_telemetry() -> (
 async def test_all_connected_runs_all_three_queries() -> None:
     """When connected throughout, all three register queries execute."""
     transport = MagicMock(spec=Transport)
-    transport.query = AsyncMock(return_value=None)
+    transport.query = AsyncMock(return_value=_STUB_RESPONSE)
+    transport.send_wake_burst = AsyncMock()
     transport.is_connected = MagicMock(return_value=True)
 
     session = MagicMock(spec=Session)

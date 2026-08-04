@@ -6,15 +6,13 @@ Commands:
   - timestamps: Show pump cycle timestamps
 """
 
-from typing import Optional
-
 import typer
-from rich.table import Table
-from rich.panel import Panel
 from rich.console import Group
+from rich.panel import Panel
+from rich.table import Table
 
 from ..app import console
-from ..common import require_service, get_client, handle_error, run_async
+from ..common import get_client, handle_error, require_service, run_async
 
 app = typer.Typer(
     help="Historical trend data and cycle timestamps",
@@ -24,7 +22,7 @@ app = typer.Typer(
 
 @app.command("trends")
 def cmd_trends(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -51,7 +49,7 @@ def cmd_trends(
 
 @app.command("timestamps")
 def cmd_timestamps(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -83,7 +81,7 @@ def cmd_timestamps(
 # Internal async implementations
 
 
-async def _show_trends(device: Optional[str], detailed: bool) -> None:
+async def _show_trends(device: str | None, detailed: bool) -> None:
     """Internal async implementation of trends command."""
     try:
         async with get_client(device) as client:
@@ -134,11 +132,11 @@ async def _show_trends(device: Optional[str], detailed: bool) -> None:
             else:
                 console.print("[yellow]No trend data series available[/yellow]")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to fetch trend data")
 
 
-async def _show_timestamps(device: Optional[str], count: int) -> None:
+async def _show_timestamps(device: str | None, count: int) -> None:
     """Internal async implementation of timestamps command."""
     try:
         async with get_client(device) as client:
@@ -166,9 +164,11 @@ async def _show_timestamps(device: Optional[str], count: int) -> None:
             table.add_column("Relative Time", justify="left", style="dim")
 
             # Add rows
-            from datetime import datetime
+            from datetime import UTC, datetime
 
-            now = datetime.now()
+            # Cycle timestamps are UTC-aware (Unix epoch values), so the
+            # reference point has to be aware too.
+            now = datetime.now(UTC)
             for i, ts in enumerate(timestamps, 1):
                 # Calculate relative time
                 delta = now - ts
@@ -183,7 +183,7 @@ async def _show_timestamps(device: Optional[str], count: int) -> None:
 
                 table.add_row(
                     str(i),
-                    ts.strftime("%Y-%m-%d %H:%M:%S"),
+                    ts.astimezone().strftime("%Y-%m-%d %H:%M:%S"),
                     relative,
                 )
 
@@ -191,7 +191,7 @@ async def _show_timestamps(device: Optional[str], count: int) -> None:
             console.print(table)
             console.print()
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to fetch cycle timestamps")
 
 
@@ -223,7 +223,7 @@ def _format_series_panel(series, detailed: bool) -> Panel:
     for i, point in enumerate(series.cycle_10_points, 1):
         table_10.add_row(
             str(i),
-            point.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            point.timestamp.astimezone().strftime("%Y-%m-%d %H:%M:%S"),
             f"{point.value:.2f} {series.unit}",
         )
 
@@ -248,7 +248,7 @@ def _format_series_panel(series, detailed: bool) -> Panel:
         for i, point in enumerate(series.cycle_100_points, 1):
             table_100.add_row(
                 str(i),
-                point.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                point.timestamp.astimezone().strftime("%Y-%m-%d %H:%M:%S"),
                 f"{point.value:.2f} {series.unit}",
             )
 

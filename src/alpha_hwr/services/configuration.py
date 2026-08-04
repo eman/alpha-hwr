@@ -31,13 +31,15 @@ C:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from alpha_hwr.constants import MODE_NAMES, ControlMode
+from alpha_hwr.exceptions import READ_ERRORS
 from alpha_hwr.models import ScheduleEntry
 
 if TYPE_CHECKING:
@@ -205,7 +207,7 @@ class ConfigurationService:
             # Initialize backup structure
             backup_data: dict[str, Any] = {
                 "version": self.BACKUP_VERSION,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 "device": {},
                 "control_mode": {},
                 "schedule": {},
@@ -221,7 +223,7 @@ class ConfigurationService:
                         "hardware_version": device_info.hardware_version,
                         "software_version": device_info.software_version,
                     }
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.warning(f"Could not read device info: {e}")
 
             # Get control mode and setpoint
@@ -244,7 +246,7 @@ class ConfigurationService:
                         "max_setpoint": setpoint_info.max_setpoint,
                         "setpoint_unit": setpoint_info.unit,
                     }
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.warning(f"Could not read control mode: {e}")
 
             # Get schedule
@@ -256,21 +258,22 @@ class ConfigurationService:
                     "enabled": enabled if enabled is not None else False,
                     "days": [e.to_dict() for e in entries],
                 }
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.warning(f"Could not read schedule: {e}")
 
             # Write to file
             filepath_obj = Path(filepath)
             filepath_obj.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(filepath, "w") as f:
-                json.dump(backup_data, f, indent=2)
+            await asyncio.to_thread(
+                filepath_obj.write_text, json.dumps(backup_data, indent=2)
+            )
 
             logger.info(f"Configuration backed up successfully to {filepath}")
             return True
 
-        except Exception as e:
-            logger.error(f"Error backing up configuration: {e}", exc_info=True)
+        except READ_ERRORS:
+            logger.exception("Error backing up configuration")
             return False
 
     async def restore(
@@ -418,8 +421,9 @@ class ConfigurationService:
                 logger.error(f"Backup file not found: {filepath}")
                 return False
 
-            with open(filepath, "r") as f:
-                backup_data = json.load(f)
+            backup_data = json.loads(
+                await asyncio.to_thread(filepath_obj.read_text)
+            )
 
             # Verify backup version
             if backup_data.get("version") != self.BACKUP_VERSION:
@@ -435,14 +439,17 @@ class ConfigurationService:
                     "serial_number"
                 )
 
-                if device_info and backup_serial:
-                    if device_info.serial_number != backup_serial:
-                        logger.error(
-                            f"Device serial mismatch! "
-                            f"Current: {device_info.serial_number}, "
-                            f"Backup: {backup_serial}"
-                        )
-                        return False
+                if (
+                    device_info
+                    and backup_serial
+                    and device_info.serial_number != backup_serial
+                ):
+                    logger.error(
+                        f"Device serial mismatch! "
+                        f"Current: {device_info.serial_number}, "
+                        f"Backup: {backup_serial}"
+                    )
+                    return False
 
             success = True
 
@@ -463,8 +470,8 @@ class ConfigurationService:
 
             return success
 
-        except Exception as e:
-            logger.error(f"Error restoring configuration: {e}", exc_info=True)
+        except READ_ERRORS:
+            logger.exception("Error restoring configuration")
             return False
 
     async def export_json(self, filepath: str) -> bool:
@@ -577,7 +584,7 @@ class ConfigurationService:
 
             return True
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Error restoring control mode: {e}")
             return False
 
@@ -636,6 +643,6 @@ class ConfigurationService:
 
             return True
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Error restoring schedule: {e}")
             return False

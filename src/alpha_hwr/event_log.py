@@ -1,8 +1,7 @@
 """Event log decoder for ALPHA HWR historical data."""
 
 import struct
-from datetime import datetime, timezone
-from typing import Dict, List
+from datetime import UTC, datetime
 
 
 class EventLogEntry:
@@ -37,7 +36,7 @@ class EventLogEntry:
 
         # Parse Unix timestamp (big-endian uint32)
         timestamp_raw = struct.unpack(">I", raw_data[10:14])[0]
-        self.timestamp = datetime.fromtimestamp(timestamp_raw, tz=timezone.utc)
+        self.timestamp = datetime.fromtimestamp(timestamp_raw, tz=UTC)
 
         self.trailing_data = struct.unpack(">H", raw_data[14:16])[0]
 
@@ -48,7 +47,7 @@ class EventLogEntry:
             f"event_type={self.event_type_flag})"
         )
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary representation."""
         return {
             "index": self.index,
@@ -86,19 +85,19 @@ class CycleTimestampMap:
         self.header = raw_data[0:3]
 
         # Next 40 bytes contain 10 timestamps (4 bytes each, big-endian)
-        self.timestamps: List[datetime] = []
+        self.timestamps: list[datetime] = []
         for i in range(10):
             offset = 3 + (i * 4)
             timestamp_raw = struct.unpack(">I", raw_data[offset : offset + 4])[
                 0
             ]
-            dt = datetime.fromtimestamp(timestamp_raw, tz=timezone.utc)
+            dt = datetime.fromtimestamp(timestamp_raw, tz=UTC)
             self.timestamps.append(dt)
 
     def __repr__(self) -> str:
         return f"CycleTimestampMap(count={len(self.timestamps)}, latest={self.timestamps[0].isoformat()})"
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary representation."""
         return {
             "count": len(self.timestamps),

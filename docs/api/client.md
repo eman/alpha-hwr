@@ -21,18 +21,20 @@ The client acts as a facade and coordinator for specialized services:
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def main():
     # Connect using context manager (automatic disconnect)
     async with AlphaHWRClient("AA:BB:CC:DD:EE:FF") as client:
         # Read telemetry
         data = await client.telemetry.read_once()
         print(f"Flow: {data.flow_m3h} m³/h")
-        
+
         # Control pump
         await client.control.set_constant_pressure(1.5)
-        
+
         # Manage schedules
         entries = await client.schedule.read_entries()
+
 
 asyncio.run(main())
 ```

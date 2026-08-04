@@ -76,7 +76,7 @@ stats = await client.device_info.read_statistics()
 operating_hours = stats.operating_hours
 
 # Assume average power consumption (depends on usage pattern)
-avg_power_w = 15.0 
+avg_power_w = 15.0
 
 # Calculate approximate energy
 energy_kwh = (operating_hours * avg_power_w) / 1000.0

@@ -11,8 +11,8 @@ This package contains modules for building and parsing GENI protocol frames:
 
 from .codec import (
     decode_float_be,
-    encode_float_be,
     decode_uint16_be,
+    encode_float_be,
     encode_uint16_be,
 )
 from .frame_builder import FrameBuilder
@@ -25,7 +25,7 @@ __all__ = [
     "ParsedFrame",
     "TelemetryDecoder",
     "decode_float_be",
-    "encode_float_be",
     "decode_uint16_be",
+    "encode_float_be",
     "encode_uint16_be",
 ]

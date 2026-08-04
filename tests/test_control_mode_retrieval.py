@@ -1,6 +1,9 @@
 from unittest.mock import AsyncMock
-from alpha_hwr import ControlMode
+
 import pytest
+from bleak.exc import BleakError
+
+from alpha_hwr import ControlMode
 
 # Note: client fixture is now provided by conftest.py as mock_client_simple
 
@@ -130,7 +133,7 @@ class TestControlModeRetrieval:
     ):
         """Test exception handling."""
         mock_client_simple.transport.query = AsyncMock(
-            side_effect=Exception("Mock Error")
+            side_effect=BleakError("Mock Error")
         )
 
         mode_info = await mock_client_simple.control.get_mode()

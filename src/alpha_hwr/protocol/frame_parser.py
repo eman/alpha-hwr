@@ -133,7 +133,7 @@ function parseFrame(data) {
 from dataclasses import dataclass
 from typing import Literal
 
-from ..constants import FRAME_START, RESPONSE_START, CLASS_10
+from ..constants import CLASS_10, FRAME_START, RESPONSE_START
 from ..utils import calc_crc16_read
 
 

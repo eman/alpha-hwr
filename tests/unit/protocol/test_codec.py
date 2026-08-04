@@ -6,14 +6,14 @@ All values use big-endian byte order.
 """
 
 from alpha_hwr.protocol.codec import (
-    encode_float_be,
     decode_float_be,
-    encode_uint16_be,
-    decode_uint16_be,
-    encode_uint32_be,
-    decode_uint32_be,
-    encode_int16_be,
     decode_int16_be,
+    decode_uint16_be,
+    decode_uint32_be,
+    encode_float_be,
+    encode_int16_be,
+    encode_uint16_be,
+    encode_uint32_be,
 )
 
 
@@ -188,10 +188,10 @@ class TestCodecEdgeCases:
 
     def test_empty_bytes(self):
         """Test decoding empty byte arrays."""
-        assert decode_float_be(bytes()) is None
-        assert decode_uint16_be(bytes()) is None
-        assert decode_uint32_be(bytes()) is None
-        assert decode_int16_be(bytes()) is None
+        assert decode_float_be(b"") is None
+        assert decode_uint16_be(b"") is None
+        assert decode_uint32_be(b"") is None
+        assert decode_int16_be(b"") is None
 
     def test_special_float_values(self):
         """Test special float values (inf, nan)."""

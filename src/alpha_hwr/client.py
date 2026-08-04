@@ -96,7 +96,7 @@ from .constants import GENI_SERVICE_UUID
 from .core.authentication import AuthenticationHandler
 from .core.session import Session, SessionState
 from .core.transport import Transport
-from .exceptions import ConnectionError
+from .exceptions import READ_ERRORS, ConnectionError
 from .models import DeviceInfo
 from .services import (
     ConfigurationService,
@@ -323,11 +323,8 @@ class AlphaHWRClient:
                         )
                         telemetry_service.update_from_notification(data)
                         logger.debug("Telemetry updated successfully")
-                    except Exception as e:
-                        logger.error(
-                            f"Telemetry notification handler error: {e}",
-                            exc_info=True,
-                        )
+                    except READ_ERRORS:
+                        logger.exception("Telemetry notification handler error")
 
                 await self.transport.start_notifications(telemetry_handler)
                 logger.info("Telemetry notification handler registered")
@@ -336,7 +333,7 @@ class AlphaHWRClient:
             if self.auto_authenticate:
                 await self.authenticate(fast_mode=fast_mode)
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Connection failed: {e}")
             await self._cleanup()
             raise ConnectionError(f"Failed to connect to {self.address}: {e}")
@@ -405,7 +402,7 @@ class AlphaHWRClient:
 
             return success
 
-        except Exception as e:
+        except READ_ERRORS as e:
             self.session.on_error(f"Authentication error: {e}")
             logger.error(f"Authentication error: {e}")
             return False
@@ -509,7 +506,7 @@ class AlphaHWRClient:
                     )
                     devices.append(info)
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Discovery failed: {e}")
 
         logger.info(f"Found {len(devices)} ALPHA HWR pump(s)")
@@ -608,7 +605,7 @@ class AlphaHWRClient:
 
             logger.debug("Device not found in scan results")
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.debug(f"Failed to scan for advertisement data: {e}")
             # Don't fail connection if we can't get advertisement data
 
@@ -618,14 +615,14 @@ class AlphaHWRClient:
         if self.transport:
             try:
                 await self.transport.on_disconnected()
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.debug(f"Error during transport cleanup: {e}")
 
         # Update session state
         if self.session:
             try:
                 self.session.on_disconnected()
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.debug(f"Error during session cleanup: {e}")
 
         # Disconnect BLE if still connected (should be handled by transport)
@@ -636,7 +633,7 @@ class AlphaHWRClient:
         ):
             try:
                 await self._bleak_client.disconnect()
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.debug(f"Error disconnecting BLE: {e}")
 
         # Clear service references

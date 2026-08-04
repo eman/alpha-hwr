@@ -6,14 +6,13 @@ Commands:
   - restore: Restore pump configuration from file
 """
 
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
-from datetime import datetime
 
 import typer
 
 from ..app import console
-from ..common import require_service, get_client, handle_error, run_async
+from ..common import get_client, handle_error, require_service, run_async
 from ..output.formatters import print_success
 
 app = typer.Typer(help="Backup and restore pump configuration")
@@ -21,10 +20,10 @@ app = typer.Typer(help="Backup and restore pump configuration")
 
 @app.command("backup")
 def cmd_backup(
-    output_file: Optional[Path] = typer.Argument(
+    output_file: Path | None = typer.Argument(
         None, help="Output file path (JSON format)"
     ),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -62,10 +61,10 @@ def cmd_backup(
 
 @app.command("restore")
 def cmd_restore(
-    input_file: Optional[Path] = typer.Argument(
+    input_file: Path | None = typer.Argument(
         None, help="Input file path (JSON format)"
     ),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -134,7 +133,7 @@ def cmd_restore(
 
 
 async def _config_backup(
-    device: Optional[str], output_file: Optional[Path], force: bool
+    device: str | None, output_file: Path | None, force: bool
 ) -> None:
     """Internal async implementation of backup command."""
     try:
@@ -158,7 +157,11 @@ async def _config_backup(
                 backup_dir = Path.home() / ".config" / "alpha-hwr" / "backups"
                 backup_dir.mkdir(parents=True, exist_ok=True)
 
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                # Local time: the filename is for the operator, not for sorting
+                # against machine timestamps.
+                timestamp = (
+                    datetime.now(UTC).astimezone().strftime("%Y%m%d_%H%M%S")
+                )
                 filename = f"alpha_hwr_backup_{serial}_{timestamp}.json"
                 output_file = backup_dir / filename
 
@@ -182,11 +185,11 @@ async def _config_backup(
                 console.print("[error]Failed to backup configuration[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to backup configuration")
 
 
-async def _config_restore(device: Optional[str], input_file: Path) -> None:
+async def _config_restore(device: str | None, input_file: Path) -> None:
     """Internal async implementation of restore command."""
     try:
         async with get_client(device) as client:
@@ -200,5 +203,5 @@ async def _config_restore(device: Optional[str], input_file: Path) -> None:
                 console.print("[error]Failed to restore configuration[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to restore configuration")

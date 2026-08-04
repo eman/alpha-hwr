@@ -9,9 +9,10 @@ This module tests the telemetry service's ability to:
 """
 
 import struct
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, patch
 
 from alpha_hwr.client import AlphaHWRClient
 

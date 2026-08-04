@@ -17,12 +17,10 @@ Commands:
   - get-cycle-time: Get DHW cycle time configuration
 """
 
-from typing import Optional
-
 import typer
 
 from ..app import console
-from ..common import require_service, get_client, handle_error, run_async
+from ..common import get_client, handle_error, require_service, run_async
 from ..output.formatters import format_setpoint_panel, print_success
 
 app = typer.Typer(help="Control pump operations")
@@ -30,7 +28,7 @@ app = typer.Typer(help="Control pump operations")
 
 @app.command("status")
 def cmd_status(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -50,7 +48,7 @@ def cmd_status(
 
 @app.command("start")
 def cmd_start(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -70,7 +68,7 @@ def cmd_start(
 
 @app.command("stop")
 def cmd_stop(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -90,7 +88,7 @@ def cmd_stop(
 
 @app.command("enable-remote")
 def cmd_enable_remote(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -111,7 +109,7 @@ def cmd_enable_remote(
 
 @app.command("disable-remote")
 def cmd_disable_remote(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -135,7 +133,7 @@ def cmd_set_pressure(
     setpoint: float = typer.Argument(
         ..., help="Pressure setpoint in meters (m)"
     ),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -158,7 +156,7 @@ def cmd_set_proportional(
     setpoint: float = typer.Argument(
         ..., help="Proportional pressure setpoint in meters (m)"
     ),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -179,7 +177,7 @@ def cmd_set_proportional(
 @app.command("set-flow")
 def cmd_set_flow(
     setpoint: float = typer.Argument(..., help="Flow setpoint in m³/h"),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -202,10 +200,10 @@ def cmd_set_speed(
     setpoint: float = typer.Argument(
         ..., help="Speed setpoint in RPM (e.g., 2500)"
     ),
-    flow_limit: Optional[float] = typer.Option(
+    flow_limit: float | None = typer.Option(
         None, "--flow-limit", "-f", help="Maximum flow limit in GPM (e.g. 1.5)"
     ),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -231,7 +229,7 @@ def cmd_set_mode(
         help="Mode name: constant-pressure, constant-speed (or constant-curve), constant-flow, cycle-time (or dhw), temperature-range",
     ),
     setpoint: float = typer.Argument(..., help="Setpoint value"),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -264,10 +262,10 @@ def cmd_set_temperature(
         "--autoadapt/--no-autoadapt",
         help="Enable/disable AutoAdapt flow adjustment",
     ),
-    flow_limit: Optional[float] = typer.Option(
+    flow_limit: float | None = typer.Option(
         None, "--flow-limit", "-f", help="Maximum flow limit in GPM (e.g. 1.5)"
     ),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -300,7 +298,7 @@ def cmd_set_cycle_time(
     off_minutes: int = typer.Option(
         ..., "--off", help="Pump off duration (minutes)"
     ),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -322,7 +320,7 @@ def cmd_set_cycle_time(
 
 @app.command("get-cycle-time")
 def cmd_get_cycle_time(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -343,7 +341,7 @@ def cmd_get_cycle_time(
 @app.command("set-flow-limit")
 def cmd_set_flow_limit(
     limit_gpm: float = typer.Argument(..., help="Maximum flow limit in GPM"),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -367,7 +365,7 @@ def cmd_set_flow_limit(
 # Internal async implementations
 
 
-async def _control_status(device: Optional[str]) -> None:
+async def _control_status(device: str | None) -> None:
     """Internal async implementation of status command."""
     try:
         async with get_client(device) as client:
@@ -383,11 +381,11 @@ async def _control_status(device: Optional[str]) -> None:
             panel = format_setpoint_panel(setpoint_info)
             console.print(panel)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to read control status")
 
 
-async def _control_start(device: Optional[str]) -> None:
+async def _control_start(device: str | None) -> None:
     """Internal async implementation of start command."""
     try:
         async with get_client(device) as client:
@@ -407,11 +405,11 @@ async def _control_start(device: Optional[str]) -> None:
                 console.print("[error]Failed to start pump[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to start pump")
 
 
-async def _control_stop(device: Optional[str]) -> None:
+async def _control_stop(device: str | None) -> None:
     """Internal async implementation of stop command."""
     try:
         async with get_client(device) as client:
@@ -431,11 +429,11 @@ async def _control_stop(device: Optional[str]) -> None:
                 console.print("[error]Failed to stop pump[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to stop pump")
 
 
-async def _control_enable_remote(device: Optional[str]) -> None:
+async def _control_enable_remote(device: str | None) -> None:
     """Internal async implementation of enable-remote command."""
     try:
         async with get_client(device) as client:
@@ -449,11 +447,11 @@ async def _control_enable_remote(device: Optional[str]) -> None:
                 console.print("[error]Failed to enable remote mode[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to enable remote mode")
 
 
-async def _control_disable_remote(device: Optional[str]) -> None:
+async def _control_disable_remote(device: str | None) -> None:
     """Internal async implementation of disable-remote command."""
     try:
         async with get_client(device) as client:
@@ -467,12 +465,12 @@ async def _control_disable_remote(device: Optional[str]) -> None:
                 console.print("[error]Failed to disable remote mode[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to disable remote mode")
 
 
 async def _control_set_mode(
-    device: Optional[str], mode: str, setpoint: float
+    device: str | None, mode: str, setpoint: float
 ) -> None:
     """Internal async implementation of set mode commands."""
     try:
@@ -514,16 +512,16 @@ async def _control_set_mode(
                 console.print("[error]Failed to set control mode[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, f"Failed to set {mode}")
 
 
 async def _control_set_temperature(
-    device: Optional[str],
+    device: str | None,
     min_temp: float,
     max_temp: float,
     autoadapt: bool,
-    flow_limit: Optional[float] = None,
+    flow_limit: float | None = None,
 ) -> None:
     """Internal async implementation of set-temperature command."""
     try:
@@ -548,12 +546,12 @@ async def _control_set_temperature(
                 console.print("[error]Failed to set temperature range[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to set temperature range")
 
 
 async def _control_set_cycle_time(
-    device: Optional[str], on_minutes: int, off_minutes: int
+    device: str | None, on_minutes: int, off_minutes: int
 ) -> None:
     """Internal async implementation of set-cycle-time command."""
     try:
@@ -572,11 +570,11 @@ async def _control_set_cycle_time(
                 console.print("[error]Failed to set cycle time control[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to set cycle time control")
 
 
-async def _control_get_cycle_time(device: Optional[str]) -> None:
+async def _control_get_cycle_time(device: str | None) -> None:
     """Internal async implementation of get-cycle-time command."""
     try:
         async with get_client(device) as client:
@@ -594,12 +592,12 @@ async def _control_get_cycle_time(device: Optional[str]) -> None:
                     "[error]Failed to read cycle time configuration[/error]"
                 )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to read cycle time configuration")
 
 
 async def _control_set_speed(
-    device: Optional[str], setpoint: float, flow_limit: Optional[float] = None
+    device: str | None, setpoint: float, flow_limit: float | None = None
 ) -> None:
     """Internal async implementation of set-speed command."""
     try:
@@ -622,13 +620,11 @@ async def _control_set_speed(
                 console.print("[error]Failed to set constant speed[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to set constant speed")
 
 
-async def _control_set_flow_limit(
-    device: Optional[str], limit_gpm: float
-) -> None:
+async def _control_set_flow_limit(device: str | None, limit_gpm: float) -> None:
     """Internal async implementation of set-flow-limit command."""
     try:
         async with get_client(device) as client:
@@ -642,5 +638,5 @@ async def _control_set_flow_limit(
                 console.print("[error]Failed to set flow limit[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to set flow limit")

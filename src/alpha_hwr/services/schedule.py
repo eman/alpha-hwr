@@ -46,6 +46,8 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from alpha_hwr.models import ScheduleEntry
+
+from ..exceptions import READ_ERRORS
 from ..utils import calc_crc16_read
 from .base import BaseService
 
@@ -337,7 +339,7 @@ class ScheduleService(BaseService):
                         )
                         entries.append(entry)
 
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.error(f"Error reading schedule layer {layer_idx}: {e}")
 
         return entries
@@ -669,7 +671,7 @@ class ScheduleService(BaseService):
                         f"Entry {i}: Invalid type {type(entry).__name__}, "
                         f"expected ScheduleEntry or dict"
                     )
-            except Exception as e:
+            except READ_ERRORS as e:
                 errors.append(f"Entry {i}: Failed to parse: {e}")
 
         # If we couldn't parse entries, return early
@@ -805,8 +807,8 @@ class ScheduleService(BaseService):
                 )
                 return False
 
-        except Exception as e:
-            logger.error(f"Error setting schedule enabled: {e}", exc_info=True)
+        except READ_ERRORS:
+            logger.exception("Error setting schedule enabled")
             return False
 
     async def _scan_for_object(
@@ -851,7 +853,9 @@ class ScheduleService(BaseService):
                     [(crc >> 8) & 0xFF, crc & 0xFF]
                 )
 
-                def match_obj(data: bytes) -> bool:
+                def match_obj(
+                    data: bytes, sub_id: int = sub_id, obj_id: int = obj_id
+                ) -> bool:
                     """Match response for this specific SubID/ObjID."""
                     if len(data) < 10:
                         return False
@@ -874,7 +878,7 @@ class ScheduleService(BaseService):
 
                 await asyncio.sleep(0.02)
 
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.debug(f"Error probing SubID {sub_id}: {e}")
                 continue
 
@@ -928,6 +932,6 @@ class ScheduleService(BaseService):
 
             return True
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Error writing Class 10 command: {e}")
             return False

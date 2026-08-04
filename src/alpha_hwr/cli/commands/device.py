@@ -10,19 +10,17 @@ Commands:
   - list: List saved devices
 """
 
-from typing import Optional
-
 import typer
 
 from ...client import AlphaHWRClient
 from ..app import console
-from ..common import require_service, get_client, handle_error, run_async
+from ..common import get_client, handle_error, require_service, run_async
 from ..config_manager import ConfigManager
 from ..output.formatters import (
-    format_device_info_panel,
-    format_statistics_panel,
     format_alarm_panel,
+    format_device_info_panel,
     format_discovery_table,
+    format_statistics_panel,
 )
 
 app = typer.Typer(help="Device information and status")
@@ -33,7 +31,7 @@ def cmd_scan(
     timeout: float = typer.Option(
         10.0, "--timeout", "-t", help="Scan duration in seconds"
     ),
-    save: Optional[str] = typer.Option(
+    save: str | None = typer.Option(
         None, "--save", "-s", help="Save device with this name (or 'default')"
     ),
 ) -> None:
@@ -51,7 +49,7 @@ def cmd_scan(
 
 @app.command("info")
 def cmd_info(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -71,7 +69,7 @@ def cmd_info(
 
 @app.command("stats")
 def cmd_stats(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -91,7 +89,7 @@ def cmd_stats(
 
 @app.command("alarms")
 def cmd_alarms(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -112,7 +110,7 @@ def cmd_alarms(
 @app.command("set")
 def cmd_set(
     address: str = typer.Argument(..., help="MAC address of the pump"),
-    name: Optional[str] = typer.Option(
+    name: str | None = typer.Option(
         None, "--name", "-n", help="Friendly name for this device"
     ),
     default: bool = typer.Option(
@@ -135,7 +133,7 @@ def cmd_set(
         )
         if default:
             console.print("[green]✓[/green] Set as default device")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to save device")
 
 
@@ -180,7 +178,7 @@ def cmd_list() -> None:
 # Internal async implementations
 
 
-async def _device_scan(timeout: float, save: Optional[str] = None) -> None:
+async def _device_scan(timeout: float, save: str | None = None) -> None:
     """Internal async implementation of scan command."""
     try:
         console.print(
@@ -221,11 +219,11 @@ async def _device_scan(timeout: float, save: Optional[str] = None) -> None:
                     f"[green]✓[/green] Saved device '{save}' ({device_address})"
                 )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Scan failed")
 
 
-async def _device_info(device: Optional[str]) -> None:
+async def _device_info(device: str | None) -> None:
     """Internal async implementation of info command."""
     try:
         async with get_client(device) as client:
@@ -243,11 +241,11 @@ async def _device_info(device: Optional[str]) -> None:
             panel = format_device_info_panel(info)
             console.print(panel)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to read device information")
 
 
-async def _device_stats(device: Optional[str]) -> None:
+async def _device_stats(device: str | None) -> None:
     """Internal async implementation of stats command."""
     try:
         async with get_client(device) as client:
@@ -263,11 +261,11 @@ async def _device_stats(device: Optional[str]) -> None:
             panel = format_statistics_panel(stats)
             console.print(panel)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to read statistics")
 
 
-async def _device_alarms(device: Optional[str]) -> None:
+async def _device_alarms(device: str | None) -> None:
     """Internal async implementation of alarms command."""
     try:
         async with get_client(device) as client:
@@ -283,5 +281,5 @@ async def _device_alarms(device: Optional[str]) -> None:
             panel = format_alarm_panel(alarms)
             console.print(panel)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to read alarms")

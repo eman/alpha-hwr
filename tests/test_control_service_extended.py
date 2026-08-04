@@ -10,8 +10,10 @@ This module tests additional ControlService methods not covered by existing test
 - set_autoadapt() - Set generic AutoAdapt mode
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+from bleak.exc import BleakError
 
 
 class TestSetConstantSpeed:
@@ -305,7 +307,7 @@ class TestControlServiceErrorHandling:
         """Test set_constant_speed when transport raises exception."""
         # Mock query to raise exception after max retries
         mock_client_simple.transport.query = AsyncMock(
-            side_effect=Exception("Transport error")
+            side_effect=BleakError("Transport error")
         )
 
         result = await mock_client_simple.control.set_constant_speed(2500.0)
@@ -319,7 +321,7 @@ class TestControlServiceErrorHandling:
     ):
         """Test set_proportional_pressure when transport raises exception."""
         mock_client_simple.transport.query = AsyncMock(
-            side_effect=Exception("Transport error")
+            side_effect=BleakError("Transport error")
         )
 
         result = await mock_client_simple.control.set_proportional_pressure(2.5)
@@ -332,7 +334,7 @@ class TestControlServiceErrorHandling:
     ):
         """Test set_autoadapt_radiator when transport raises exception."""
         mock_client_simple.transport.query = AsyncMock(
-            side_effect=Exception("Transport error")
+            side_effect=BleakError("Transport error")
         )
 
         result = await mock_client_simple.control.set_autoadapt_radiator(3.0)

@@ -86,22 +86,20 @@ from pydantic import BaseModel, Field
 
 class TelemetryData(BaseModel):
     """Telemetry data from pump.
-    
+
     Attributes:
         flow_m3h: Flow rate in cubic meters per hour.
         head_m: Head pressure in meters.
         power_w: Power consumption in watts.
     """
-    
+
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
-    
+
     flow_m3h: float | None = Field(
-        default=None, 
-        description="Flow rate in m³/h"
+        default=None, description="Flow rate in m³/h"
     )
     head_m: float | None = Field(
-        default=None, 
-        description="Head pressure in meters"
+        default=None, description="Head pressure in meters"
     )
 ```
 

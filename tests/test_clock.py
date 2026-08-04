@@ -1,9 +1,11 @@
 """Tests for time/clock operations."""
 
-import pytest
-import pytest_asyncio
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
+
+import pytest
+import pytest_asyncio
+
 from alpha_hwr.client import AlphaHWRClient
 
 
@@ -86,7 +88,7 @@ async def test_set_clock_object_94(client):
     )
     client.transport.query = AsyncMock(side_effect=[ack_resp, verify_resp])
 
-    dt = datetime(2026, 1, 30, 11, 35, 0)
+    dt = datetime(2026, 1, 30, 11, 35, 0)  # noqa: DTZ001  # pump wall clock is naive
     success = await client.time.set_clock(dt)
 
     assert success is True

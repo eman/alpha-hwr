@@ -1,9 +1,13 @@
 """Tests for schedule write operations using the new service-based API."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, patch
+from pydantic import ValidationError
+
 from alpha_hwr.client import AlphaHWRClient
+from alpha_hwr.core.session import SessionState
 from alpha_hwr.models import ScheduleEntry
 
 
@@ -336,7 +340,7 @@ class TestScheduleWriteEdgeCases:
     async def test_write_entries_invalid_day_name(self, client):
         """Test that invalid day names are caught by validation."""
         # This should fail during ScheduleEntry creation (Pydantic validation)
-        with pytest.raises(Exception):  # ValidationError from Pydantic
+        with pytest.raises(ValidationError):
             ScheduleEntry(
                 day="InvalidDay",
                 begin_hour=6,
@@ -501,22 +505,22 @@ class TestScheduleWriteAuthentication:
     async def test_write_entries_requires_authentication(self, client):
         """Test that write operations require authentication."""
         # Mock session as not authenticated
-        client.session.state = 0  # Not authenticated
+        client.session.state = SessionState.CONNECTED  # Not authenticated
 
         entry = ScheduleEntry(
             day="Monday", begin_hour=6, begin_minute=0, end_hour=8, end_minute=0
         )
 
         # Should raise an exception about authentication
-        with pytest.raises(Exception):
+        with pytest.raises(ConnectionError):
             await client.schedule.write_entries([entry], layer=0)
 
     @pytest.mark.asyncio
     async def test_clear_entry_requires_authentication(self, client):
         """Test that clear operations require authentication."""
         # Mock session as not authenticated
-        client.session.state = 0  # Not authenticated
+        client.session.state = SessionState.CONNECTED  # Not authenticated
 
         # Should raise an exception about authentication
-        with pytest.raises(Exception):
+        with pytest.raises(ConnectionError):
             await client.schedule.clear_entry("Monday", layer=0)

@@ -8,16 +8,20 @@ It handles command validation, parameter conversion, and transactional execution
 import asyncio
 import logging
 import struct
-from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import Any, Optional, Dict, Union
+from enum import Enum, auto
 from pathlib import Path
+from typing import Any, ClassVar
 
 from .client import AlphaHWRClient
-from .protocol import FrameBuilder
+from .exceptions import READ_ERRORS
 from .profile_parser import GeniProfileParser, Parameter
+from .protocol import FrameBuilder
 
 logger = logging.getLogger(__name__)
+
+#: A command can also trip the uninitialised-transport guard below.
+_COMMAND_ERRORS: tuple[type[Exception], ...] = (*READ_ERRORS, RuntimeError)
 
 
 class CommandState(Enum):
@@ -36,7 +40,7 @@ class CommandResult:
 
     success: bool
     message: str
-    data: Optional[bytes] = None
+    data: bytes | None = None
 
 
 @dataclass
@@ -47,7 +51,7 @@ class CommandTransaction:
     command_name: str
     params: Any
     state: CommandState = CommandState.PENDING
-    result: Optional[CommandResult] = None
+    result: CommandResult | None = None
     _future: asyncio.Future = field(default_factory=asyncio.Future)
 
     def wait(self):
@@ -60,15 +64,15 @@ class CommandProcessor:
     Executes commands based on GENI profile definitions.
     """
 
-    _ALIASES: Dict[str, str] = {
+    _ALIASES: ClassVar[dict[str, str]] = {
         "START": "AUTO",
         "RESET": "RESET_ALARM",  # Common alias if RESET exists in profile as something else
     }
 
-    def __init__(self, client: AlphaHWRClient, profile_path: Union[str, Path]):
+    def __init__(self, client: AlphaHWRClient, profile_path: str | Path):
         self.client = client
         self.parser = GeniProfileParser(profile_path)
-        self.transactions: Dict[str, CommandTransaction] = {}
+        self.transactions: dict[str, CommandTransaction] = {}
         self._initialized = False
 
     def initialize(self):
@@ -143,7 +147,7 @@ class CommandProcessor:
             tx._future.set_result(tx.result)
             return tx.result
 
-        except Exception as e:
+        except _COMMAND_ERRORS as e:
             tx.state = CommandState.FAILED
             tx.result = CommandResult(False, str(e))
             tx._future.set_result(tx.result)
@@ -176,19 +180,23 @@ class CommandProcessor:
         """Convert input value to bytes based on profile data type."""
 
         # Handle Enums (lookup by name or value)
-        if param.enum_values:
+        if param.enum_values and isinstance(value, str):
             # If string provided, try to find enum value
-            if isinstance(value, str):
-                for e in param.enum_values:
-                    if e.name.lower() == value.lower():
-                        value = e.value
-                        break
-                else:
-                    # Not found in names, check if it's a digit string
-                    if not value.isdigit():
-                        raise ValueError(
-                            f"Invalid enum name '{value}' for '{param.name}'"
-                        )
+            match = next(
+                (
+                    e
+                    for e in param.enum_values
+                    if e.name.lower() == value.lower()
+                ),
+                None,
+            )
+            if match is not None:
+                value = match.value
+            elif not value.isdigit():
+                # Not a known name, and not a raw numeric value either
+                raise ValueError(
+                    f"Invalid enum name '{value}' for '{param.name}'"
+                )
 
         # Numeric conversion
         if param.data_type == "Float":

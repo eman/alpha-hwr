@@ -1,7 +1,9 @@
-import pytest
-from alpha_hwr.command_processor import CommandProcessor
-from alpha_hwr.client import AlphaHWRClient
 from unittest.mock import patch
+
+import pytest
+
+from alpha_hwr.client import AlphaHWRClient
+from alpha_hwr.command_processor import CommandProcessor
 
 
 class TestCommandProcessor:

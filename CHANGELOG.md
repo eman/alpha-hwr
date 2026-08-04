@@ -3,10 +3,63 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Misleading error on mid-read disconnect**: `_read_class10_object()` now
+  raises `ConnectionError` when the BLE link drops while waiting for a
+  response, instead of silently returning `None`. Previously a disconnect
+  during `control status` (or any other Class 10 read) surfaced as
+  "Setpoint data too short or missing: 0 bytes" / "Could not read control
+  mode", masking the real cause. The CLI now reports "Pump disconnected
+  from BLE while reading Object X/Y" instead.
+
+- **Disconnect reported as "no data" via the transport**: `_read_class10_object()`
+  raised `ConnectionError` only when a read went unanswered on a dead link. If
+  the drop instead surfaced as a transport error (e.g. `BleakError` out of
+  `write_gatt_char`), it was still swallowed and returned as `None` - the same
+  misleading behavior for a different failure path. Both now raise.
+- **Wake burst raced in-flight queries**: `send_wake_burst()` wrote its
+  keep-alive packets without holding the transport's `_transaction_lock`, so a
+  burst could interleave with a concurrent `query()` and let the replies it
+  drew out land in that query's response queue. It now takes the lock like
+  every other multi-packet operation.
+- **A failed wake burst aborted the read**: the pre-read burst in `read_once()`
+  sat outside the error handling, so a burst that raised took down the whole
+  read instead of degrading to partial telemetry.
+- **Telemetry read throughput**: `read_once()` sent a ~0.6s wake burst before
+  every read, which capped polling at well under the 10Hz `stream()` interval
+  and pushed a single read to ~750ms. The burst is now sent once per session
+  and re-armed after a disconnect; the retry path still re-wakes a controller
+  that goes back to sleep mid-session.
+
+### Changed
+
+- **Timestamps are timezone-aware**: absolute instants - telemetry
+  `timestamp` (including the `TelemetryData` / `AdvancedTelemetry` field
+  defaults), cycle/trend timestamps, session `connected_at` /
+  `authenticated_at`, and CLI config bookkeeping - are now UTC-aware
+  `datetime` objects rather than naive local ones. The CLI renders them in
+  local time. The pump's own wall clock (`TimeService.get_clock()` /
+  `set_clock()`) stays naive by design: the pump stores bare wall-clock
+  fields with no offset and runs its schedules against them.
+- **Narrower exception handling**: read paths across the services, client,
+  and transport now catch `alpha_hwr.exceptions.READ_ERRORS` (transport and
+  decode failures) instead of bare `Exception`, so genuine bugs surface
+  instead of being logged as "no data". Top-level CLI error boundaries and
+  caller-supplied notification handlers still catch broadly on purpose.
+- `TelemetryData.control_mode` coercion raises `TypeError` (not `ValueError`)
+  for a non-int input.
+
 ### Documentation
 
 - Clarified that ALPHA HWR pumps should be paired/bonded with the host before
   telemetry and control are expected to work reliably.
+
+### Internal
+
+- Upgraded ruff to 0.16.1 and pinned it in CI. Ruff 0.16 widened the default
+  rule set and began formatting Python inside Markdown fences; leaving it
+  unpinned meant every upstream release could fail unrelated PRs.
 
 
 ## [0.6.0] - 2026-05-15

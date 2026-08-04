@@ -1,19 +1,20 @@
 import struct
-from alpha_hwr.protocol.frame_builder import FrameBuilder
-from alpha_hwr.protocol.frame_parser import FrameParser
-from alpha_hwr.protocol.telemetry_decoder import TelemetryDecoder
+
 from alpha_hwr.constants import (
-    AUTH_LEGACY_MAGIC,
     AUTH_CLASS10_MAGIC,
     AUTH_EXTEND_1,
     AUTH_EXTEND_2,
-    CommandOpcode,
+    AUTH_LEGACY_MAGIC,
+    CLASS_10,
     FRAME_START,
+    RESERVED_BYTE,
     RESPONSE_START,
     SERVICE_ID_HIGH,
-    RESERVED_BYTE,
-    CLASS_10,
+    CommandOpcode,
 )
+from alpha_hwr.protocol.frame_builder import FrameBuilder
+from alpha_hwr.protocol.frame_parser import FrameParser
+from alpha_hwr.protocol.telemetry_decoder import TelemetryDecoder
 from alpha_hwr.utils import calc_crc16_read
 
 
@@ -26,7 +27,9 @@ class TestPacketCreation:
     def test_auth_magic_packets(self):
         """Verify Authentication Magic Packets match known good sequences."""
         # Derived from constants.py
-        assert AUTH_LEGACY_MAGIC == bytes.fromhex("2707e7f80203949596eb47")
+        # Legacy magic addresses the broadcast unit 0xFF (not 0xE7), matching
+        # the payload captured from the Grundfos GO app - see issue #65.
+        assert AUTH_LEGACY_MAGIC == bytes.fromhex("2707fff802039495964f91")
         assert AUTH_CLASS10_MAGIC == bytes.fromhex("2707e7f80a03560006c55a")
         assert AUTH_EXTEND_1 == bytes.fromhex("2705e7f805c14bc382")
         assert AUTH_EXTEND_2 == bytes.fromhex("2705e7f80bc10fd0c3")

@@ -29,14 +29,14 @@ Example:
 from typing import ClassVar
 from pydantic import BaseModel, ConfigDict, Field
 
+
 class TelemetryData(BaseModel):
     """Telemetry data from pump."""
-    
+
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
-    
+
     flow_m3h: float | None = Field(
-        default=None,
-        description="Flow rate in m³/h"
+        default=None, description="Flow rate in m³/h"
     )
 ```
 
@@ -120,6 +120,7 @@ For integration tests, always use MockPump:
 ```python
 from tests.mocks.mock_pump import MockPump
 
+
 @pytest.mark.asyncio
 async def test_control_flow():
     """Test pump control workflow."""
@@ -137,15 +138,20 @@ async def test_control_flow():
 def process_data(data):
     return data * 2
 
+
 # Using Optional instead of | None
 from typing import Optional
+
+
 def get_value() -> Optional[str]:
     pass
+
 
 # Blocking I/O in async function
 async def read_file():
     with open("file.txt") as f:  # WRONG!
         return f.read()
+
 
 # Bare except
 try:
@@ -160,17 +166,21 @@ except:  # WRONG!
 def process_data(data: float) -> float:
     return data * 2
 
+
 # Modern union syntax
 def get_value() -> str | None:
     pass
 
+
 # Async file I/O
 async def read_file() -> str:
     return await asyncio.to_thread(_read_sync_file)
-    
+
+
 def _read_sync_file() -> str:
     with open("file.txt") as f:
         return f.read()
+
 
 # Specific exceptions
 try:

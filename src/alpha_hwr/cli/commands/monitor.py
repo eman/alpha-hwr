@@ -7,21 +7,20 @@ Commands:
 """
 
 import asyncio
-from typing import Optional
 
 import typer
 from rich.live import Live
 
 from ..app import console
-from ..common import require_service, get_client, handle_error, run_async
-from ..output.formatters import format_telemetry_table, format_json
+from ..common import get_client, handle_error, require_service, run_async
+from ..output.formatters import format_json, format_telemetry_table
 
 app = typer.Typer(help="Monitor pump telemetry in real-time")
 
 
 @app.command("live")
 def cmd_live(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -58,7 +57,7 @@ def cmd_live(
 
 @app.command("snapshot")
 def cmd_snapshot(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -84,7 +83,7 @@ def cmd_snapshot(
 
 
 async def _monitor_live(
-    device: Optional[str], interval: float, format_type: str
+    device: str | None, interval: float, format_type: str
 ) -> None:
     """Internal async implementation of live monitoring."""
     try:
@@ -117,11 +116,11 @@ async def _monitor_live(
 
     except KeyboardInterrupt:
         console.print("\n[info]Monitoring stopped[/info]")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to monitor pump")
 
 
-async def _monitor_snapshot(device: Optional[str], format_type: str) -> None:
+async def _monitor_snapshot(device: str | None, format_type: str) -> None:
     """Internal async implementation of snapshot."""
     try:
         async with get_client(device) as client:
@@ -136,5 +135,5 @@ async def _monitor_snapshot(device: Optional[str], format_type: str) -> None:
             else:  # json
                 format_json(data)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to read telemetry")

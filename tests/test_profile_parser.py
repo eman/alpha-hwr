@@ -1,4 +1,5 @@
 import pytest
+
 from alpha_hwr.profile_parser import GeniProfileParser
 
 # Sample XML Content

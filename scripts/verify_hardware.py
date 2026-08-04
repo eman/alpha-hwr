@@ -110,7 +110,7 @@ async def _run(address: str | None, verbose: bool) -> int:
                 else:
                     print("  (no device info returned)")
                     failed.append("read_info returned None")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - diagnostic script reports every failure
                 print(f"  ERROR reading device info: {exc}")
                 failed.append(f"Device info error: {exc}")
 
@@ -133,7 +133,7 @@ async def _run(address: str | None, verbose: bool) -> int:
                 else:
                     print("  Telemetry returned None")
                     failed.append("read_once returned None")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - diagnostic script reports every failure
                 print(f"  ERROR reading telemetry: {exc}")
                 failed.append(f"Telemetry error: {exc}")
 
@@ -155,14 +155,14 @@ async def _run(address: str | None, verbose: bool) -> int:
                 else:
                     print("  (no control mode data)")
                     failed.append("get_mode returned None")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - diagnostic script reports every failure
                 print(f"  ERROR reading control mode: {exc}")
                 failed.append(f"Control mode error: {exc}")
 
     except Exception as exc:
         print(f"\nFATAL: Could not connect/authenticate: {exc}")
         failed.append(f"Connection failed: {exc}")
-        logging.exception("Connection error")
+        logging.getLogger(__name__).exception("Connection error")
 
     # ------------------------------------------------------------------ #
     # Summary                                                              #
