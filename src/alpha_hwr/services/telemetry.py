@@ -257,8 +257,15 @@ class TelemetryService:
         # we stop paying the ~0.6s burst on every read: the retry path above
         # re-wakes it if it dozes off again.
         if self._needs_wake:
-            await self.transport.send_wake_burst()
-            self._needs_wake = False
+            try:
+                await self.transport.send_wake_burst()
+                self._needs_wake = False
+            except READ_ERRORS as e:
+                # A failed wake burst must not abort the read: fall through
+                # and let the per-register retries deal with a controller
+                # that is unresponsive. _needs_wake stays set so the next
+                # read tries to wake it again.
+                logger.debug(f"Pre-read wake burst failed: {e}")
 
         # 1. Query Motor State (if no active stream)
         if not self._has_motor_state_stream:

@@ -174,6 +174,15 @@ class BaseService:
             raise
 
         except READ_ERRORS as e:
+            # A dropped link can also surface as a transport error rather
+            # than an unanswered read (e.g. BleakError out of
+            # write_gatt_char). That is still a disconnect, not "no data",
+            # so it gets the same treatment as the branch above.
+            if not self.transport.is_connected():
+                raise ConnectionError(
+                    f"Pump disconnected from BLE while reading "
+                    f"Object {obj_id}/{sub_id}"
+                ) from e
             logger.debug(f"Error reading Object {obj_id} SubID {sub_id}: {e}")
             return None
 

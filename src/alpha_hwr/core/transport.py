@@ -516,6 +516,12 @@ class Transport:
 
         Notes
         -----
+        Holds ``_transaction_lock`` for the whole burst, like every other
+        multi-packet operation on this transport. Without it a burst can
+        interleave with an in-flight ``query()``, and the replies it draws
+        out land in that query's response queue and confuse its matching.
+        Callers must therefore not already hold the lock.
+
         See docs/protocol/ble_architecture.md ("Keep-Alive Burst") for the
         protocol rationale behind this sequence.
         """
@@ -523,11 +529,13 @@ class Transport:
 
         keep_alive_packet = FrameBuilder.build_command_info(0x02, 0x01)
 
-        for _ in range(repeats):
-            await self.write(keep_alive_packet, response=False)
-            await asyncio.sleep(packet_delay)
+        async with self._transaction_lock:
+            for _ in range(repeats):
+                await self.write(keep_alive_packet, response=False)
+                await asyncio.sleep(packet_delay)
 
-        await asyncio.sleep(wake_delay)
+            await asyncio.sleep(wake_delay)
+
         logger.debug("Wake burst sent")
 
     async def start_keep_alive(self, interval: float = 30.0) -> None:

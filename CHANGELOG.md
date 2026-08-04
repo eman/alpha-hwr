@@ -13,6 +13,19 @@
   mode", masking the real cause. The CLI now reports "Pump disconnected
   from BLE while reading Object X/Y" instead.
 
+- **Disconnect reported as "no data" via the transport**: `_read_class10_object()`
+  raised `ConnectionError` only when a read went unanswered on a dead link. If
+  the drop instead surfaced as a transport error (e.g. `BleakError` out of
+  `write_gatt_char`), it was still swallowed and returned as `None` - the same
+  misleading behavior for a different failure path. Both now raise.
+- **Wake burst raced in-flight queries**: `send_wake_burst()` wrote its
+  keep-alive packets without holding the transport's `_transaction_lock`, so a
+  burst could interleave with a concurrent `query()` and let the replies it
+  drew out land in that query's response queue. It now takes the lock like
+  every other multi-packet operation.
+- **A failed wake burst aborted the read**: the pre-read burst in `read_once()`
+  sat outside the error handling, so a burst that raised took down the whole
+  read instead of degrading to partial telemetry.
 - **Telemetry read throughput**: `read_once()` sent a ~0.6s wake burst before
   every read, which capped polling at well under the 10Hz `stream()` interval
   and pushed a single read to ~750ms. The burst is now sent once per session
@@ -22,7 +35,8 @@
 ### Changed
 
 - **Timestamps are timezone-aware**: absolute instants - telemetry
-  `timestamp`, cycle/trend timestamps, session `connected_at` /
+  `timestamp` (including the `TelemetryData` / `AdvancedTelemetry` field
+  defaults), cycle/trend timestamps, session `connected_at` /
   `authenticated_at`, and CLI config bookkeeping - are now UTC-aware
   `datetime` objects rather than naive local ones. The CLI renders them in
   local time. The pump's own wall clock (`TimeService.get_clock()` /

@@ -13,3 +13,6 @@ def test_telemetry_model():
     assert t.flow_m3h is None
     assert t.power_w is None
     assert t.timestamp is not None
+    # Timezone-aware, so it can be compared against (and rendered
+    # alongside) the UTC-aware timestamps that reads write.
+    assert t.timestamp.tzinfo is not None

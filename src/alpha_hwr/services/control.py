@@ -302,7 +302,8 @@ class ControlService(BaseService):
             >>> await control.start()
 
         Implementation Notes:
-            - Uses Class 3 command: [0x03, 0xC1, 0x07]
+            - Uses Class 3 command: [0x03, 0x81, 0x07]
+              (OpSpec 0x81 = SET; command ID 7 = REMOTE)
             - Service ID: 0xE7, Source: 0xF8
         """
         self.session.ensure_authenticated()
@@ -317,26 +318,29 @@ class ControlService(BaseService):
 
     async def disable_remote_mode(self) -> bool:
         """
-        Disable remote control mode (return to Auto).
+        Disable remote control mode (hand control back to the pump).
 
-        Disables remote control mode (Class 3 command ID 6), returning the pump
-        to automatic operation. The pump will resume normal operation based on
-        its internal logic and local controls.
+        Sends Class 3 command ID 8 (LOCAL), returning the pump to local
+        control. The pump resumes normal operation based on its internal
+        logic and local controls.
 
         Returns:
             True if remote mode was disabled successfully, False otherwise
 
         Example:
             >>> await control.disable_remote_mode()
-            >>> # Pump returns to automatic operation
+            >>> # Pump returns to local control
 
         Implementation Notes:
-            - Uses Class 3 command: [0x03, 0xC1, 0x06]
+            - Uses Class 3 command: [0x03, 0x81, 0x08]
+              (OpSpec 0x81 = SET; command ID 8 = LOCAL)
+            - Previously sent command ID 6 (START) with OpSpec 0xC1
+              (INFO), which did not release remote mode
             - Service ID: 0xE7, Source: 0xF8
         """
         self.session.ensure_authenticated()
 
-        logger.info("Disabling Remote Mode (Auto)...")
+        logger.info("Disabling Remote Mode (LOCAL)...")
 
         # Class 3: 03 C1 06
         apdu = bytes([0x03, 0xC1, 0x06])

@@ -12,9 +12,11 @@ reported as "no data". Covers:
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from bleak.exc import BleakError
 
 from alpha_hwr.core.session import Session
 from alpha_hwr.core.transport import Transport
@@ -107,3 +109,39 @@ async def test_wake_burst_resent_after_disconnect() -> None:
         "Expected the wake burst to be re-armed after a disconnect, got "
         f"{transport.send_wake_burst.call_count}"
     )
+
+
+@pytest.mark.asyncio
+async def test_failed_wake_burst_does_not_abort_read() -> None:
+    """A wake burst that raises must not take down the whole read."""
+    service, transport = _make_service(
+        response=bytes.fromhex("2707e7f80a0300000000")
+    )
+    transport.send_wake_burst = AsyncMock(side_effect=BleakError("link down"))
+
+    with patch(_PATCH_SLEEP):
+        result = await service.read_once()
+
+    # The read proceeds despite the failed burst...
+    assert result is not None
+    assert transport.query.call_count == _REGISTERS_POLLED
+    # ...and the burst stays armed for the next attempt.
+    assert service._needs_wake is True
+
+
+@pytest.mark.asyncio
+async def test_wake_burst_holds_transaction_lock() -> None:
+    """The burst must not interleave with an in-flight query()."""
+    transport = Transport(MagicMock())
+    transport.write = AsyncMock()
+
+    async with transport._transaction_lock:
+        burst = asyncio.create_task(
+            transport.send_wake_burst(repeats=1, packet_delay=0, wake_delay=0)
+        )
+        await asyncio.sleep(0)
+        # The lock is held, so the burst must not have written anything.
+        assert transport.write.call_count == 0
+
+    await burst
+    assert transport.write.call_count == 1
