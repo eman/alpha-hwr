@@ -51,10 +51,12 @@ def test_encode_float_be():
     result = encode_float_be(1.5)
     assert result == bytes.fromhex("3FC00000")
 
+
 def test_decode_float_be_inf():
     """Test handling of infinity values."""
     result = decode_float_be(bytes.fromhex("7F800000"))
     assert math.isinf(result)
+
 
 # tests/unit/protocol/test_frame_builder.py
 def test_build_class10_read():
@@ -87,15 +89,16 @@ async def test_read_telemetry_workflow():
     pump = MockPump()
     await pump.connect()
     await pump.authenticate()
-    
+
     client = AlphaHWRClient(pump_address="MOCK")
     client.transport = MockTransport(pump)  # Inject mock
-    
+
     await client.connect()
     telemetry = await client.telemetry.read_once()
-    
+
     assert telemetry.voltage_ac_v > 0
     assert telemetry.speed_rpm >= 0
+
 
 # tests/integration/test_control_operations.py
 @pytest.mark.asyncio
@@ -103,14 +106,14 @@ async def test_start_stop_pump():
     """Test complete start/stop workflow."""
     pump = MockPump()
     client = create_mock_client(pump)
-    
+
     await client.connect()
-    
+
     # Start pump
     success = await client.control.start()
     assert success
     assert pump.state.running
-    
+
     # Stop pump
     success = await client.control.stop()
     assert success
@@ -197,12 +200,14 @@ frame = FrameParser.parse_frame(response)
 ```python
 class MockTransport:
     """Adapter that makes MockPump look like BLE transport."""
+
     def __init__(self, pump: MockPump):
         self.pump = pump
-    
+
     async def write(self, data: bytes):
         response = await self.pump.send_command(data)
         self._on_notification(response)
+
 
 client = AlphaHWRClient("MOCK")
 client.transport = MockTransport(pump)
@@ -212,13 +217,14 @@ client.transport = MockTransport(pump)
 ```python
 class MockBleakClient:
     """Complete BLE stack simulation."""
+
     def __init__(self, address: str):
         self.pump = MockPump()
         self.address = address
-    
+
     async def connect(self):
         await self.pump.connect()
-    
+
     async def write_gatt_char(self, uuid, data):
         return await self.pump.send_command(data)
 ```
@@ -289,13 +295,10 @@ Store known-good protocol frames for validation:
 
 ```python
 # tests/fixtures/sample_packets.py
-MOTOR_STATE_RESPONSE = bytes.fromhex(
-    "2417f8e70a90004557..."
-)
+MOTOR_STATE_RESPONSE = bytes.fromhex("2417f8e70a90004557...")
 
-CONTROL_START_REQUEST = bytes.fromhex(
-    "2710e7f80a9056000601..."
-)
+CONTROL_START_REQUEST = bytes.fromhex("2710e7f80a9056000601...")
+
 
 # Usage in tests
 def test_parse_motor_state():
@@ -324,6 +327,7 @@ CODEC_TEST_VECTORS = [
     },
 ]
 
+
 def test_codec_vectors():
     """Run all codec test vectors."""
     for vec in CODEC_TEST_VECTORS:
@@ -339,12 +343,14 @@ def test_codec_vectors():
 import pytest
 import asyncio
 
+
 @pytest.fixture
 def mock_pump():
     """Create a fresh mock pump for each test."""
     pump = MockPump()
     yield pump
     # Cleanup if needed
+
 
 @pytest.fixture
 async def connected_pump():
@@ -355,6 +361,7 @@ async def connected_pump():
     yield pump
     await pump.disconnect()
 
+
 @pytest.fixture
 async def mock_client(mock_pump):
     """Create client with mock transport."""
@@ -363,6 +370,7 @@ async def mock_client(mock_pump):
     await client.connect()
     yield client
     await client.disconnect()
+
 
 # Custom markers
 def pytest_configure(config):
@@ -460,18 +468,20 @@ jobs:
 import pytest
 import time
 
+
 def test_encode_float_performance():
     """Benchmark float encoding."""
     iterations = 10000
     start = time.perf_counter()
-    
+
     for i in range(iterations):
         encode_float_be(1.5)
-    
+
     elapsed = time.perf_counter() - start
     per_op = (elapsed / iterations) * 1000  # ms
-    
+
     assert per_op < 0.01, f"Encoding too slow: {per_op:.3f}ms"
+
 
 @pytest.mark.asyncio
 async def test_mock_pump_latency():
@@ -479,13 +489,13 @@ async def test_mock_pump_latency():
     pump = MockPump()
     await pump.connect()
     await pump.authenticate()
-    
+
     cmd = FrameBuilder.build_class10_read(0x570045)
-    
+
     start = time.perf_counter()
     response = await pump.send_command(cmd)
     elapsed = (time.perf_counter() - start) * 1000  # ms
-    
+
     assert elapsed < 5.0, f"Mock pump too slow: {elapsed:.1f}ms"
 ```
 

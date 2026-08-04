@@ -8,10 +8,12 @@ This module tests the TelemetryService including:
 - current/advanced properties
 """
 
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, Mock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+from bleak.exc import BleakError
 
 
 class TestReadOnce:
@@ -143,8 +145,10 @@ class TestReadOnce:
             ]
         )
 
+        # The flow/pressure read is retried up to 3 times before it is
+        # given up on, so script a None for each of those attempts.
         mock_client_simple.transport.query = AsyncMock(
-            side_effect=[motor_response, None, temp_response]
+            side_effect=[motor_response, None, None, None, temp_response]
         )
 
         result = await mock_client_simple.telemetry.read_once()
@@ -401,17 +405,17 @@ class TestUpdateFromNotification:
         # Should handle gracefully without crashing
         try:
             mock_client_simple.telemetry.update_from_notification(invalid_data)
-        except Exception:
+        except Exception:  # noqa: BLE001 - asserting nothing escapes
             pytest.fail("Should handle invalid notification gracefully")
 
     def test_update_from_notification_empty_data(self, mock_client_simple):
         """Test updating from empty data."""
-        empty_data = bytes()
+        empty_data = b""
 
         # Should handle gracefully
         try:
             mock_client_simple.telemetry.update_from_notification(empty_data)
-        except Exception:
+        except Exception:  # noqa: BLE001 - asserting nothing escapes
             pytest.fail("Should handle empty notification gracefully")
 
     def test_update_from_notification_wrong_class(self, mock_client_simple):
@@ -441,7 +445,7 @@ class TestUpdateFromNotification:
         # Should handle gracefully (ignore non-Class 10 frames)
         try:
             mock_client_simple.telemetry.update_from_notification(wrong_class)
-        except Exception:
+        except Exception:  # noqa: BLE001 - asserting nothing escapes
             pytest.fail("Should handle wrong class gracefully")
 
 
@@ -608,7 +612,7 @@ class TestTelemetryServiceEdgeCases:
     async def test_read_once_exception_during_query(self, mock_client_simple):
         """Test read_once when transport raises exception."""
         mock_client_simple.transport.query = AsyncMock(
-            side_effect=Exception("Transport error")
+            side_effect=BleakError("Transport error")
         )
 
         # Should handle exception gracefully

@@ -1,6 +1,9 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, patch
+from bleak.exc import BleakError
+
 from alpha_hwr.client import AlphaHWRClient
 
 
@@ -55,7 +58,9 @@ class TestScheduleCoverage:
     @pytest.mark.asyncio
     async def test_get_schedule_enabled_exception(self, client):
         """Test exception handling in get_schedule_enabled"""
-        client.transport.query = AsyncMock(side_effect=Exception("Read failed"))
+        client.transport.query = AsyncMock(
+            side_effect=BleakError("Read failed")
+        )
 
         result = await client.schedule.get_state()
         assert result is None

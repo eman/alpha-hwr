@@ -4,9 +4,8 @@ Uses Hypothesis to generate random but valid frame data and verify
 that parsing and building operations maintain invariants.
 """
 
-from hypothesis import given, settings, Verbosity
-
 from conftest import valid_frame_bytes
+from hypothesis import Verbosity, given, settings
 
 
 class TestFrameProperties:

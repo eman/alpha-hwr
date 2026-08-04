@@ -8,8 +8,10 @@ This module tests the AutoAdapt mode setters including:
 - AutoAdapt Combined (Mode 15)
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+from bleak.exc import BleakError
 
 # Note: mock_client fixture is now provided by conftest.py as mock_client_simple
 
@@ -45,10 +47,10 @@ async def test_set_autoadapt_mode_switch_failure(mock_client_simple):
     """Test AutoAdapt when transport fails."""
     # Mock transport failure
     mock_client_simple.transport.query = AsyncMock(
-        side_effect=Exception("Transport error")
+        side_effect=BleakError("Transport error")
     )
     mock_client_simple.transport.send_with_response = AsyncMock(
-        side_effect=Exception("Transport error")
+        side_effect=BleakError("Transport error")
     )
 
     result = await mock_client_simple.control.set_autoadapt(1.5)

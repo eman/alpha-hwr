@@ -2,11 +2,13 @@
 Unit tests for ControlService.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from alpha_hwr.services.control import ControlService
-from alpha_hwr.core.transport import Transport
+
+import pytest
+
 from alpha_hwr.core.session import Session
+from alpha_hwr.core.transport import Transport
+from alpha_hwr.services.control import ControlService
 
 
 @pytest.fixture

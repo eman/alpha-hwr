@@ -1,7 +1,9 @@
 """Tests for device info reading operations."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+
 from alpha_hwr.client import AlphaHWRClient
 
 

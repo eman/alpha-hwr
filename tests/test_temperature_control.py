@@ -2,8 +2,10 @@
 Tests for Temperature Range Control (Mode 27).
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+from bleak.exc import BleakError
 
 
 @pytest.mark.asyncio
@@ -35,7 +37,7 @@ async def test_set_temperature_range_control_failure(mock_client_simple):
     """Test temperature range control setting failure."""
     # Mock transport failure
     mock_client_simple.transport.query = AsyncMock(
-        side_effect=Exception("Transport error")
+        side_effect=BleakError("Transport error")
     )
 
     result = await mock_client_simple.control.set_temperature_range_control(

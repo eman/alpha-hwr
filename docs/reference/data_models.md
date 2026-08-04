@@ -214,12 +214,16 @@ print(f"Duration: {entry.get_duration_minutes()} minutes")
 print(f"Day index: {entry.day_index}")
 
 # Check for overlaps
-other = ScheduleEntry(day="Monday", begin_hour=7, begin_minute=0, end_hour=9, end_minute=0)
+other = ScheduleEntry(
+    day="Monday", begin_hour=7, begin_minute=0, end_hour=9, end_minute=0
+)
 if entry.overlaps_with(other):
     print("These schedules overlap!")
 
 # Midnight-crossing example
-night = ScheduleEntry(day="Monday", begin_hour=22, begin_minute=0, end_hour=2, end_minute=0)
+night = ScheduleEntry(
+    day="Monday", begin_hour=22, begin_minute=0, end_hour=2, end_minute=0
+)
 print(f"Crosses midnight: {night.crosses_midnight()}")
 print(f"Duration: {night.get_duration_minutes()} minutes")  # 240 minutes
 

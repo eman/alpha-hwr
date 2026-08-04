@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-from ..exceptions import ConnectionError
+from ..exceptions import READ_ERRORS, ConnectionError
 
 if TYPE_CHECKING:
     from alpha_hwr.core.session import Session
@@ -53,7 +53,7 @@ class BaseService:
         sub_id: int,
         retries: int = 1,
         retry_delay: float = 0.2,
-    ) -> Optional[bytes]:
+    ) -> bytes | None:
         """
         Read a Class 10 (Configuration) object with SubID.
 
@@ -173,7 +173,7 @@ class BaseService:
             # Let disconnect errors propagate - see docstring above.
             raise
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.debug(f"Error reading Object {obj_id} SubID {sub_id}: {e}")
             return None
 
@@ -182,7 +182,7 @@ class BaseService:
         string_id: int,
         retries: int = 1,
         retry_delay: float = 0.2,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Read a Class 7 string (device info strings).
 
@@ -255,7 +255,7 @@ class BaseService:
 
             return None
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.debug(f"Failed to read Class 7 string {string_id}: {e}")
             return None
 

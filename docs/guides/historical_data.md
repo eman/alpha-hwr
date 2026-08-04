@@ -69,19 +69,23 @@ alpha-hwr events show 0
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def main():
     async with AlphaHWRClient("DEVICE_UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Get all trend data
         trends = await client.history.get_trend_data()
-        
+
         if trends and trends.flow_series:
-            print(f"Current flow: {trends.flow_series.cycle_10_points[0].value} m\u00b3/h")
-            
+            print(
+                f"Current flow: {trends.flow_series.cycle_10_points[0].value} m\u00b3/h"
+            )
+
             # Access historical points
             for point in trends.flow_series.cycle_10_points:
                 print(f"  {point.timestamp}: {point.value}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -93,16 +97,18 @@ if __name__ == "__main__":
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def main():
     async with AlphaHWRClient("DEVICE_UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Get all event entries
         entries = await client.event_log.get_all_entries()
-        
+
         for entry in entries:
             print(f"Cycle {entry.cycle_counter}: {entry.timestamp}")
             print(f"  Type: {entry.event_type.name}, Mode: {entry.mode_name}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

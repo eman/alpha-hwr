@@ -138,24 +138,26 @@ The data section contains an array of **uint16 values in big-endian format**:
 ```python
 import struct
 
+
 def parse_alarm_response(packet: bytes) -> list[int]:
     """Parse alarm/warning codes from OpSpec 0x09 response."""
     if len(packet) < 13:
         return []
-    
+
     # Extract data length at offset 12
     data_len = packet[12]
-    
+
     # Parse uint16 array starting at offset 13
     codes = []
     offset = 13
     while offset + 2 <= len(packet) - 2 and offset < 13 + data_len:
-        code = struct.unpack(">H", packet[offset:offset+2])[0]
+        code = struct.unpack(">H", packet[offset : offset + 2])[0]
         if code != 0:  # Filter out zero codes
             codes.append(code)
         offset += 2
-    
+
     return codes
+
 
 # Example: No alarms
 packet = bytes.fromhex("24 0D F8 E7 0A 09 00 02 3A 01 00 00 02 00 00 DC 50")
@@ -163,7 +165,9 @@ print(parse_alarm_response(packet))  # Output: []
 
 # Example: Active alarms 42 and 7
 # Final two bytes are CRC placeholders for this example and are ignored
-packet = bytes.fromhex("24 11 F8 E7 0A 09 00 03 58 00 00 00 06 00 2A 00 07 00 00 00 00")
+packet = bytes.fromhex(
+    "24 11 F8 E7 0A 09 00 03 58 00 00 00 06 00 2A 00 07 00 00 00 00"
+)
 print(parse_alarm_response(packet))  # Output: [42, 7]
 ```
 

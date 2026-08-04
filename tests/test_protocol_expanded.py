@@ -1,9 +1,10 @@
 import struct
+
+from alpha_hwr.constants import RESPONSE_START
+from alpha_hwr.protocol.codec import decode_float_be, encode_float_be
 from alpha_hwr.protocol.frame_builder import FrameBuilder
 from alpha_hwr.protocol.frame_parser import FrameParser
 from alpha_hwr.protocol.telemetry_decoder import TelemetryDecoder
-from alpha_hwr.protocol.codec import encode_float_be, decode_float_be
-from alpha_hwr.constants import RESPONSE_START
 
 
 class TestProtocolExpanded:

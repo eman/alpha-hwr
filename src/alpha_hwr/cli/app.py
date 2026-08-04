@@ -5,6 +5,7 @@ Provides a modern command-line interface with Rich formatting.
 """
 
 import logging
+
 import typer
 from rich.console import Console
 
@@ -47,14 +48,14 @@ def main() -> None:
 # These will be imported when the module loads
 try:
     from .commands import (
-        monitor,
+        clock,
+        config,
         control,
         device,
-        schedule,
-        config,
-        clock,
-        history,
         events,
+        history,
+        monitor,
+        schedule,
     )
 
     app.add_typer(monitor.app, name="monitor", help="Monitor pump telemetry")  # type: ignore[has-type]

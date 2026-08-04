@@ -77,6 +77,7 @@ async with AlphaHWRClient(address) as client:
 await client.clock.set_clock()  # Synchronizes with current LOCAL system time
 # OR
 from datetime import datetime
+
 await client.clock.set_clock(datetime(2026, 12, 25, 10, 0, 0))
 ```
 

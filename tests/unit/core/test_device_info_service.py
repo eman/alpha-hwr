@@ -2,12 +2,14 @@
 Unit tests for DeviceInfoService.
 """
 
-import pytest
 import struct
 from unittest.mock import AsyncMock, MagicMock
-from alpha_hwr.services.device_info import DeviceInfoService
-from alpha_hwr.core.transport import Transport
+
+import pytest
+
 from alpha_hwr.core.session import Session
+from alpha_hwr.core.transport import Transport
+from alpha_hwr.services.device_info import DeviceInfoService
 
 
 @pytest.fixture

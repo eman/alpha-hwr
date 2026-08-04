@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, TypeVar, TYPE_CHECKING
 
 from rich.console import Console
 
@@ -19,15 +19,10 @@ from ..config import get_settings
 from ..exceptions import AlphaHWRError
 from .config_manager import ConfigManager
 
-if TYPE_CHECKING:
-    pass
-
 console = Console()
 
-T = TypeVar("T")
 
-
-def require_service(service: T | None, name: str) -> T:
+def require_service[T](service: T | None, name: str) -> T:
     """
     Check that a service is available.
 
@@ -90,7 +85,7 @@ async def get_client(
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         console.print(f"[red]Unexpected error:[/red] {e}")
         sys.exit(1)
 
@@ -133,5 +128,5 @@ def run_async(coro):
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted by user[/yellow]")
         sys.exit(130)  # Standard exit code for SIGINT
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e)

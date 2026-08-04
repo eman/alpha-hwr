@@ -1,4 +1,5 @@
 import pytest
+
 from alpha_hwr.constants import ControlMode
 
 

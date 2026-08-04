@@ -39,10 +39,10 @@ For complete protocol reference, see:
 """
 
 from ..constants import (
-    FRAME_START,
-    SERVICE_ID_HIGH,
-    RESERVED_BYTE,
     CLASS_10,
+    FRAME_START,
+    RESERVED_BYTE,
+    SERVICE_ID_HIGH,
 )
 from ..utils import calc_crc16, calc_crc16_read
 

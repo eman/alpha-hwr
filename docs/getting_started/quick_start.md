@@ -16,12 +16,14 @@ The pump advertises with a name like **`ALPHA_0000479`** (where the numbers are 
 import asyncio
 from bleak import BleakScanner
 
+
 async def scan():
     devices = await BleakScanner.discover()
     for d in devices:
         # Look for devices starting with "ALPHA_"
         if d.name and d.name.startswith("ALPHA_"):
             print(f"Found pump: {d.address} | Name: {d.name}")
+
 
 asyncio.run(scan())
 ```
@@ -42,10 +44,11 @@ from alpha_hwr.client import AlphaHWRClient
 # Configure logging to see what's happening
 logging.basicConfig(level=logging.INFO)
 
+
 async def main():
     # Replace with your pump's address found in Step 1
     # address = "00:11:22:33:44:55"  # Linux/Windows
-    address = "YOUR-DEVICE-UUID-HERE" # macOS
+    address = "YOUR-DEVICE-UUID-HERE"  # macOS
 
     client = AlphaHWRClient(address=address)
 
@@ -67,11 +70,11 @@ async def main():
         while True:
             # The client automatically processes incoming notifications
             data = client.telemetry.current
-            
+
             # Print latest known state
             if data:
                 print(f"Flow: {data.flow_m3h} m³/h | Power: {data.power_w} W")
-            
+
             await asyncio.sleep(2.0)
 
     except KeyboardInterrupt:
@@ -80,6 +83,7 @@ async def main():
         print(f"Error: {e}")
     finally:
         await client.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -171,23 +175,24 @@ Beyond telemetry, you can read the pump's current configuration and status:
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def read_status():
     async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Get current control mode and setpoint
         info = await client.control.get_mode()
         if info:
             print(f"Control Mode: {info.control_mode.name}")
             value, unit = info.get_display_value()
             print(f"Setpoint: {value:.2f} {unit}")
-        
+
         # Read cumulative statistics
         stats = await client.device_info.read_statistics()
         if stats:
             print(f"Operating hours: {stats.operating_hours:.1f} h")
             print(f"Start count: {stats.start_count}")
-        
+
         # Check for alarms/warnings
         alarms = await client.device_info.read_alarms()
         if alarms:
@@ -195,6 +200,7 @@ async def read_status():
                 print(f"ALARMS: {alarms.active_alarms}")
             if alarms.active_warnings:
                 print(f"WARNINGS: {alarms.active_warnings}")
+
 
 asyncio.run(read_status())
 ```
@@ -207,26 +213,28 @@ You can change control modes and setpoints programmatically:
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def control_pump():
     async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Set constant pressure mode
         await client.control.set_constant_pressure(1.5)  # 1.5 meters
         print("Set to Constant Pressure: 1.5m")
-        
+
         # Set constant speed mode
         await client.control.set_constant_speed(2500)  # 2500 RPM
         print("Set to Constant Speed: 2500 RPM")
-        
+
         # Start/Stop pump
         await client.control.start()
         print("Pump started")
-        
+
         await asyncio.sleep(5)
-        
+
         await client.control.stop()
         print("Pump stopped")
+
 
 asyncio.run(control_pump())
 ```
@@ -239,22 +247,24 @@ You can read and validate pump schedules:
 import asyncio
 from alpha_hwr import AlphaHWRClient, ScheduleEntry
 
+
 async def work_with_schedules():
     async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Check if schedule is enabled
         enabled = await client.schedule.get_state()
         print(f"Schedule enabled: {enabled}")
-        
+
         # Read current schedule
         entries = await client.schedule.read_entries()
         for entry in entries:
             print(f"  {entry.day}: {entry.begin_time} - {entry.end_time}")
-        
+
         # Enable the schedule
         await client.schedule.enable()
         print("\nSchedule enabled")
+
 
 asyncio.run(work_with_schedules())
 ```
@@ -267,19 +277,21 @@ You can backup and restore the complete pump configuration:
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def backup_restore_config():
     async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Backup current configuration
         success = await client.config.backup("pump_backup.json")
         if success:
             print("Configuration backed up to pump_backup.json")
-        
+
         # Restore configuration
         success = await client.config.restore("pump_backup.json")
         if success:
             print("Configuration restored from backup")
+
 
 asyncio.run(backup_restore_config())
 ```

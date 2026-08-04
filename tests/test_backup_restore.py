@@ -8,15 +8,17 @@ This module tests the ConfigurationService's ability to:
 - Validate backup file structure
 """
 
+import asyncio
 import json
 import os
 import tempfile
-
-import pytest
+from pathlib import Path
 from unittest.mock import AsyncMock
 
-from alpha_hwr.models import DeviceInfo, SetpointInfo, ScheduleEntry
+import pytest
+
 from alpha_hwr.constants import ControlMode
+from alpha_hwr.models import DeviceInfo, ScheduleEntry, SetpointInfo
 
 # Note: client fixture is now provided by conftest.py as mock_client_simple
 
@@ -81,8 +83,9 @@ class TestBackupConfiguration:
             assert os.path.exists(temp_path)
 
             # Verify file contents
-            with open(temp_path, "r") as f:
-                backup_data = json.load(f)
+            backup_data = json.loads(
+                await asyncio.to_thread(Path(temp_path).read_text)
+            )
 
             assert backup_data["version"] == "1.0"
             assert "timestamp" in backup_data

@@ -391,27 +391,33 @@ async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def monitor_with_analysis(duration_seconds=60):
     async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
         flow_samples = []
         head_samples = []
-        
+
         for _ in range(duration_seconds // 2):  # Sample every 2 seconds
             telemetry = await client.get_telemetry()
-            
+
             flow_samples.append(telemetry.flow_m3h)
             head_samples.append(telemetry.head_m)
-            
+
             await asyncio.sleep(2)
-        
+
         # Calculate statistics
         avg_flow = sum(flow_samples) / len(flow_samples)
         avg_head = sum(head_samples) / len(head_samples)
-        
+
         print(f"Average Flow: {avg_flow:.2f} m³/h")
         print(f"Average Head: {avg_head:.2f} m")
-        print(f"Flow Stability: {max(flow_samples) - min(flow_samples):.2f} m³/h range")
-        print(f"Head Stability: {max(head_samples) - min(head_samples):.2f} m range")
+        print(
+            f"Flow Stability: {max(flow_samples) - min(flow_samples):.2f} m³/h range"
+        )
+        print(
+            f"Head Stability: {max(head_samples) - min(head_samples):.2f} m range"
+        )
+
 
 asyncio.run(monitor_with_analysis())
 ```

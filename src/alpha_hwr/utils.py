@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import re
 import platform
+import re
+
 from .constants import CRC_TABLE
 
 

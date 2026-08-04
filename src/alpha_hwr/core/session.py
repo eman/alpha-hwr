@@ -148,8 +148,8 @@ class Session:
     def __init__(self):
         """Initialize a new session in DISCONNECTED state."""
         self.state: SessionState = SessionState.DISCONNECTED
-        self.connected_at: "datetime | None" = None
-        self.authenticated_at: "datetime | None" = None
+        self.connected_at: datetime | None = None
+        self.authenticated_at: datetime | None = None
         self._last_error: str | None = None
         logger.debug(f"Session initialized: state={self.state.name}")
 
@@ -170,10 +170,10 @@ class Session:
                 f"on_connected() called from unexpected state: {self.state.name}"
             )
 
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         self.state = SessionState.CONNECTED
-        self.connected_at = datetime.now()
+        self.connected_at = datetime.now(UTC)
         self.authenticated_at = None
         self._last_error = None
         logger.info(
@@ -221,10 +221,10 @@ class Session:
                 "Must be AUTHENTICATING."
             )
 
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         self.state = SessionState.AUTHENTICATED
-        self.authenticated_at = datetime.now()
+        self.authenticated_at = datetime.now(UTC)
         logger.info(
             f"Session state: {self.state.name} "
             f"(authenticated_at={self.authenticated_at})"
@@ -347,9 +347,9 @@ class Session:
             Seconds since connection, or None if not connected
         """
         if self.connected_at:
-            from datetime import datetime
+            from datetime import UTC, datetime
 
-            return (datetime.now() - self.connected_at).total_seconds()
+            return (datetime.now(UTC) - self.connected_at).total_seconds()
         return None
 
     def __repr__(self) -> str:

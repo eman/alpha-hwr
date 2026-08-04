@@ -4,10 +4,12 @@ Tests for ConfigurationService.
 Tests backup/restore functionality for pump configuration.
 """
 
+import asyncio
 import json
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from bleak.exc import BleakError
 
 from alpha_hwr.constants import ControlMode
 from alpha_hwr.models import DeviceInfo, ScheduleEntry, SetpointInfo
@@ -107,8 +109,7 @@ class TestBackup:
         assert backup_file.exists()
 
         # Verify backup content
-        with open(backup_file) as f:
-            data = json.load(f)
+        data = json.loads(await asyncio.to_thread(backup_file.read_text))
 
         assert data["version"] == "1.0"
         assert "timestamp" in data
@@ -140,7 +141,7 @@ class TestBackup:
 
         # Make device info fail
         config_service.device_info.read_info = AsyncMock(
-            side_effect=Exception("Device read error")
+            side_effect=BleakError("Device read error")
         )
 
         result = await config_service.backup(str(backup_file))
@@ -149,8 +150,7 @@ class TestBackup:
         assert result is True
         assert backup_file.exists()
 
-        with open(backup_file) as f:
-            data = json.load(f)
+        data = json.loads(await asyncio.to_thread(backup_file.read_text))
 
         assert data["device"] == {}
 
@@ -161,15 +161,14 @@ class TestBackup:
 
         # Make control service fail
         config_service.control.get_mode = AsyncMock(
-            side_effect=Exception("Control read error")
+            side_effect=BleakError("Control read error")
         )
 
         result = await config_service.backup(str(backup_file))
 
         assert result is True
 
-        with open(backup_file) as f:
-            data = json.load(f)
+        data = json.loads(await asyncio.to_thread(backup_file.read_text))
 
         assert data["control_mode"] == {}
 
@@ -180,15 +179,14 @@ class TestBackup:
 
         # Make schedule service fail
         config_service.schedule.get_state = AsyncMock(
-            side_effect=Exception("Schedule read error")
+            side_effect=BleakError("Schedule read error")
         )
 
         result = await config_service.backup(str(backup_file))
 
         assert result is True
 
-        with open(backup_file) as f:
-            data = json.load(f)
+        data = json.loads(await asyncio.to_thread(backup_file.read_text))
 
         assert data["schedule"] == {}
 
@@ -358,7 +356,6 @@ class TestConfigurationServiceIntegration:
         assert backup_file.exists()
 
         # Verify last backup is valid
-        with open(backup_file) as f:
-            data = json.load(f)
+        data = json.loads(await asyncio.to_thread(backup_file.read_text))
 
         assert data["version"] == "1.0"

@@ -30,6 +30,8 @@ import asyncio
 import logging
 from typing import Protocol, runtime_checkable
 
+from ..exceptions import READ_ERRORS
+
 logger = logging.getLogger(__name__)
 
 
@@ -280,7 +282,7 @@ class AuthenticationHandler:
             logger.info("Authentication handshake complete")
             return True
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Authentication handshake failed: {e}")
             return False
 

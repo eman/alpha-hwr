@@ -2,6 +2,7 @@
 
 import pytest
 from mocks.mock_pump import MockPump
+
 from alpha_hwr.protocol import FrameBuilder, FrameParser, TelemetryDecoder
 
 

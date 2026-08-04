@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional, TypedDict
-from datetime import datetime
+from typing import ClassVar, TypedDict
 
 from rich.console import Console
 
@@ -28,10 +28,10 @@ class DeviceEntry(TypedDict):
 class Config(TypedDict):
     """TypedDict for complete configuration structure."""
 
-    default_device: Optional[str]
+    default_device: str | None
     devices: dict[str, DeviceEntry]
-    last_used: Optional[str]
-    last_used_at: Optional[str]
+    last_used: str | None
+    last_used_at: str | None
     version: str
 
 
@@ -44,7 +44,7 @@ class ConfigManager:
     )
     _CONFIG_FILE: Path = _CONFIG_DIR / "config.json"
 
-    DEFAULT_CONFIG: Config = {
+    DEFAULT_CONFIG: ClassVar[Config] = {
         "default_device": None,
         "devices": {},
         "last_used": None,
@@ -75,7 +75,7 @@ class ConfigManager:
                     "version": loaded.get("version", "1.0"),
                 }
                 return config
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 console.print(
                     f"[yellow]Warning:[/yellow] Failed to load config: {e}"
                 )
@@ -89,13 +89,13 @@ class ConfigManager:
         try:
             with open(cls._CONFIG_FILE, "w") as f:
                 json.dump(config, f, indent=2)
-        except IOError as e:
+        except OSError as e:
             console.print(
                 f"[yellow]Warning:[/yellow] Failed to save config: {e}"
             )
 
     @classmethod
-    def get_default_device(cls) -> Optional[str]:
+    def get_default_device(cls) -> str | None:
         """Get the default device address."""
         config = cls._load_config()
         return config.get("default_device")
@@ -106,12 +106,12 @@ class ConfigManager:
         config = cls._load_config()
         config["default_device"] = address
         config["last_used"] = address
-        config["last_used_at"] = datetime.now().isoformat()
+        config["last_used_at"] = datetime.now(UTC).isoformat()
         cls._save_config(config)
 
     @classmethod
     def save_device(
-        cls, address: str, name: Optional[str] = None, set_default: bool = False
+        cls, address: str, name: str | None = None, set_default: bool = False
     ) -> None:
         """
         Save a device to the configuration.
@@ -125,7 +125,7 @@ class ConfigManager:
         device_name = name or address
         device_entry: DeviceEntry = {
             "address": address,
-            "saved_at": datetime.now().isoformat(),
+            "saved_at": datetime.now(UTC).isoformat(),
         }
         config["devices"][device_name] = device_entry
 
@@ -133,11 +133,11 @@ class ConfigManager:
             config["default_device"] = address
 
         config["last_used"] = address
-        config["last_used_at"] = datetime.now().isoformat()
+        config["last_used_at"] = datetime.now(UTC).isoformat()
         cls._save_config(config)
 
     @classmethod
-    def get_device(cls, name_or_address: str) -> Optional[str]:
+    def get_device(cls, name_or_address: str) -> str | None:
         """
         Get device address by name or return if it matches an address.
 
@@ -207,7 +207,7 @@ class ConfigManager:
         return False
 
     @classmethod
-    def get_last_used(cls) -> Optional[str]:
+    def get_last_used(cls) -> str | None:
         """Get the last used device address."""
         config = cls._load_config()
         return config.get("last_used")

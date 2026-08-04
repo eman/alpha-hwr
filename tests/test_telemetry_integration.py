@@ -7,8 +7,9 @@ alarms/warnings using the new protocol architecture.
 """
 
 import struct
-from alpha_hwr.protocol.telemetry_decoder import TelemetryDecoder
+
 from alpha_hwr.protocol.frame_parser import FrameParser
+from alpha_hwr.protocol.telemetry_decoder import TelemetryDecoder
 
 
 class TestTelemetryDecoder:
@@ -225,7 +226,7 @@ class TestTelemetryDecoder:
 
     def test_empty_payload_handling(self):
         """Test graceful handling of empty payloads."""
-        empty = bytes()
+        empty = b""
 
         motor_data = TelemetryDecoder.decode_motor_state(empty)
         assert len(motor_data) == 0

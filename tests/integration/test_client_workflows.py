@@ -13,14 +13,15 @@ tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
-import pytest  # noqa: E402
-import pytest_asyncio  # noqa: E402
-import asyncio  # noqa: E402
-from unittest.mock import AsyncMock, patch  # noqa: E402
+import asyncio
+from unittest.mock import AsyncMock, patch
 
-from mocks.mock_pump import MockPump  # noqa: E402
-from mocks.mock_transport import MockBleakClient  # noqa: E402
-from alpha_hwr.client import AlphaHWRClient  # noqa: E402
+import pytest
+import pytest_asyncio
+from mocks.mock_pump import MockPump
+from mocks.mock_transport import MockBleakClient
+
+from alpha_hwr.client import AlphaHWRClient
 
 
 @pytest_asyncio.fixture
@@ -108,7 +109,7 @@ class TestClientWorkflows:
             # Run for limited time
             try:
                 await asyncio.wait_for(collect_updates(), timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
 
             # Should have received multiple updates
@@ -265,7 +266,7 @@ class TestTimeOperations:
         """Test setting pump clock."""
         from datetime import datetime
 
-        dt = datetime(2026, 1, 31, 12, 0, 0)
+        dt = datetime(2026, 1, 31, 12, 0, 0)  # noqa: DTZ001  # pump wall clock is naive
         success = await mock_client.time.set_clock(dt)
 
         assert success
@@ -310,7 +311,6 @@ class TestErrorHandling:
         """Test that commands require authentication."""
         # This depends on session.ensure_authenticated() checks
         # Mock pump currently auto-authenticates
-        pass
 
     @pytest.mark.asyncio
     async def test_reconnection(self, mock_client):

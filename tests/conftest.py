@@ -5,10 +5,12 @@ This module provides common fixtures that can be used across all test files.
 """
 
 import asyncio
-import pytest_asyncio
+import logging
 from unittest.mock import AsyncMock, patch
 
+import pytest_asyncio
 from hypothesis import strategies as st
+
 from alpha_hwr.client import AlphaHWRClient
 
 # Explicitly load the benchmark plugin to ensure the fixture is available
@@ -191,7 +193,9 @@ async def mock_client_simple():
             if hasattr(client, "is_connected") and client.is_connected:
                 await client.disconnect()
         except Exception:
-            pass
+            logging.getLogger(__name__).debug(
+                "Ignoring error during test client cleanup", exc_info=True
+            )
 
         # Allow event loop to process any pending cleanup tasks
         await asyncio.sleep(0)

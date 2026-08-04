@@ -75,12 +75,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from ..models import TelemetryData, AdvancedTelemetry
-from ..protocol.frame_builder import FrameBuilder
+from ..exceptions import READ_ERRORS
+from ..models import AdvancedTelemetry, TelemetryData
 from ..protocol import FrameParser, TelemetryDecoder
+from ..protocol.frame_builder import FrameBuilder
 
 if TYPE_CHECKING:
     from alpha_hwr.core.session import Session
@@ -271,11 +273,11 @@ class TelemetryService:
                         updates = TelemetryDecoder.decode(frame)
                         logger.debug(f"MOTOR_STATE updates: {updates}")
                         if updates:
-                            updates["timestamp"] = datetime.now()
+                            updates["timestamp"] = datetime.now(UTC)
                             self._telemetry = self._telemetry.model_copy(
                                 update=updates
                             )
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.debug(f"Failed to read motor state: {e}")
 
         await asyncio.sleep(0.05)
@@ -296,11 +298,11 @@ class TelemetryService:
                         updates = TelemetryDecoder.decode(frame)
                         logger.debug(f"FLOW_PRESSURE updates: {updates}")
                         if updates:
-                            updates["timestamp"] = datetime.now()
+                            updates["timestamp"] = datetime.now(UTC)
                             self._telemetry = self._telemetry.model_copy(
                                 update=updates
                             )
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.debug(f"Failed to read flow/pressure: {e}")
 
         await asyncio.sleep(0.05)
@@ -320,11 +322,11 @@ class TelemetryService:
                     updates = TelemetryDecoder.decode(frame)
                     logger.debug(f"TEMPERATURE updates: {updates}")
                     if updates:
-                        updates["timestamp"] = datetime.now()
+                        updates["timestamp"] = datetime.now(UTC)
                         self._telemetry = self._telemetry.model_copy(
                             update=updates
                         )
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.debug(f"Failed to read temperatures: {e}")
 
         await asyncio.sleep(0.05)
@@ -466,7 +468,7 @@ class TelemetryService:
 
             # Update telemetry state
             if basic_updates:
-                basic_updates["timestamp"] = datetime.now()
+                basic_updates["timestamp"] = datetime.now(UTC)
                 self._telemetry = self._telemetry.model_copy(
                     update=basic_updates
                 )
@@ -486,5 +488,5 @@ class TelemetryService:
                 f"Telemetry updated from notification: {telemetry_data}"
             )
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to parse telemetry notification: {e}")
