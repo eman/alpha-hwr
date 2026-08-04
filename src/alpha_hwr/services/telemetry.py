@@ -142,6 +142,9 @@ class TelemetryService:
         self._has_motor_state_stream = False
         self._has_flow_stream = False
 
+        # Whether the controller still needs a wake burst before the next read
+        self._needs_wake = True
+
     @property
     def current(self) -> TelemetryData:
         """
@@ -233,16 +236,27 @@ class TelemetryService:
                     return resp
                 if not self.transport.is_connected():
                     logger.debug(f"Pump disconnected after {name} query")
+                    # The next read happens on a fresh connection, which
+                    # starts with a sleeping controller again.
+                    self._needs_wake = True
                     return None
                 if attempt < 3:
-                    logger.debug(f"{name} query failed, sending wake burst and retrying...")
+                    logger.debug(
+                        f"{name} query failed, sending wake burst and retrying..."
+                    )
                     await self.transport.send_wake_burst()
+                    self._needs_wake = False
                     await asyncio.sleep(0.2)
             return None
 
-        # Wake the pump up before starting the sequence of queries.
-        # This prevents the pump from disconnecting if it is asleep right after auth.
-        await self.transport.send_wake_burst()
+        # Wake the pump before the first read of a session. The controller is
+        # often still asleep right after auth, and a read issued while it
+        # sleeps goes unanswered (or trips a disconnect). Once it has answered
+        # we stop paying the ~0.6s burst on every read: the retry path above
+        # re-wakes it if it dozes off again.
+        if self._needs_wake:
+            await self.transport.send_wake_burst()
+            self._needs_wake = False
 
         # 1. Query Motor State (if no active stream)
         if not self._has_motor_state_stream:
