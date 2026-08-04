@@ -952,26 +952,29 @@ class ControlService(BaseService):
         # Payload must match exactly what is read back (no Type ID bytes, 14 bytes data)
         # Build APDU manually to match exactly what Grundfos GO app sends
         # App sends: [Class 10] [OpSpec 0x97] [ObjID 91] [SubH 01] [SubL AE] [TypeH 03] [TypeL F4] [Reserved 02] [Size 00 00 0E] [Data...]
-        apdu = bytearray([
-            0x0A,  # Class 10
-            0x97,  # OpSpec 0x97 = SET + 23 bytes
-            0x5B,  # Obj-ID (91 = 0x5B)
-            0x01, 0xAE,  # Sub-ID (430 = 0x01AE)
-            0x03, 0xF4,  # Type Code (1012 = 0x03F4)
-            0x02,  # Reserved
-            0x00, 0x00, 0x0E,  # Size (14 bytes)
-        ])
-        
+        apdu = bytearray(
+            [
+                0x0A,  # Class 10
+                0x97,  # OpSpec 0x97 = SET + 23 bytes
+                0x5B,  # Obj-ID (91 = 0x5B)
+                0x01,
+                0xAE,  # Sub-ID (430 = 0x01AE)
+                0x03,
+                0xF4,  # Type Code (1012 = 0x03F4)
+                0x02,  # Reserved
+                0x00,
+                0x00,
+                0x0E,  # Size (14 bytes)
+            ]
+        )
+
         # Payload (14 bytes)
         apdu.append(0x01 if autoadapt else 0x00)  # DeltaTempEnabled
         apdu.extend(encode_float_be(min_temp))
         apdu.extend(encode_float_be(max_temp))
-        
+
         # Default time limits (5 bytes)
-        apdu.extend(bytes([
-            0x00, 0x00, 0x00, 0x16, 
-            0x00
-        ]))
+        apdu.extend(bytes([0x00, 0x00, 0x00, 0x16, 0x00]))
 
         req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
         if await self._send_with_retry(req, "Set Temperature Range (Obj 91)"):

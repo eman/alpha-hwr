@@ -26,7 +26,9 @@ class TestPacketCreation:
     def test_auth_magic_packets(self):
         """Verify Authentication Magic Packets match known good sequences."""
         # Derived from constants.py
-        assert AUTH_LEGACY_MAGIC == bytes.fromhex("2707e7f80203949596eb47")
+        # Legacy magic addresses the broadcast unit 0xFF (not 0xE7), matching
+        # the payload captured from the Grundfos GO app - see issue #65.
+        assert AUTH_LEGACY_MAGIC == bytes.fromhex("2707fff802039495964f91")
         assert AUTH_CLASS10_MAGIC == bytes.fromhex("2707e7f80a03560006c55a")
         assert AUTH_EXTEND_1 == bytes.fromhex("2705e7f805c14bc382")
         assert AUTH_EXTEND_2 == bytes.fromhex("2705e7f80bc10fd0c3")

@@ -248,7 +248,9 @@ class AuthenticationHandler:
         try:
             # Stage 1: Legacy Magic Burst (backward compatibility)
             logger.debug("Stage 1: Sending legacy magic burst (3x repeats)...")
-            await self.send_legacy_burst(repeats=3, delay=0 if fast_mode else 0.1)
+            await self.send_legacy_burst(
+                repeats=3, delay=0 if fast_mode else 0.1
+            )
             if fast_mode:
                 # When resuming a session, usually only Stage 3 is strictly required
                 # but we send all for robustness
@@ -257,7 +259,9 @@ class AuthenticationHandler:
                 await asyncio.sleep(0.1)  # Allow processing time
 
             # Stage 2: Class 10 Unlock (required for DataObjects)
-            logger.debug("Stage 2: Sending Class 10 unlock burst (5x repeats)...")
+            logger.debug(
+                "Stage 2: Sending Class 10 unlock burst (5x repeats)..."
+            )
             delay = 0 if fast_mode else 0.1
             for _ in range(5):
                 await self.ble_writer.write_gatt_char(
