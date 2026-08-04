@@ -24,6 +24,9 @@ MANIFEST
 
 # Environments
 .venv
+
+# uv regenerates this on every run and the project does not pin it
+uv.lock
 venv/
 ENV/
 env/
