@@ -1,5 +1,7 @@
 import struct
+
 import pytest
+
 from alpha_hwr.protocol.frame_parser import FrameParser
 from alpha_hwr.protocol.telemetry_decoder import TelemetryDecoder
 

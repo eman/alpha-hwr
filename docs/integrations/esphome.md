@@ -64,36 +64,38 @@ CONF_POWER = "power"
 CONF_RPM = "rpm"
 CONF_TEMP_MEDIA = "temp_media"
 
-CONFIG_SCHEMA = cv.Schema({
-    cv.GenerateID(): cv.declare_id(AlphaHwrComponent),
-    cv.Optional(CONF_FLOW): sensor.sensor_schema(
-        unit_of_measurement="m³/h",
-        accuracy_decimals=3,
-        state_class=STATE_CLASS_MEASUREMENT,
-    ),
-    cv.Optional(CONF_HEAD): sensor.sensor_schema(
-        unit_of_measurement="m",
-        accuracy_decimals=2,
-        state_class=STATE_CLASS_MEASUREMENT,
-    ),
-    cv.Optional(CONF_POWER): sensor.sensor_schema(
-        unit_of_measurement=UNIT_WATT,
-        accuracy_decimals=1,
-        device_class=DEVICE_CLASS_POWER,
-        state_class=STATE_CLASS_MEASUREMENT,
-    ),
-    cv.Optional(CONF_RPM): sensor.sensor_schema(
-        unit_of_measurement="RPM",
-        accuracy_decimals=0,
-        state_class=STATE_CLASS_MEASUREMENT,
-    ),
-    cv.Optional(CONF_TEMP_MEDIA): sensor.sensor_schema(
-        unit_of_measurement=UNIT_CELSIUS,
-        accuracy_decimals=1,
-        device_class=DEVICE_CLASS_TEMPERATURE,
-        state_class=STATE_CLASS_MEASUREMENT,
-    ),
-}).extend(ble_client.BLE_CLIENT_SCHEMA)
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.declare_id(AlphaHwrComponent),
+        cv.Optional(CONF_FLOW): sensor.sensor_schema(
+            unit_of_measurement="m³/h",
+            accuracy_decimals=3,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_HEAD): sensor.sensor_schema(
+            unit_of_measurement="m",
+            accuracy_decimals=2,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_POWER): sensor.sensor_schema(
+            unit_of_measurement=UNIT_WATT,
+            accuracy_decimals=1,
+            device_class=DEVICE_CLASS_POWER,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_RPM): sensor.sensor_schema(
+            unit_of_measurement="RPM",
+            accuracy_decimals=0,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_TEMP_MEDIA): sensor.sensor_schema(
+            unit_of_measurement=UNIT_CELSIUS,
+            accuracy_decimals=1,
+            device_class=DEVICE_CLASS_TEMPERATURE,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+    }
+).extend(ble_client.BLE_CLIENT_SCHEMA)
 
 
 async def to_code(config):

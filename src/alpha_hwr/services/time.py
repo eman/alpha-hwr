@@ -72,6 +72,7 @@ import struct
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from ..exceptions import READ_ERRORS
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -180,9 +181,12 @@ class TimeService(BaseService):
                         logger.warning(
                             f"Pump clock is unset or invalid: {yr}-{mo}-{da}"
                         )
-                        return datetime.fromtimestamp(0)  # Epoch
+                        # Naive by design - see the note on set_time().
+                        # Local-epoch sentinel: callers detect an unset
+                        # clock via `year <= 1980`.
+                        return datetime.fromtimestamp(0)  # noqa: DTZ006
 
-                    return datetime(yr, mo, da, hr, mi, sc)
+                    return datetime(yr, mo, da, hr, mi, sc)  # noqa: DTZ001
                 else:
                     logger.warning(
                         f"Clock payload too short: {len(payload)} bytes"
@@ -192,7 +196,7 @@ class TimeService(BaseService):
                     f"Clock data missing or too short: {len(data) if data else 0} bytes"
                 )
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to read pump clock: {e}")
             import traceback
 
@@ -237,7 +241,12 @@ class TimeService(BaseService):
         self.session.ensure_authenticated()
 
         if dt is None:
-            dt = datetime.now()
+            # Deliberately naive local time: the pump stores bare
+            # wall-clock fields (year/month/day/hour/min/sec) with no
+            # offset, and its schedules run against that wall clock. A
+            # UTC-aware value here would shift the pump's clock by the
+            # local offset.
+            dt = datetime.now()  # noqa: DTZ005
 
         logger.info(
             f"Synchronizing pump clock to {dt.isoformat()} (local time)..."
@@ -305,7 +314,7 @@ class TimeService(BaseService):
 
             return False
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to set pump clock: {e}")
             import traceback
 
@@ -350,7 +359,7 @@ class TimeService(BaseService):
                     f"{description} attempt {attempt + 1} - no ACK received"
                 )
 
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.warning(
                     f"{description} attempt {attempt + 1} failed: {e}"
                 )

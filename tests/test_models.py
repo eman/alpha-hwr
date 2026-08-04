@@ -24,10 +24,10 @@ class TestModels:
     def test_unit_conversions(self):
         """Verify authoritative unit conversions."""
         from alpha_hwr.constants import (
+            FACTOR_CELSIUS_TO_FAHRENHEIT,
             FACTOR_M3H_TO_GPM,
             FACTOR_M_TO_FT,
             FACTOR_M_TO_PSI,
-            FACTOR_CELSIUS_TO_FAHRENHEIT,
         )
 
         data = TelemetryData(

@@ -59,23 +59,25 @@ The pump advertises with a recognizable name pattern.
 import asyncio
 from bleak import BleakScanner
 
+
 async def discover_alpha_pumps(timeout=10.0):
     """
     Scan for ALPHA HWR pumps.
-    
+
     Returns list of discovered devices.
     """
     print(f"Scanning for ALPHA pumps (timeout: {timeout}s)...")
-    
+
     devices = await BleakScanner.discover(timeout=timeout)
-    
+
     alpha_pumps = []
     for device in devices:
         if device.name and "ALPHA" in device.name:
             alpha_pumps.append(device)
             print(f"Found: {device.name} ({device.address})")
-    
+
     return alpha_pumps
+
 
 # Usage
 pumps = await discover_alpha_pumps()
@@ -123,26 +125,27 @@ Once discovered, connect to the pump using its BLE address.
 ```python
 from bleak import BleakClient
 
+
 async def connect_to_pump(address):
     """
     Connect to pump via BLE.
-    
+
     Args:
         address: BLE MAC address (e.g., "XX:XX:XX:XX:XX:XX")
-    
+
     Returns:
         BleakClient instance
     """
     print(f"Connecting to {address}...")
-    
+
     client = BleakClient(address, timeout=15.0)
     await client.connect()
-    
+
     if client.is_connected:
         print("Connected successfully!")
     else:
         raise Exception("Connection failed")
-    
+
     return client
 ```
 
@@ -178,50 +181,51 @@ GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
 TX_CHAR_UUID = "0000fdd1-0000-1000-8000-00805f9b34fb"
 RX_CHAR_UUID = "0000fdd2-0000-1000-8000-00805f9b34fb"
 
+
 async def discover_geni_service(client):
     """
     Discover GENI service and characteristics.
-    
+
     Args:
         client: Connected BleakClient
-    
+
     Returns:
         (service, tx_char, rx_char)
     """
     print("Discovering services...")
-    
+
     # Get all services
     services = client.services
-    
+
     # Find GENI service
     service = None
     for svc in services:
         if svc.uuid.lower() == GENI_SERVICE_UUID.lower():
             service = svc
             break
-    
+
     if not service:
         raise Exception("GENI service not found")
-    
+
     print(f"Found GENI service: {service.uuid}")
-    
+
     # Find TX characteristic
     tx_char = None
     for char in service.characteristics:
         if char.uuid.lower() == TX_CHAR_UUID.lower():
             tx_char = char
             print(f"  TX Char: {char.uuid} (properties: {char.properties})")
-    
+
     # Find RX characteristic
     rx_char = None
     for char in service.characteristics:
         if char.uuid.lower() == RX_CHAR_UUID.lower():
             rx_char = char
             print(f"  RX Char: {char.uuid} (properties: {char.properties})")
-    
+
     if not tx_char or not rx_char:
         raise Exception("Required characteristics not found")
-    
+
     return (service, tx_char, rx_char)
 ```
 
@@ -244,21 +248,22 @@ The pump sends responses and telemetry via notifications on the RX characteristi
 async def enable_notifications(client, rx_char_uuid):
     """
     Enable notifications for responses from pump.
-    
+
     Args:
         client: Connected BleakClient
         rx_char_uuid: RX characteristic UUID
     """
-    
+
     def notification_handler(sender, data):
         """Handle incoming notifications."""
         print(f"<< Received ({len(data)} bytes): {data.hex(' ')}")
         # Store in queue for processing
         response_queue.append(bytes(data))
-    
+
     # Enable notifications
     await client.start_notify(rx_char_uuid, notification_handler)
     print("Notifications enabled")
+
 
 # Global response queue
 response_queue = []
@@ -296,18 +301,20 @@ RX_CHAR_UUID = "0000fdd2-0000-1000-8000-00805f9b34fb"
 # Response queue
 response_queue = []
 
+
 def notification_handler(sender, data):
     """Handle notifications from pump."""
     print(f"<< Notification ({len(data)} bytes): {data.hex(' ')}")
     response_queue.append(bytes(data))
 
+
 async def setup_connection(address=None):
     """
     Complete BLE connection setup.
-    
+
     Args:
         address: BLE address (if None, will scan)
-    
+
     Returns:
         (client, tx_char_uuid, rx_char_uuid)
     """
@@ -315,42 +322,42 @@ async def setup_connection(address=None):
     if address is None:
         print("Scanning for ALPHA pumps...")
         devices = await BleakScanner.discover(timeout=10.0)
-        
+
         for device in devices:
             if device.name and "ALPHA" in device.name:
                 address = device.address
                 print(f"Found pump: {device.name} at {address}")
                 break
-        
+
         if not address:
             raise Exception("No ALPHA pump found")
-    
+
     # Step 2: Connect to pump
     print(f"\nConnecting to {address}...")
     client = BleakClient(address, timeout=15.0)
     await client.connect()
     print("Connected!")
-    
+
     # Step 3: Verify services
     print("\nDiscovering services...")
     services = client.services
     geni_service = None
-    
+
     for service in services:
         if service.uuid.lower() == GENI_SERVICE_UUID.lower():
             geni_service = service
             print(f"Found GENI service: {service.uuid}")
             break
-    
+
     if not geni_service:
         await client.disconnect()
         raise Exception("GENI service not found")
-    
+
     # Step 4: Verify characteristics
     print("\nVerifying characteristics...")
     tx_found = False
     rx_found = False
-    
+
     for char in geni_service.characteristics:
         if char.uuid.lower() == TX_CHAR_UUID.lower():
             tx_found = True
@@ -358,36 +365,38 @@ async def setup_connection(address=None):
         elif char.uuid.lower() == RX_CHAR_UUID.lower():
             rx_found = True
             print(f"  RX: {char.uuid} ({char.properties})")
-    
+
     if not tx_found or not rx_found:
         await client.disconnect()
         raise Exception("Required characteristics not found")
-    
+
     # Step 5: Enable notifications
     print("\nEnabling notifications...")
     await client.start_notify(RX_CHAR_UUID, notification_handler)
     print("Notifications enabled!")
-    
+
     print("\n✓ Connection setup complete!")
     print("  Ready for authentication\n")
-    
+
     return (client, TX_CHAR_UUID, RX_CHAR_UUID)
+
 
 async def main():
     """Test connection setup."""
     try:
         client, tx_uuid, rx_uuid = await setup_connection()
-        
+
         # Keep connection alive
         print("Connection active. Press Ctrl+C to disconnect...")
         await asyncio.sleep(30)
-        
+
         # Cleanup
         await client.disconnect()
         print("Disconnected")
-        
+
     except Exception as e:
         print(f"Error: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

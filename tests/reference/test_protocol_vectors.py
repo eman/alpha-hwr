@@ -18,13 +18,14 @@ implementation matches the specification exactly.
 """
 
 import pytest
+
 from alpha_hwr.protocol.codec import (
-    encode_float_be,
     decode_float_be,
-    encode_uint16_be,
     decode_uint16_be,
-    encode_uint32_be,
     decode_uint32_be,
+    encode_float_be,
+    encode_uint16_be,
+    encode_uint32_be,
 )
 from alpha_hwr.protocol.frame_builder import FrameBuilder
 from alpha_hwr.protocol.frame_parser import FrameParser

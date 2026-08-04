@@ -8,10 +8,11 @@ This module tests the HistoryService including:
 """
 
 import struct
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock
 
+import pytest
+from bleak.exc import BleakError
 from conftest import build_class10_response
 
 
@@ -265,7 +266,7 @@ class TestHistoryServiceEdgeCases:
     async def test_get_trend_data_transport_exception(self, mock_client_simple):
         """Test get_trend_data when transport raises exception."""
         mock_client_simple.transport.query = AsyncMock(
-            side_effect=Exception("Transport error")
+            side_effect=BleakError("Transport error")
         )
 
         result = await mock_client_simple.history.get_trend_data()
@@ -279,7 +280,7 @@ class TestHistoryServiceEdgeCases:
     ):
         """Test get_cycle_timestamps when transport raises exception."""
         mock_client_simple.transport.query = AsyncMock(
-            side_effect=Exception("Transport error")
+            side_effect=BleakError("Transport error")
         )
 
         result = await mock_client_simple.history.get_cycle_timestamps(count=10)

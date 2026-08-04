@@ -11,13 +11,13 @@ the GENI protocol specification.
 import asyncio
 import logging
 import struct
-from datetime import datetime
-from typing import Optional, Callable
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 
+from alpha_hwr.constants import ControlMode
 from alpha_hwr.protocol import FrameParser
 from alpha_hwr.protocol.codec import encode_float_be, encode_uint16_be
-from alpha_hwr.constants import ControlMode
 from alpha_hwr.utils import calc_crc16
 
 logger = logging.getLogger(__name__)
@@ -63,14 +63,14 @@ class MockPumpState:
     schedule_entries: dict = field(default_factory=dict)
 
     # Clock
-    last_synced_time: Optional[datetime] = None
+    last_synced_time: datetime | None = None
 
     # Cycle time parameters (Mode 25)
     cycle_on_minutes: int = 6
     cycle_off_minutes: int = 14
 
     # Response callback
-    notification_callback: Optional[Callable[[bytes], None]] = None
+    notification_callback: Callable[[bytes], None] | None = None
 
 
 class MockPump:
@@ -230,14 +230,18 @@ class MockPump:
             return self._handle_control_command(frame)
 
         # Mode 25 Cycle Time Write (Sub 0x01AE, Obj 0x005B)
-        if (opspec & 0x80) and sub_id == 0x01AE and obj_id == 0x005B:
-            # Payload structure: [Type(2)][Size(1)][0x00, 0x00, OFF, 0x01, 0x42, 0x02, ON, 0xFB]
-            # Offset to OFF = 4 (GENI) + 6 (APDU) + 3 (Type/Size) + 2 (Header) = 15
-            # Offset to ON = 15 + 4 = 19
-            if len(raw_data) >= 20:
-                self.state.cycle_off_minutes = raw_data[15]
-                self.state.cycle_on_minutes = raw_data[19]
-                return self._build_ack_response()
+        # Payload structure: [Type(2)][Size(1)][0x00, 0x00, OFF, 0x01, 0x42, 0x02, ON, 0xFB]
+        # Offset to OFF = 4 (GENI) + 6 (APDU) + 3 (Type/Size) + 2 (Header) = 15
+        # Offset to ON = 15 + 4 = 19
+        if (
+            (opspec & 0x80)
+            and sub_id == 0x01AE
+            and obj_id == 0x005B
+            and len(raw_data) >= 20
+        ):
+            self.state.cycle_off_minutes = raw_data[15]
+            self.state.cycle_on_minutes = raw_data[19]
+            return self._build_ack_response()
 
         # Schedule overview enable/disable (Obj 84, Sub 1)
         # Note: ObjID 84=0x0054, SubID 1=0x0001
@@ -276,7 +280,9 @@ class MockPump:
             yr = (raw_data[16] << 8) | raw_data[17]
             mo, da, hr, mi, sc = raw_data[18:23]
             try:
-                self.state.last_synced_time = datetime(yr, mo, da, hr, mi, sc)
+                self.state.last_synced_time = datetime(  # noqa: DTZ001
+                    yr, mo, da, hr, mi, sc
+                )  # pump wall clock is naive
             except ValueError:
                 pass
         return self._build_ack_response()
@@ -558,7 +564,8 @@ class MockPump:
         """Build Class 10 clock response (Obj 94, Sub 101)."""
         from datetime import datetime
 
-        dt = self.state.last_synced_time or datetime.now()
+        # Pump wall clock is naive local time, never UTC.
+        dt = self.state.last_synced_time or datetime.now()  # noqa: DTZ005
 
         payload = bytearray()
         payload.extend(bytes([0x00, 0x00]))  # Status (valid)

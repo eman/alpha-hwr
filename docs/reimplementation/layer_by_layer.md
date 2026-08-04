@@ -62,19 +62,20 @@ The pump advertises as `ALPHA_<serial>` via BLE.
 # Pseudocode - adapt to your BLE library
 import ble_library
 
+
 async def discover_pump(serial_number=None):
     """
     Scan for ALPHA HWR pumps.
-    
+
     Returns device address/object.
     """
     devices = await ble_library.scan(timeout=10.0)
-    
+
     for device in devices:
         if device.name and device.name.startswith("ALPHA"):
             if serial_number is None or serial_number in device.name:
                 return device
-    
+
     raise Exception("Pump not found")
 ```
 
@@ -127,9 +128,11 @@ Enable notifications on RX characteristic to receive pump responses.
 ```python
 response_queue = []
 
+
 def notification_handler(sender, data):
     """Handle incoming notifications from pump."""
     response_queue.append(data)
+
 
 async def enable_notifications(client, rx_char):
     """Enable BLE notifications."""
@@ -149,15 +152,16 @@ async def send_packet(tx_char, data: bytes):
     """Send bytes to pump."""
     await tx_char.write_value(data, response=False)
 
+
 async def receive_packet(timeout=5.0):
     """Wait for response from pump."""
     start_time = time.time()
-    
+
     while time.time() - start_time < timeout:
         if response_queue:
             return response_queue.pop(0)
         await asyncio.sleep(0.01)
-    
+
     raise TimeoutError("No response from pump")
 ```
 
@@ -214,19 +218,21 @@ Encode floats as big-endian IEEE 754.
 ```python
 import struct
 
+
 def encode_float_be(value: float) -> bytes:
     """
     Encode float as big-endian IEEE 754 (4 bytes).
-    
+
     Example:
         1.5 → [0x3F, 0xC0, 0x00, 0x00]
     """
     return struct.pack(">f", value)  # ">f" = big-endian float
 
+
 def decode_float_be(data: bytes) -> float:
     """
     Decode big-endian IEEE 754 float.
-    
+
     Example:
         [0x3F, 0xC0, 0x00, 0x00] → 1.5
     """
@@ -254,13 +260,16 @@ def encode_uint16_be(value: int) -> bytes:
     """Encode uint16 as big-endian (2 bytes)."""
     return struct.pack(">H", value)
 
+
 def encode_uint32_be(value: int) -> bytes:
     """Encode uint32 as big-endian (4 bytes)."""
     return struct.pack(">I", value)
 
+
 def decode_uint16_be(data: bytes) -> int:
     """Decode big-endian uint16."""
     return struct.unpack(">H", data)[0]
+
 
 def decode_uint32_be(data: bytes) -> int:
     """Decode big-endian uint32."""
@@ -309,14 +318,14 @@ INFO commands request data from the pump.
 def build_info_command(class_byte, sub_id, obj_id):
     """
     Build Class 10 INFO command.
-    
+
     Frame: [27] [Length] [E7] [F8] [0A] [OpSpec] [Sub-H] [Sub-L] [Obj-H] [Obj-L] [CRC-H] [CRC-L]
-    
+
     Args:
         class_byte: Always 0x0A for Class 10
         sub_id: Subsystem ID (e.g., 0x0045 for motor)
         obj_id: Object ID (e.g., 0x0057 for motor state)
-    
+
     Returns:
         Complete frame (bytes)
     """
@@ -325,10 +334,10 @@ def build_info_command(class_byte, sub_id, obj_id):
     apdu.append(CLASS_10)
     apdu.append(0x00)  # OpSpec: INFO command, 0 bytes data
     apdu.append((sub_id >> 8) & 0xFF)  # Sub ID high
-    apdu.append(sub_id & 0xFF)         # Sub ID low
+    apdu.append(sub_id & 0xFF)  # Sub ID low
     apdu.append((obj_id >> 8) & 0xFF)  # Obj ID high
-    apdu.append(obj_id & 0xFF)         # Obj ID low
-    
+    apdu.append(obj_id & 0xFF)  # Obj ID low
+
     # Build header
     length = 2 + len(apdu)  # ServiceID (2 bytes) + APDU
     frame = []
@@ -337,15 +346,15 @@ def build_info_command(class_byte, sub_id, obj_id):
     frame.append(SERVICE_ID_HIGH)
     frame.append(SERVICE_ID_LOW_SOURCE)
     frame.extend(apdu)
-    
+
     # Calculate CRC over bytes from Length to end of APDU
     crc_data = bytes(frame[1:])  # Exclude start byte
     crc = calc_crc16_modbus(crc_data)
-    
+
     # Append CRC (big-endian)
     frame.append((crc >> 8) & 0xFF)  # CRC high
-    frame.append(crc & 0xFF)         # CRC low
-    
+    frame.append(crc & 0xFF)  # CRC low
+
     return bytes(frame)
 ```
 
@@ -417,7 +426,9 @@ setpoint_data = encode_float_be(14710.0)
 packet = build_set_command(0x5600, 0x0601, setpoint_data)
 assert packet[0] == 0x27
 assert packet[5] == 0x84  # OpSpec: SET (0x80) + 4 bytes (0x04)
-assert len(packet) == 16  # Header (4) + APDU (10: class, opspec, ids, data) + CRC (2)
+assert (
+    len(packet) == 16
+)  # Header (4) + APDU (10: class, opspec, ids, data) + CRC (2)
 ```
 
 
@@ -432,41 +443,41 @@ Parse responses from the pump.
 def parse_frame(data: bytes):
     """
     Parse GENI response frame.
-    
+
     Frame: [24] [Length] [E7] [0A] [Class] [OpSpec] [Sub-H] [Sub-L] [Obj-H] [Obj-L] [Payload...] [CRC-H] [CRC-L]
-    
+
     Returns:
-        dict with keys: start, length, service_id, source, class_byte, opspec, 
+        dict with keys: start, length, service_id, source, class_byte, opspec,
                         sub_id, obj_id, payload, crc
     """
     if len(data) < 8:
         raise ValueError("Frame too short")
-    
+
     # Verify start byte
     start = data[0]
     if start != FRAME_START_RESPONSE:
         raise ValueError(f"Invalid start byte: {start:#x}")
-    
+
     # Parse header
     length = data[1]
     service_id_h = data[2]
     source = data[3]
-    
+
     # Verify CRC
     crc_received = (data[-2] << 8) | data[-1]
     crc_calculated = calc_crc16_modbus(data[1:-2])
     if crc_received != crc_calculated:
         raise ValueError("CRC mismatch")
-    
+
     # Parse APDU (Class 10)
     class_byte = data[4]
     opspec = data[5]
     sub_id = (data[6] << 8) | data[7]
     obj_id = (data[8] << 8) | data[9]
-    
+
     # Extract payload (between obj_id and CRC)
     payload = data[10:-2]
-    
+
     return {
         "start": start,
         "length": length,
@@ -477,24 +488,33 @@ def parse_frame(data: bytes):
         "sub_id": sub_id,
         "obj_id": obj_id,
         "payload": payload,
-        "crc": crc_received
+        "crc": crc_received,
     }
 ```
 
 **Test**:
 ```python
 # Example response with motor speed = 2500.0 RPM
-response = bytes([
-    0x24,  # Start
-    0x08,  # Length
-    0xE7, 0x0A,  # Service ID
-    0x0A,  # Class 10
-    0x00,  # OpSpec
-    0x00, 0x45,  # Sub 0x0045 (motor)
-    0x00, 0x57,  # Obj 0x0057 (state)
-    0x45, 0x1C, 0x40, 0x00,  # Speed = 2500.0
-    0x12, 0x34  # CRC (example)
-])
+response = bytes(
+    [
+        0x24,  # Start
+        0x08,  # Length
+        0xE7,
+        0x0A,  # Service ID
+        0x0A,  # Class 10
+        0x00,  # OpSpec
+        0x00,
+        0x45,  # Sub 0x0045 (motor)
+        0x00,
+        0x57,  # Obj 0x0057 (state)
+        0x45,
+        0x1C,
+        0x40,
+        0x00,  # Speed = 2500.0
+        0x12,
+        0x34,  # CRC (example)
+    ]
+)
 # Note: CRC would need to be correct for real test
 
 frame = parse_frame(response)
@@ -522,7 +542,9 @@ Send exactly these packets in order:
 **Packets** (pre-calculated with CRC):
 ```python
 LEGACY_MAGIC = bytes([0x27, 0x06, 0xE7, 0xF8, 0x00, 0x67, 0xA3, 0xE3])
-CLASS10_UNLOCK = bytes([0x27, 0x07, 0xE7, 0xF8, 0x0A, 0x04, 0x00, 0x85, 0x02, 0x12])
+CLASS10_UNLOCK = bytes(
+    [0x27, 0x07, 0xE7, 0xF8, 0x0A, 0x04, 0x00, 0x85, 0x02, 0x12]
+)
 EXTEND_1 = bytes([0x27, 0x07, 0xE7, 0xF8, 0x1A, 0x2C, 0x00, 0x52, 0x01, 0x02])
 EXTEND_2 = bytes([0x27, 0x06, 0xE7, 0xF8, 0x1A, 0x54, 0xD2, 0x55])
 ```
@@ -573,6 +595,7 @@ DISCONNECTED → CONNECTED → AUTHENTICATING → AUTHENTICATED → ERROR
 ```python
 from enum import Enum
 
+
 class SessionState(Enum):
     DISCONNECTED = "disconnected"
     CONNECTED = "connected"
@@ -580,27 +603,30 @@ class SessionState(Enum):
     AUTHENTICATED = "authenticated"
     ERROR = "error"
 
+
 class Session:
     def __init__(self):
         self.state = SessionState.DISCONNECTED
         self.client = None
         self.tx_char = None
         self.rx_char = None
-    
+
     async def connect(self, device_address):
         """Connect to pump."""
         if self.state != SessionState.DISCONNECTED:
             raise Exception(f"Cannot connect from state: {self.state}")
-        
-        self.client, self.tx_char, self.rx_char = await connect_to_pump(device_address)
+
+        self.client, self.tx_char, self.rx_char = await connect_to_pump(
+            device_address
+        )
         await enable_notifications(self.client, self.rx_char)
         self.state = SessionState.CONNECTED
-    
+
     async def authenticate(self):
         """Authenticate with pump."""
         if self.state != SessionState.CONNECTED:
             raise Exception(f"Cannot authenticate from state: {self.state}")
-        
+
         self.state = SessionState.AUTHENTICATING
         try:
             await authenticate(self.tx_char)
@@ -608,17 +634,19 @@ class Session:
         except Exception as e:
             self.state = SessionState.ERROR
             raise
-    
+
     async def disconnect(self):
         """Disconnect from pump."""
         if self.client:
             await self.client.disconnect()
         self.state = SessionState.DISCONNECTED
-    
+
     def ensure_authenticated(self):
         """Raise error if not authenticated."""
         if self.state != SessionState.AUTHENTICATED:
-            raise Exception(f"Operation requires authenticated session, current state: {self.state}")
+            raise Exception(
+                f"Operation requires authenticated session, current state: {self.state}"
+            )
 ```
 
 
@@ -637,57 +665,50 @@ Read measurements from pump.
 class TelemetryService:
     def __init__(self, session):
         self.session = session
-    
+
     async def read_motor_state(self):
         """
         Read motor telemetry (RPM, power, voltage).
-        
+
         Returns dict with keys: rpm, power_watts, grid_voltage
         """
         self.session.ensure_authenticated()
-        
+
         # Request motor state (Sub 0x0045, Obj 0x0057)
         packet = build_info_command(0x0A, 0x0045, 0x0057)
         await send_packet(self.session.tx_char, packet)
-        
+
         # Wait for response
         response = await receive_packet(timeout=2.0)
         frame = parse_frame(response)
-        
+
         # Decode payload (3 floats: RPM, Power, Voltage)
         rpm = decode_float_be(frame["payload"][0:4])
         power = decode_float_be(frame["payload"][4:8])
         voltage = decode_float_be(frame["payload"][8:12])
-        
-        return {
-            "rpm": rpm,
-            "power_watts": power,
-            "grid_voltage": voltage
-        }
-    
+
+        return {"rpm": rpm, "power_watts": power, "grid_voltage": voltage}
+
     async def read_flow_pressure(self):
         """
         Read hydraulic telemetry (flow, head pressure).
-        
+
         Returns dict with keys: flow_m3h, head_meters
         """
         self.session.ensure_authenticated()
-        
+
         # Request flow/pressure (Sub 0x0122, Obj 0x005D)
         packet = build_info_command(0x0A, 0x0122, 0x005D)
         await send_packet(self.session.tx_char, packet)
-        
+
         response = await receive_packet(timeout=2.0)
         frame = parse_frame(response)
-        
+
         # Decode payload (2 floats)
         flow = decode_float_be(frame["payload"][0:4])
         head = decode_float_be(frame["payload"][4:8])
-        
-        return {
-            "flow_m3h": flow,
-            "head_meters": head
-        }
+
+        return {"flow_m3h": flow, "head_meters": head}
 ```
 
 

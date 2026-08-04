@@ -109,7 +109,9 @@ The payload controls whether the one-time schedule is enabled or disabled (delet
 # Set a one-time schedule (e.g., Vacation Mode)
 start_time = datetime.now() + timedelta(days=1)
 end_time = start_time + timedelta(weeks=1)
-await client.set_one_time_schedule(start_time, end_time, ControlMode.CONSTANT_SPEED)
+await client.set_one_time_schedule(
+    start_time, end_time, ControlMode.CONSTANT_SPEED
+)
 
 # Delete/Cancel one-time schedule
 await client.delete_schedule()
@@ -129,20 +131,22 @@ The `AlphaHWRClient` handles the complexity of the keep-alive burst and parsing.
 ```python
 async with AlphaHWRClient(address) as client:
     await client.authenticate()
-    
+
     # Check if schedule is globally enabled
     is_enabled = await client.get_schedule_enabled()
     print(f"Schedule Active: {is_enabled}")
-    
+
     # Get detailed entries for all layers (consolidated)
     schedule = await client.get_schedule()
-    
+
     # Get entries for a specific layer (e.g., Layer 0)
     layer0_schedule = await client.get_schedule(layer=0)
-    
+
     for entry in schedule:
         if entry.enabled:
-            print(f"{entry.day}: {entry.begin_time} - {entry.end_time} (Layer {entry.layer})")
+            print(
+                f"{entry.day}: {entry.begin_time} - {entry.end_time} (Layer {entry.layer})"
+            )
 ```
 
 ### Writing Schedules
@@ -293,9 +297,15 @@ Write multiple entries at once:
 from alpha_hwr import ScheduleEntry
 
 entries = [
-    ScheduleEntry(day="Monday", begin_hour=6, begin_minute=0, end_hour=8, end_minute=0),
-    ScheduleEntry(day="Monday", begin_hour=18, begin_minute=0, end_hour=20, end_minute=0),
-    ScheduleEntry(day="Tuesday", begin_hour=6, begin_minute=0, end_hour=8, end_minute=0),
+    ScheduleEntry(
+        day="Monday", begin_hour=6, begin_minute=0, end_hour=8, end_minute=0
+    ),
+    ScheduleEntry(
+        day="Monday", begin_hour=18, begin_minute=0, end_hour=20, end_minute=0
+    ),
+    ScheduleEntry(
+        day="Tuesday", begin_hour=6, begin_minute=0, end_hour=8, end_minute=0
+    ),
 ]
 
 success = await client.set_weekly_schedule(entries, layer=0)
@@ -425,10 +435,10 @@ Import a schedule from a JSON file:
 import json
 from alpha_hwr import ScheduleEntry
 
-with open("schedule.json", 'r') as f:
+with open("schedule.json", "r") as f:
     data = json.load(f)
 
-entries = [ScheduleEntry(**entry) for entry in data['days']]
+entries = [ScheduleEntry(**entry) for entry in data["days"]]
 success = await client.set_weekly_schedule(entries, layer=0)
 ```
 
@@ -468,15 +478,23 @@ The ALPHA HWR pump supports **5 independent schedule layers** that enable sophis
 ```python
 # Layer 0: Morning schedule
 morning = [
-    ScheduleEntry(day="Monday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30),
-    ScheduleEntry(day="Tuesday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30),
+    ScheduleEntry(
+        day="Monday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30
+    ),
+    ScheduleEntry(
+        day="Tuesday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30
+    ),
     # ... rest of weekdays
 ]
 
 # Layer 1: Evening schedule
 evening = [
-    ScheduleEntry(day="Monday", begin_hour=18, begin_minute=0, end_hour=22, end_minute=0),
-    ScheduleEntry(day="Tuesday", begin_hour=18, begin_minute=0, end_hour=22, end_minute=0),
+    ScheduleEntry(
+        day="Monday", begin_hour=18, begin_minute=0, end_hour=22, end_minute=0
+    ),
+    ScheduleEntry(
+        day="Tuesday", begin_hour=18, begin_minute=0, end_hour=22, end_minute=0
+    ),
     # ... rest of weekdays
 ]
 
@@ -489,8 +507,12 @@ await client.set_weekly_schedule(evening, layer=1)
 # Layers 0-1: Weekday schedules (as above)
 # Layer 2: Weekend all-day
 weekend = [
-    ScheduleEntry(day="Saturday", begin_hour=8, begin_minute=0, end_hour=23, end_minute=0),
-    ScheduleEntry(day="Sunday", begin_hour=8, begin_minute=0, end_hour=23, end_minute=0),
+    ScheduleEntry(
+        day="Saturday", begin_hour=8, begin_minute=0, end_hour=23, end_minute=0
+    ),
+    ScheduleEntry(
+        day="Sunday", begin_hour=8, begin_minute=0, end_hour=23, end_minute=0
+    ),
 ]
 
 await client.set_weekly_schedule(weekend, layer=2)
@@ -501,7 +523,9 @@ await client.set_weekly_schedule(weekend, layer=2)
 # Layers 0-2: Year-round schedules
 # Layer 3: Winter boost (December-February)
 winter_boost = [
-    ScheduleEntry(day="Monday", begin_hour=5, begin_minute=0, end_hour=6, end_minute=30),
+    ScheduleEntry(
+        day="Monday", begin_hour=5, begin_minute=0, end_hour=6, end_minute=30
+    ),
     # ... pre-morning heating boost
 ]
 
@@ -547,8 +571,16 @@ await client.clear_schedule_entry("Monday", layer=0)
 
 ```python
 # This is VALID (different layers)
-layer0 = [ScheduleEntry(day="Monday", begin_hour=6, begin_minute=0, end_hour=9, end_minute=0)]
-layer1 = [ScheduleEntry(day="Monday", begin_hour=7, begin_minute=0, end_hour=10, end_minute=0)]
+layer0 = [
+    ScheduleEntry(
+        day="Monday", begin_hour=6, begin_minute=0, end_hour=9, end_minute=0
+    )
+]
+layer1 = [
+    ScheduleEntry(
+        day="Monday", begin_hour=7, begin_minute=0, end_hour=10, end_minute=0
+    )
+]
 
 await client.set_weekly_schedule(layer0, layer=0)  #  Valid
 await client.set_weekly_schedule(layer1, layer=1)  #  Valid
@@ -556,8 +588,12 @@ await client.set_weekly_schedule(layer1, layer=1)  #  Valid
 
 # This is INVALID (same layer)
 entries = [
-    ScheduleEntry(day="Monday", begin_hour=6, begin_minute=0, end_hour=9, end_minute=0),
-    ScheduleEntry(day="Monday", begin_hour=7, begin_minute=0, end_hour=10, end_minute=0),
+    ScheduleEntry(
+        day="Monday", begin_hour=6, begin_minute=0, end_hour=9, end_minute=0
+    ),
+    ScheduleEntry(
+        day="Monday", begin_hour=7, begin_minute=0, end_hour=10, end_minute=0
+    ),
 ]
 await client.set_weekly_schedule(entries, layer=0)  #  Validation error
 # Error: Overlap detected: Monday layer 0: 06:00-09:00 overlaps with 07:00-10:00
@@ -630,7 +666,7 @@ entry = ScheduleEntry(
     end_minute=0,
     layer=0,  # Schedule layer (0-4)
     action=0x02,  # Run pump
-    enabled=True
+    enabled=True,
 )
 ```
 
@@ -655,8 +691,12 @@ entry = ScheduleEntry(
 ```python
 # Validate a list of schedule entries
 entries = [
-    ScheduleEntry(day="Monday", begin_hour=6, begin_minute=0, end_hour=8, end_minute=0),
-    ScheduleEntry(day="Monday", begin_hour=7, begin_minute=0, end_hour=9, end_minute=0),  # Overlaps!
+    ScheduleEntry(
+        day="Monday", begin_hour=6, begin_minute=0, end_hour=8, end_minute=0
+    ),
+    ScheduleEntry(
+        day="Monday", begin_hour=7, begin_minute=0, end_hour=9, end_minute=0
+    ),  # Overlaps!
 ]
 
 is_valid, errors = client.validate_schedule(entries)
@@ -672,11 +712,15 @@ Calculate schedule entry duration, including midnight-crossing:
 
 ```python
 # Normal entry
-entry = ScheduleEntry(day="Monday", begin_hour=6, begin_minute=0, end_hour=8, end_minute=0)
+entry = ScheduleEntry(
+    day="Monday", begin_hour=6, begin_minute=0, end_hour=8, end_minute=0
+)
 print(entry.get_duration_minutes())  # 120 minutes (2 hours)
 
 # Midnight-crossing entry
-entry = ScheduleEntry(day="Monday", begin_hour=22, begin_minute=0, end_hour=2, end_minute=0)
+entry = ScheduleEntry(
+    day="Monday", begin_hour=22, begin_minute=0, end_hour=2, end_minute=0
+)
 print(entry.get_duration_minutes())  # 240 minutes (4 hours)
 print(entry.crosses_midnight())  # True
 ```

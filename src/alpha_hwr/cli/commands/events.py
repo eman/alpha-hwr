@@ -7,15 +7,13 @@ Commands:
   - metadata: Show event log metadata
 """
 
-from typing import Optional
-
 import typer
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
 
 from ..app import console
-from ..common import require_service, get_client, handle_error, run_async
+from ..common import get_client, handle_error, require_service, run_async
 
 app = typer.Typer(
     help="View pump event log entries",
@@ -25,13 +23,13 @@ app = typer.Typer(
 
 @app.command("list")
 def cmd_list(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
         help="Device address (from config if not specified)",
     ),
-    limit: Optional[int] = typer.Option(
+    limit: int | None = typer.Option(
         None,
         "--limit",
         "-n",
@@ -64,7 +62,7 @@ def cmd_show(
         ...,
         help="Entry index (0=newest, 19=oldest)",
     ),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -92,7 +90,7 @@ def cmd_show(
 
 @app.command("metadata")
 def cmd_metadata(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -114,7 +112,7 @@ def cmd_metadata(
 
 
 async def _show_list(
-    device: Optional[str], limit: Optional[int], detailed: bool
+    device: str | None, limit: int | None, detailed: bool
 ) -> None:
     """Internal async implementation of list command."""
     try:
@@ -156,7 +154,9 @@ async def _show_list(
                 for entry in entries:
                     table.add_row(
                         str(entry.index),
-                        entry.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                        entry.timestamp.astimezone().strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
                         str(entry.cycle_counter),
                         f"0x{entry.mode_byte:02X}",
                         f"0x{entry.event_type_flag:02X}",
@@ -196,7 +196,9 @@ async def _show_list(
 
                     table.add_row(
                         str(entry.index),
-                        entry.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                        entry.timestamp.astimezone().strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
                         relative,
                         str(entry.cycle_counter),
                         f"0x{entry.mode_byte:02X}",
@@ -228,11 +230,11 @@ async def _show_list(
 
             console.print(legend)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to fetch event log entries")
 
 
-async def _show_entry(device: Optional[str], index: int) -> None:
+async def _show_entry(device: str | None, index: int) -> None:
     """Internal async implementation of show command."""
     try:
         async with get_client(device) as client:
@@ -304,11 +306,11 @@ async def _show_entry(device: Optional[str], index: int) -> None:
             console.print(panel)
             console.print()
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, f"Failed to fetch event log entry {index}")
 
 
-async def _show_metadata(device: Optional[str]) -> None:
+async def _show_metadata(device: str | None) -> None:
     """Internal async implementation of metadata command."""
     try:
         async with get_client(device) as client:
@@ -370,5 +372,5 @@ async def _show_metadata(device: Optional[str]) -> None:
             console.print(panel)
             console.print()
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to fetch event log metadata")

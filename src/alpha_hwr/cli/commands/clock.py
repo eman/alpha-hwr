@@ -7,12 +7,11 @@ Commands:
 """
 
 from datetime import datetime
-from typing import Optional
 
 import typer
 
 from ..app import console
-from ..common import require_service, get_client, handle_error, run_async
+from ..common import get_client, handle_error, require_service, run_async
 from ..output.formatters import print_success
 
 app = typer.Typer(help="View and synchronize pump real-time clock")
@@ -20,7 +19,7 @@ app = typer.Typer(help="View and synchronize pump real-time clock")
 
 @app.command("view")
 def cmd_view(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -44,7 +43,7 @@ def cmd_view(
 
 @app.command("sync")
 def cmd_sync(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -79,7 +78,7 @@ def main(
         "-s",
         help="Synchronize pump clock with system time",
     ),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -112,14 +111,17 @@ def main(
 # Internal async implementations
 
 
-async def _clock_view(device: Optional[str]) -> None:
+async def _clock_view(device: str | None) -> None:
     """Internal async implementation of view command."""
     try:
         async with get_client(device) as client:
             time = require_service(client.time, "Time")
             # Read pump time
             pump_time = await time.get_clock()
-            system_time = datetime.now()
+            # Naive local, to match the pump's naive wall clock: this is
+            # compared against pump_time below, and mixing naive and
+            # aware datetimes raises.
+            system_time = datetime.now()  # noqa: DTZ005
 
             if pump_time is None:
                 console.print(
@@ -175,11 +177,11 @@ async def _clock_view(device: Optional[str]) -> None:
                     "\n[info]💡 Run 'alpha-hwr clock sync' to synchronize[/info]"
                 )
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to read pump clock")
 
 
-async def _clock_sync(device: Optional[str]) -> None:
+async def _clock_sync(device: str | None) -> None:
     """Internal async implementation of sync command."""
     try:
         async with get_client(device) as client:
@@ -193,5 +195,5 @@ async def _clock_sync(device: Optional[str]) -> None:
                 console.print("[error]Failed to synchronize pump clock[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to synchronize pump clock")

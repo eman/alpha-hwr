@@ -32,6 +32,7 @@ applies_to:
 from tests.mocks.mock_pump import MockPump
 from alpha_hwr import AlphaHWRClient
 
+
 @pytest.mark.asyncio
 async def test_telemetry_reading():
     """Test reading telemetry from pump."""
@@ -57,10 +58,11 @@ import pytest
 from alpha_hwr import AlphaHWRClient
 from tests.mocks.mock_pump import MockPump
 
+
 @pytest.mark.asyncio
 async def test_feature_name():
     """Test specific feature behavior.
-    
+
     This test verifies that [describe what you're testing].
     """
     # Arrange
@@ -68,7 +70,7 @@ async def test_feature_name():
         async with AlphaHWRClient(mock_pump.address) as client:
             # Act
             result = await client.some_operation()
-            
+
             # Assert
             assert result.expected_property == expected_value
 ```
@@ -77,14 +79,15 @@ async def test_feature_name():
 ```python
 from alpha_hwr.protocol.frame import Frame
 
+
 def test_frame_parsing():
     """Test frame parsing logic."""
     # Arrange
     raw_bytes = bytes([0x01, 0x02, 0x03])
-    
+
     # Act
     frame = Frame.parse(raw_bytes)
-    
+
     # Assert
     assert frame.command == 0x01
     assert frame.data == bytes([0x02, 0x03])
@@ -94,11 +97,15 @@ def test_frame_parsing():
 ```python
 import pytest
 
-@pytest.mark.parametrize("pressure,expected_rpm", [
-    (1.0, 2000),
-    (2.0, 2800),
-    (3.0, 3400),
-])
+
+@pytest.mark.parametrize(
+    "pressure,expected_rpm",
+    [
+        (1.0, 2000),
+        (2.0, 2800),
+        (3.0, 3400),
+    ],
+)
 @pytest.mark.asyncio
 async def test_pressure_to_rpm(pressure, expected_rpm):
     """Test pressure to RPM conversion."""
@@ -119,17 +126,20 @@ import pytest
 from tests.mocks.mock_pump import MockPump
 from alpha_hwr import AlphaHWRClient
 
+
 @pytest.fixture
 async def mock_pump():
     """Provide a MockPump instance."""
     async with MockPump() as pump:
         yield pump
 
+
 @pytest.fixture
 async def client(mock_pump):
     """Provide an authenticated client."""
     async with AlphaHWRClient(mock_pump.address) as client:
         yield client
+
 
 # Use in tests:
 @pytest.mark.asyncio
@@ -159,15 +169,19 @@ async def test_with_client(client):
 def test_telemetry_parses_valid_frame():
     """Test parsing of valid telemetry frame."""
 
+
 def test_control_rejects_negative_pressure():
     """Test that negative pressure values are rejected."""
+
 
 def test_schedule_entry_validates_time_range():
     """Test time range validation in schedule entries."""
 
+
 # BAD: Bad test names (vague, generic)
 def test_telemetry():
     """Test telemetry."""
+
 
 def test_control():
     """Test control."""
@@ -191,6 +205,7 @@ assert result.value
 ```python
 import pytest
 from alpha_hwr.exceptions import ValidationError
+
 
 @pytest.mark.asyncio
 async def test_invalid_pressure_raises_error():
@@ -251,13 +266,14 @@ Located in `tests/benchmarks/`:
 ```python
 import pytest
 
+
 def test_frame_parsing_performance(benchmark):
     """Benchmark frame parsing speed."""
     raw_frame = bytes([0x01] * 100)
-    
+
     def parse():
         return Frame.parse(raw_frame)
-    
+
     result = benchmark(parse)
     assert result is not None
 ```
@@ -276,13 +292,16 @@ def test_frame_parsing_performance(benchmark):
 async def test_with_real_pump():
     client = AlphaHWRClient("AA:BB:CC:DD:EE:FF")  # WRONG!
 
+
 # Tests that depend on timing
 async def test_telemetry():
     await asyncio.sleep(5)  # WRONG! Brittle test
-    
+
+
 # Tests with side effects
 def test_modify_global():
     global_state["key"] = "value"  # WRONG!
+
 
 # Commented-out test code
 # def test_old_feature():  # WRONG! Delete or fix

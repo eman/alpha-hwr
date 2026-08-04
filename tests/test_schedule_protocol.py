@@ -1,7 +1,46 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, patch
+
 from alpha_hwr.client import AlphaHWRClient
+
+
+def _overview_frame(*, enabled: bool) -> bytes:
+    """Build a schedule-overview response (Object 84, Sub 1).
+
+    Byte 17 of the frame is the enabled flag the service verifies
+    against after a write.
+    """
+    return bytes(
+        [
+            0x27,
+            0x11,
+            0xF8,
+            0xE7,
+            0x0A,
+            0x43,
+            0x54,
+            0x00,
+            0x00,
+            0x01,
+            0x00,
+            0x00,
+            0x00,  # Header
+            0x00,
+            0x00,
+            0x00,
+            0x00,  # Capabilities
+            0x01 if enabled else 0x00,  # Enabled flag
+            0x00,  # DefaultAction
+            0x00,
+            0x00,
+            0x00,
+            0x00,  # BaseSetpoint
+            0x00,
+            0x00,
+        ]
+    )
 
 
 class TestScheduleProtocol:
@@ -280,6 +319,8 @@ class TestScheduleProtocol:
             ),
             # Write response (success)
             bytes([0x27, 0x06, 0xF8, 0xE7, 0x0A, 0x83, 0x00, 0x00]),
+            # Verification read-back: now enabled
+            _overview_frame(enabled=True),
         ]
         client.transport.query = AsyncMock(side_effect=responses)
 
@@ -321,6 +362,8 @@ class TestScheduleProtocol:
             ),
             # Write response (success)
             bytes([0x27, 0x06, 0xF8, 0xE7, 0x0A, 0x83, 0x00, 0x00]),
+            # Verification read-back: now disabled
+            _overview_frame(enabled=False),
         ]
         client.transport.query = AsyncMock(side_effect=responses)
 

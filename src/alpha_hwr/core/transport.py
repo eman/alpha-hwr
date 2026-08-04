@@ -20,6 +20,7 @@ from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
 from ..constants import GENI_CHAR_UUID
+from ..exceptions import READ_ERRORS
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +189,7 @@ class Transport:
                 await self.client.stop_notify(GENI_CHAR_UUID)
                 self._notifications_started = False
                 logger.info("Notifications stopped")
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.debug(f"Error stopping notifications: {e}")
 
     def _notification_callback(
@@ -251,7 +252,9 @@ class Transport:
                 for handler in self._custom_handlers:
                     try:
                         handler(full_packet)
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
+                        # Caller-supplied handler: isolate it so one bad
+                        # handler cannot kill the notification callback.
                         logger.error(f"Error in custom handler: {e}")
 
                 # Clear buffer for next packet
@@ -349,7 +352,7 @@ class Transport:
             )
             logger.debug(f"Read response: {len(response)} bytes")
             return response
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug(f"Response timeout after {timeout}s")
             return None
 
@@ -582,7 +585,7 @@ class Transport:
                     logger.debug("Keep-alive sent")
             except asyncio.CancelledError:
                 break
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.error(f"Keep-alive error: {e}")
 
     def clear_response_queue(self) -> None:

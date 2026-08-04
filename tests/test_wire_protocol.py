@@ -1,10 +1,10 @@
-from alpha_hwr.protocol.frame_builder import FrameBuilder
-from alpha_hwr.utils import calc_crc16, calc_crc16_read
 from alpha_hwr.constants import (
-    CommandOpcode,
     FRAME_START,
     SERVICE_ID_HIGH,
+    CommandOpcode,
 )
+from alpha_hwr.protocol.frame_builder import FrameBuilder
+from alpha_hwr.utils import calc_crc16, calc_crc16_read
 
 
 class TestWireProtocol:
@@ -59,7 +59,6 @@ class TestWireProtocol:
         """Test the logic of _write_packet MTU splitting (mocked)."""
         # This requires mocking the BleakClient.
         # We want to verify that a 24-byte packet is sent as 20 + 4.
-        pass
 
     def test_packet_framing_integrity(self):
         """Verify that Start, Length, and Service bytes are always present and correctly positioned."""

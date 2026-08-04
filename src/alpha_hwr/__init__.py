@@ -2,7 +2,7 @@
 Grundfos ALPHA HWR Client Library
 """
 
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("alpha-hwr")
@@ -10,16 +10,16 @@ except PackageNotFoundError:
     __version__ = "0.0.0+unknown"
 
 from .client import AlphaHWRClient, discover_devices
+from .constants import ERROR_CODES, MODE_NAMES, ControlMode
+from .exceptions import AlphaHWRError
 from .models import (
-    TelemetryData,
+    AlarmInfo,
+    DeviceInfo,
     ScheduleEntry,
     SetpointInfo,
     Statistics,
-    AlarmInfo,
-    DeviceInfo,
+    TelemetryData,
 )
-from .exceptions import AlphaHWRError
-from .constants import ControlMode, MODE_NAMES, ERROR_CODES
 
 # Service modules (for advanced usage)
 from .services import (
@@ -30,7 +30,9 @@ from .services import (
     TelemetryService,
 )
 
-__all__ = [
+# Grouped by category rather than sorted: the groups document the
+# shape of the public API.
+__all__ = [  # noqa: RUF022
     # Main client
     "AlphaHWRClient",
     "discover_devices",

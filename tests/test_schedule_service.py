@@ -10,11 +10,13 @@ This module tests the ScheduleService including:
 - Clearing schedule entries
 """
 
-import pytest
 from unittest.mock import AsyncMock
 
-from alpha_hwr.models import ScheduleEntry
+import pytest
+from bleak.exc import BleakError
 from conftest import build_class10_response
+
+from alpha_hwr.models import ScheduleEntry
 
 
 class TestScheduleState:
@@ -352,7 +354,7 @@ class TestScheduleReadEntries:
     async def test_read_entries_transport_exception(self, mock_client_simple):
         """Test reading entries when transport raises exception."""
         mock_client_simple.transport.query = AsyncMock(
-            side_effect=Exception("Transport error")
+            side_effect=BleakError("Transport error")
         )
 
         entries = await mock_client_simple.schedule.read_entries(layer=0)

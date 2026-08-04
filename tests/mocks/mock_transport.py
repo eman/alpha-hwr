@@ -6,7 +6,7 @@ to a MockPump without requiring actual BLE hardware.
 """
 
 import asyncio
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from .mock_pump import MockPump
 
@@ -36,7 +36,7 @@ class MockTransport:
             pump: MockPump instance to use as backend
         """
         self.pump = pump
-        self._notification_callback: Optional[Callable[[bytes], None]] = None
+        self._notification_callback: Callable[[bytes], None] | None = None
         self._response_queue: asyncio.Queue = asyncio.Queue()
         self._streaming = False
 
@@ -78,7 +78,7 @@ class MockTransport:
                 self._response_queue.get(), timeout=timeout
             )
             return response
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise TimeoutError(f"No response within {timeout}s")
 
     async def send_with_response(
@@ -100,7 +100,7 @@ class MockTransport:
     async def query(
         self,
         frame: bytes,
-        match_func: Optional[Callable[[bytes], bool]] = None,
+        match_func: Callable[[bytes], bool] | None = None,
         timeout: float = 3.0,
     ) -> bytes:
         """
@@ -186,8 +186,8 @@ class MockBleakClient:
         self.adapter = adapter
         self.pump = MockPump()
         self._connected = False
-        self._notify_callback: Optional[Callable] = None
-        self._notify_task: Optional[asyncio.Task] = None
+        self._notify_callback: Callable | None = None
+        self._notify_task: asyncio.Task | None = None
 
     async def connect(self, timeout: float = 60.0) -> bool:
         """

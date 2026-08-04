@@ -6,9 +6,11 @@ and operation request payloads using the new protocol architecture.
 """
 
 import struct
-import pytest
-from alpha_hwr.services.history import HistoryService
 from unittest.mock import Mock
+
+import pytest
+
+from alpha_hwr.services.history import HistoryService
 
 
 class TestControlServiceParsing:
@@ -170,7 +172,7 @@ class TestControlServiceParsing:
         assert len(valid_payload) == 7
 
         # Empty payload
-        empty_payload = bytes()
+        empty_payload = b""
         assert len(empty_payload) == 0
 
         # Partial payload

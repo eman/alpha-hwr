@@ -10,17 +10,17 @@ from __future__ import annotations
 from typing import Any
 
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
 from ...constants import ERROR_CODES
 from ...models import (
-    TelemetryData,
+    AlarmInfo,
     DeviceInfo,
     ScheduleEntry,
     SetpointInfo,
     Statistics,
-    AlarmInfo,
+    TelemetryData,
 )
 
 console = Console()
@@ -86,7 +86,11 @@ def format_telemetry_table(data: TelemetryData) -> Table:
     # Timestamp
     if data.timestamp:
         table.add_row("", "", "")  # Separator
-        table.add_row("Updated", data.timestamp.strftime("%H:%M:%S"), "")
+        table.add_row(
+            "Updated",
+            data.timestamp.astimezone().strftime("%H:%M:%S"),
+            "",
+        )
 
     return table
 
@@ -271,14 +275,17 @@ def format_setpoint_panel(info: SetpointInfo) -> Panel:
         lines.append(f"[bold]Internal Schedule:[/bold] {sched_str}")
 
     # Limits - Hide for Mode 27 as they are already shown as On/Off temperatures
-    if info.control_mode != ControlMode.TEMPERATURE_RANGE_CONTROL:
-        if info.min_setpoint is not None and info.max_setpoint is not None:
-            limits = info.get_limits_display()
-            if limits:
-                (min_val, min_unit), (max_val, max_unit) = limits
-                lines.append(
-                    f"[bold]Range:[/bold] {min_val:.2f} - {max_val:.2f} {max_unit}"
-                )
+    if (
+        info.control_mode != ControlMode.TEMPERATURE_RANGE_CONTROL
+        and info.min_setpoint is not None
+        and info.max_setpoint is not None
+    ):
+        limits = info.get_limits_display()
+        if limits:
+            (min_val, _), (max_val, max_unit) = limits
+            lines.append(
+                f"[bold]Range:[/bold] {min_val:.2f} - {max_val:.2f} {max_unit}"
+            )
 
     # Mode-specific info
     if info.control_mode is not None:

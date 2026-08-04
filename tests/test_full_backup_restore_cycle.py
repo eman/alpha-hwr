@@ -3,15 +3,19 @@ Integration test for full backup and restore cycle.
 Simulates a complete workflow using mocks to ensure all components are wired correctly.
 """
 
+import asyncio
+import json
+import os
+import tempfile
+from pathlib import Path
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import patch, AsyncMock
-import json
-import tempfile
-import os
+
 from alpha_hwr.client import AlphaHWRClient
-from alpha_hwr.models import DeviceInfo, SetpointInfo, ScheduleEntry
 from alpha_hwr.constants import ControlMode
+from alpha_hwr.models import DeviceInfo, ScheduleEntry, SetpointInfo
 
 
 @pytest_asyncio.fixture
@@ -152,8 +156,9 @@ async def test_full_cycle(client):
 
             # --- VERIFY BACKUP CONTENT ---
 
-            with open(backup_path, "r") as f:
-                data = json.load(f)
+            data = json.loads(
+                await asyncio.to_thread(Path(backup_path).read_text)
+            )
 
             print("Backup data:", json.dumps(data, indent=2))
 

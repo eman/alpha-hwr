@@ -2,11 +2,13 @@
 Unit tests for BaseService.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from alpha_hwr.services.base import BaseService
-from alpha_hwr.core.transport import Transport
+
+import pytest
+
 from alpha_hwr.core.session import Session
+from alpha_hwr.core.transport import Transport
+from alpha_hwr.services.base import BaseService
 
 
 @pytest.fixture

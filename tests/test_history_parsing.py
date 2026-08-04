@@ -6,9 +6,11 @@ including timestamp maps and trend value structures using the new protocol.
 """
 
 import struct
-import pytest
-from alpha_hwr.services.history import HistoryService
 from unittest.mock import AsyncMock, Mock
+
+import pytest
+
+from alpha_hwr.services.history import HistoryService
 
 
 class TestHistoryServiceParsing:

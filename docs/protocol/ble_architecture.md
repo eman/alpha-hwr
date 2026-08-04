@@ -311,25 +311,45 @@ Total: 59 bytes  Split into 3 BLE writes (20+20+19)
 ```python
 # Layer 0: Weekday mornings
 weekday_morning = [
-    ScheduleEntry(day="Monday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30),
-    ScheduleEntry(day="Tuesday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30),
-    ScheduleEntry(day="Wednesday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30),
-    ScheduleEntry(day="Thursday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30),
-    ScheduleEntry(day="Friday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30),
+    ScheduleEntry(
+        day="Monday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30
+    ),
+    ScheduleEntry(
+        day="Tuesday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30
+    ),
+    ScheduleEntry(
+        day="Wednesday",
+        begin_hour=6,
+        begin_minute=30,
+        end_hour=8,
+        end_minute=30,
+    ),
+    ScheduleEntry(
+        day="Thursday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30
+    ),
+    ScheduleEntry(
+        day="Friday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30
+    ),
 ]
 await client.set_weekly_schedule(weekday_morning, layer=0)
 
 # Layer 1: Weekday evenings
 weekday_evening = [
-    ScheduleEntry(day="Monday", begin_hour=18, begin_minute=0, end_hour=22, end_minute=0),
+    ScheduleEntry(
+        day="Monday", begin_hour=18, begin_minute=0, end_hour=22, end_minute=0
+    ),
     # ... Tuesday-Friday same pattern
 ]
 await client.set_weekly_schedule(weekday_evening, layer=1)
 
 # Layer 2: Weekend all-day
 weekend = [
-    ScheduleEntry(day="Saturday", begin_hour=8, begin_minute=0, end_hour=23, end_minute=0),
-    ScheduleEntry(day="Sunday", begin_hour=8, begin_minute=0, end_hour=23, end_minute=0),
+    ScheduleEntry(
+        day="Saturday", begin_hour=8, begin_minute=0, end_hour=23, end_minute=0
+    ),
+    ScheduleEntry(
+        day="Sunday", begin_hour=8, begin_minute=0, end_hour=23, end_minute=0
+    ),
 ]
 await client.set_weekly_schedule(weekend, layer=2)
 ```
@@ -432,6 +452,7 @@ Enable debug logging to see protocol traffic:
 
 ```python
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 
 # Output includes:

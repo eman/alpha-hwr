@@ -79,13 +79,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar
 
-from ..exceptions import ConnectionError
-from ..models import SetpointInfo
 from ..constants import ControlMode
-from ..protocol.codec import encode_float_be, encode_uint16_be
+from ..exceptions import READ_ERRORS, ConnectionError
+from ..models import SetpointInfo
 from ..protocol import FrameBuilder
+from ..protocol.codec import encode_float_be, encode_uint16_be
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -143,7 +143,7 @@ class ControlService(BaseService):
 
     # Control Mode Mapping for ALPHA HWR
     # Value -> Mode Byte used in control payload
-    _MODE_BYTE_MAP = {
+    _MODE_BYTE_MAP: ClassVar[dict[int, int]] = {
         0: 0x00,  # CONSTANT_PRESSURE
         1: 0x01,  # PROPORTIONAL_PRESSURE
         2: 0x02,  # CONSTANT_SPEED
@@ -155,7 +155,7 @@ class ControlService(BaseService):
     # Default suffix bytes per mode, used for start/stop when no
     # explicit setpoint is given.  Values come from the Grundfos GO
     # app traffic captures.
-    _MODE_SUFFIX_MAP: dict[int, bytes] = {
+    _MODE_SUFFIX_MAP: ClassVar[dict[int, bytes]] = {
         0x00: bytes([0x45, 0x65, 0x70, 0x00]),  # Pressure
         0x01: bytes([0x45, 0x65, 0x70, 0x00]),  # Proportional Pressure
         0x02: bytes([0x45, 0x65, 0x70, 0x00]),  # Speed
@@ -168,7 +168,7 @@ class ControlService(BaseService):
         self,
         transport: Transport,
         session: Session,
-        schedule_service: Optional["ScheduleService"] = None,
+        schedule_service: ScheduleService | None = None,
     ) -> None:
         """
         Initialize control service.
@@ -182,7 +182,7 @@ class ControlService(BaseService):
         self._current_mode: ControlMode | int = ControlMode.CONSTANT_SPEED
         self._schedule_service = schedule_service
 
-    async def start(self, mode: Optional[int] = None) -> bool:
+    async def start(self, mode: int | None = None) -> bool:
         """
         Start the pump.
 
@@ -207,7 +207,7 @@ class ControlService(BaseService):
 
         return await self._send_control_request(mode_val, start=True)
 
-    async def stop(self, mode: Optional[int] = None) -> bool:
+    async def stop(self, mode: int | None = None) -> bool:
         """
         Stop the pump.
 
@@ -367,7 +367,7 @@ class ControlService(BaseService):
 
         return False
 
-    async def get_mode(self) -> Optional[SetpointInfo]:
+    async def get_mode(self) -> SetpointInfo | None:
         """
         Get the current control mode and setpoint information.
 
@@ -398,6 +398,7 @@ class ControlService(BaseService):
 
         try:
             import struct
+
             from ..constants import ControlMode
 
             # Read Class 10: Object 86, Sub-ID 6 (overall_operation_local_request_obj)
@@ -546,7 +547,7 @@ class ControlService(BaseService):
             # the caller can report this distinctly from "no data read".
             raise
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.debug(f"Failed to read setpoint: {e}")
             import traceback
 
@@ -757,7 +758,7 @@ class ControlService(BaseService):
             )
             return False
 
-        mode, register_id = heating_map[heating_type]
+        mode, _register_id = heating_map[heating_type]
 
         # Set mode first
         if not await self.set_mode(mode):
@@ -1084,11 +1085,11 @@ class ControlService(BaseService):
 
             return True
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to write cycle time configuration: {e}")
             return False
 
-    async def get_cycle_time_config(self) -> Optional[tuple[int, int]]:
+    async def get_cycle_time_config(self) -> tuple[int, int] | None:
         """
         Get current cycle time configuration for Mode 25 (DHW_ON_OFF_CONTROL).
 
@@ -1119,7 +1120,7 @@ class ControlService(BaseService):
             )
             return (on_time, off_time)
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to read cycle time configuration: {e}")
             return None
 
@@ -1197,7 +1198,7 @@ class ControlService(BaseService):
                 # Consider successful either way (some commands don't respond)
                 return True
 
-            except Exception as e:
+            except READ_ERRORS as e:
                 logger.warning(
                     f"{description} attempt {attempt + 1} failed: {e}"
                 )

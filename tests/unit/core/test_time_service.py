@@ -2,13 +2,16 @@
 Unit tests for TimeService.
 """
 
-import pytest
 import struct
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
-from alpha_hwr.services.time import TimeService
-from alpha_hwr.core.transport import Transport
+
+import pytest
+
 from alpha_hwr.core.session import Session
+from alpha_hwr.core.transport import Transport
+from alpha_hwr.services.time import TimeService
+
 # Use built-in ConnectionError as TimeService uses it
 # from alpha_hwr.exceptions import ConnectionError
 
@@ -114,7 +117,7 @@ async def test_set_clock_success(time_service, mock_transport):
     set_clock uses standard Class 10 SET via build_data_object_set(0x5E00,
     0x6401, data) with Type 322 payload, then verifies by reading back.
     """
-    target_dt = datetime(2026, 2, 1, 10, 0, 0)
+    target_dt = datetime(2026, 2, 1, 10, 0, 0)  # noqa: DTZ001  # pump wall clock is naive
 
     # ACK response for the SET, then read-back for verification
     ack_response = b"\x24\x05\xf8\xe7\x0a\x01\x00\xae\xa2"

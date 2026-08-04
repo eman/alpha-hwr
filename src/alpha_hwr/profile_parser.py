@@ -4,11 +4,14 @@ GENI Profile Parser Module
 Provides classes to parse GENI profile XML files and extract parameter definitions.
 """
 
-import defusedxml.ElementTree as ET
-from xml.etree.ElementTree import Element  # nosec B405
-from pathlib import Path
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any, Union
+from pathlib import Path
+from typing import Any
+from xml.etree.ElementTree import Element  # nosec B405
+
+import defusedxml.ElementTree as ET
+
+from .exceptions import READ_ERRORS
 
 
 @dataclass
@@ -17,7 +20,7 @@ class ParameterEnum:
 
     name: str
     value: int
-    description: Optional[str] = None
+    description: str | None = None
 
 
 @dataclass
@@ -29,12 +32,12 @@ class Parameter:
     geni_id: int
     rw_type: str  # ReadOnly, ReadWrite, WriteOnly
     description: str
-    data_type: Optional[str] = None  # Integer, Float, String, Enum, etc.
-    unit: Optional[str] = None
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    default_value: Optional[Any] = None
-    enum_values: List[ParameterEnum] = field(default_factory=list)
+    data_type: str | None = None  # Integer, Float, String, Enum, etc.
+    unit: str | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    default_value: Any | None = None
+    enum_values: list[ParameterEnum] = field(default_factory=list)
 
     @property
     def register_address(self) -> int:
@@ -50,11 +53,11 @@ class Parameter:
 class GeniProfileParser:
     """Parser for GENI profile XML files"""
 
-    def __init__(self, xml_path: Union[str, Path]):
+    def __init__(self, xml_path: str | Path):
         self.xml_path = Path(xml_path)
-        self.parameters: List[Parameter] = []
-        self.params_by_name: Dict[str, Parameter] = {}
-        self.params_by_register: Dict[int, Parameter] = {}
+        self.parameters: list[Parameter] = []
+        self.params_by_name: dict[str, Parameter] = {}
+        self.params_by_register: dict[int, Parameter] = {}
         self._parsed = False
 
     def parse(self) -> None:
@@ -98,7 +101,7 @@ class GeniProfileParser:
         except ET.ParseError as e:
             raise ValueError(f"Invalid XML file: {e}")
 
-    def _parse_parameter(self, param_elem: Element) -> Optional[Parameter]:
+    def _parse_parameter(self, param_elem: Element) -> Parameter | None:
         """Parse a single parameter element"""
         try:
             name = self._get_text(param_elem, "name")
@@ -132,7 +135,7 @@ class GeniProfileParser:
                     pass
 
             default_text = self._get_text(param_elem, "default")
-            default_value: Optional[Union[int, float, str]] = None
+            default_value: int | float | str | None = None
             if default_text:
                 try:
                     if "." in default_text:
@@ -194,7 +197,7 @@ class GeniProfileParser:
                 enum_values=enum_values,
             )
 
-        except Exception:
+        except READ_ERRORS:
             # Silently skip malformed parameters or log if logger available
             return None
 
@@ -205,26 +208,26 @@ class GeniProfileParser:
             return child.text.strip()
         return default
 
-    def get_by_name(self, name: str) -> Optional[Parameter]:
+    def get_by_name(self, name: str) -> Parameter | None:
         """Get parameter by name"""
         if not self._parsed:
             self.parse()
         return self.params_by_name.get(name)
 
-    def get_by_register(self, register: int) -> Optional[Parameter]:
+    def get_by_register(self, register: int) -> Parameter | None:
         """Get parameter by register address"""
         if not self._parsed:
             self.parse()
         return self.params_by_register.get(register)
 
-    def search(self, query: str) -> List[Parameter]:
+    def search(self, query: str) -> list[Parameter]:
         """Search parameters by name (case-insensitive substring match)"""
         if not self._parsed:
             self.parse()
         query_lower = query.lower()
         return [p for p in self.parameters if query_lower in p.name.lower()]
 
-    def get_by_class(self, geni_class: int) -> List[Parameter]:
+    def get_by_class(self, geni_class: int) -> list[Parameter]:
         """Get all parameters of a specific class"""
         if not self._parsed:
             self.parse()

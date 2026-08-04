@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [tool.uv]
 dev-dependencies = [
     "mypy>=1.0.0",
-    "ruff>=0.1.0",
+    "ruff>=0.16.1",
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-benchmark>=4.0.0",
@@ -78,7 +78,7 @@ test = [
 dev = [
     "alpha-hwr[test]",
     "mypy>=1.0.0",
-    "ruff>=0.1.0",
+    "ruff>=0.16.1",
     "tox>=4.0.0",
     "basedpyright>=1.0.0",
 ]
@@ -98,6 +98,11 @@ where = ["src"]
 [tool.ruff]
 line-length = 80
 exclude = ["src/alpha_hwr/*_baseline.py"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Typer's whole API is call-in-default (`typer.Option(...)` /
+# `typer.Argument(...)`); these are declarations, not shared mutable state.
+extend-immutable-calls = ["typer.Argument", "typer.Option"]
 
 [tool.pyright]
 typeCheckingMode = "standard"

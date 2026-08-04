@@ -10,8 +10,6 @@ Commands:
   - clear: Clear all schedule entries
 """
 
-from typing import Optional
-
 import typer
 
 from ..app import console
@@ -23,7 +21,7 @@ app = typer.Typer(help="Manage pump schedules")
 
 @app.command("list")
 def cmd_list(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -48,7 +46,7 @@ def cmd_add(
     ),
     start_time: str = typer.Argument(..., help="Start time (HH:MM format)"),
     end_time: str = typer.Argument(..., help="End time (HH:MM format)"),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -69,7 +67,7 @@ def cmd_add(
 @app.command("remove")
 def cmd_remove(
     day: str = typer.Argument(..., help="Day of week to clear"),
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -89,7 +87,7 @@ def cmd_remove(
 
 @app.command("enable")
 def cmd_enable(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -109,7 +107,7 @@ def cmd_enable(
 
 @app.command("disable")
 def cmd_disable(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -129,7 +127,7 @@ def cmd_disable(
 
 @app.command("clear")
 def cmd_clear(
-    device: Optional[str] = typer.Option(
+    device: str | None = typer.Option(
         None,
         "--device",
         "-d",
@@ -165,7 +163,7 @@ def cmd_clear(
 # Internal async implementations
 
 
-async def _schedule_list(device: Optional[str]) -> None:
+async def _schedule_list(device: str | None) -> None:
     """Internal async implementation of list command."""
     try:
         async with get_client(device) as client:
@@ -197,12 +195,12 @@ async def _schedule_list(device: Optional[str]) -> None:
             table = format_schedule_table(schedule)
             console.print(table)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to read schedule")
 
 
 async def _schedule_add(
-    device: Optional[str], day: str, start_time: str, end_time: str
+    device: str | None, day: str, start_time: str, end_time: str
 ) -> None:
     """Internal async implementation of add command."""
     try:
@@ -245,11 +243,11 @@ async def _schedule_add(
                 console.print("[error]Failed to add schedule entry[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to add schedule entry")
 
 
-async def _schedule_remove(device: Optional[str], day: str) -> None:
+async def _schedule_remove(device: str | None, day: str) -> None:
     """Internal async implementation of remove command."""
     try:
         async with get_client(device) as client:
@@ -278,11 +276,11 @@ async def _schedule_remove(device: Optional[str], day: str) -> None:
                 console.print("[error]Failed to remove schedule entry[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to remove schedule entry")
 
 
-async def _schedule_enable(device: Optional[str]) -> None:
+async def _schedule_enable(device: str | None) -> None:
     """Internal async implementation of enable command."""
     try:
         async with get_client(device) as client:
@@ -299,11 +297,11 @@ async def _schedule_enable(device: Optional[str]) -> None:
                 console.print("[error]Failed to enable schedule[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to enable schedule")
 
 
-async def _schedule_disable(device: Optional[str]) -> None:
+async def _schedule_disable(device: str | None) -> None:
     """Internal async implementation of disable command."""
     try:
         async with get_client(device) as client:
@@ -320,11 +318,11 @@ async def _schedule_disable(device: Optional[str]) -> None:
                 console.print("[error]Failed to disable schedule[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to disable schedule")
 
 
-async def _schedule_clear(device: Optional[str]) -> None:
+async def _schedule_clear(device: str | None) -> None:
     """Internal async implementation of clear command."""
     try:
         async with get_client(device) as client:
@@ -341,5 +339,5 @@ async def _schedule_clear(device: Optional[str]) -> None:
                 console.print("[error]Failed to clear schedule entries[/error]")
                 raise typer.Exit(1)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to clear schedule entries")

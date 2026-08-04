@@ -111,6 +111,7 @@ We use Hypothesis to generate random test cases and find edge cases:
 from hypothesis import given
 from tests.conftest import valid_frame_bytes
 
+
 @given(valid_frame_bytes())
 def test_frame_parsing_handles_all_valid_frames(frame_bytes):
     """Hypothesis generates 100+ variations of valid frames."""

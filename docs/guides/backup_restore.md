@@ -116,16 +116,18 @@ alpha-hwr restore pump_backup.json --no-verify
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def backup_config():
     async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Backup current configuration
         success = await client.config.backup("pump_backup.json")
         if success:
             print(" Configuration backed up successfully")
         else:
             print(" Backup failed")
+
 
 asyncio.run(backup_config())
 ```
@@ -136,16 +138,18 @@ asyncio.run(backup_config())
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def restore_config():
     async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Restore configuration with all safety checks
         success = await client.config.restore("pump_backup.json")
         if success:
             print(" Configuration restored successfully")
         else:
             print(" Restore failed")
+
 
 asyncio.run(restore_config())
 ```
@@ -158,19 +162,15 @@ You can restore only specific parts of the configuration:
 async def selective_restore():
     async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Restore only control mode (skip schedule)
         await client.config.restore(
-            "pump_backup.json",
-            restore_mode=True,
-            restore_schedule=False
+            "pump_backup.json", restore_mode=True, restore_schedule=False
         )
-        
+
         # Or restore only schedule (skip control mode)
         await client.config.restore(
-            "pump_backup.json",
-            restore_mode=False,
-            restore_schedule=True
+            "pump_backup.json", restore_mode=False, restore_schedule=True
         )
 ```
 
@@ -182,13 +182,13 @@ By default, the restore process verifies that the serial number in the backup ma
 async def restore_with_verification():
     async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Restore with device verification (default)
         success = await client.config.restore(
             "pump_backup.json",
-            verify_device=True  # This is the default
+            verify_device=True,  # This is the default
         )
-        
+
         if not success:
             print("Restore failed - serial number mismatch")
 ```
@@ -199,13 +199,13 @@ To transfer a backup to a **different pump**, you must explicitly skip device ve
 async def transfer_to_different_pump():
     async with AlphaHWRClient("DIFFERENT-PUMP-UUID") as client:
         await client.authenticate(fast_mode=True)
-        
+
         # Skip device verification to restore to different pump
         success = await client.config.restore(
             "pump_backup.json",
-            verify_device=False  # Allow restoring to different device
+            verify_device=False,  # Allow restoring to different device
         )
-        
+
         if success:
             print(" Configuration transferred to new pump")
 ```
@@ -275,28 +275,25 @@ Transfer a tested configuration to multiple identical pumps:
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def deploy_config_to_pumps():
-    pump_addresses = [
-        "PUMP-UUID-1",
-        "PUMP-UUID-2",
-        "PUMP-UUID-3"
-    ]
-    
+    pump_addresses = ["PUMP-UUID-1", "PUMP-UUID-2", "PUMP-UUID-3"]
+
     for address in pump_addresses:
         print(f"Deploying to {address}...")
         async with AlphaHWRClient(address) as client:
             await client.authenticate(fast_mode=True)
-            
+
             # Skip device verification for deployment
             success = await client.config.restore(
-                "standard_config.json",
-                verify_device=False
+                "standard_config.json", verify_device=False
             )
-            
+
             if success:
                 print(f"   {address} configured")
             else:
                 print(f"   {address} failed")
+
 
 asyncio.run(deploy_config_to_pumps())
 ```
@@ -332,6 +329,7 @@ All backup and restore operations are logged for troubleshooting:
 
 ```python
 import logging
+
 logging.basicConfig(level=logging.INFO)
 
 # You'll see detailed logs like:

@@ -59,10 +59,11 @@ impl DeviceInfoService {
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Any
 
 from ..constants import ERROR_CODES
-from ..models import DeviceInfo, Statistics, AlarmInfo
+from ..exceptions import READ_ERRORS
+from ..models import AlarmInfo, DeviceInfo, Statistics
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -116,7 +117,7 @@ class DeviceInfoService(BaseService):
         self.address = address
         self.cached_product_info = cached_product_info
 
-    async def read_info(self) -> Optional[DeviceInfo]:
+    async def read_info(self) -> DeviceInfo | None:
         """
         Read complete device information (combined basic + detailed).
 
@@ -169,7 +170,7 @@ class DeviceInfoService(BaseService):
 
         return None
 
-    async def read_basic(self, address: str) -> Optional[DeviceInfo]:
+    async def read_basic(self, address: str) -> DeviceInfo | None:
         """
         Read basic device info from BLE advertisement.
 
@@ -223,12 +224,12 @@ class DeviceInfoService(BaseService):
                     else:
                         logger.debug("No GENI service data in advertisement")
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to read basic device info: {e}")
 
         return None
 
-    async def read_detailed(self) -> Optional[DeviceInfo]:
+    async def read_detailed(self) -> DeviceInfo | None:
         """
         Read detailed device info via Class 7 string parameters.
 
@@ -295,12 +296,12 @@ class DeviceInfoService(BaseService):
             if device_info_dict:
                 return DeviceInfo(**device_info_dict)
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to read detailed device info: {e}")
 
         return None
 
-    async def read_statistics(self) -> Optional[Statistics]:
+    async def read_statistics(self) -> Statistics | None:
         """
         Read device operational statistics.
 
@@ -363,11 +364,11 @@ class DeviceInfoService(BaseService):
                 )
                 return None
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to read statistics: {e}")
             return None
 
-    async def read_alarms(self) -> Optional[AlarmInfo]:
+    async def read_alarms(self) -> AlarmInfo | None:
         """
         Read current alarm state.
 
@@ -432,7 +433,7 @@ class DeviceInfoService(BaseService):
                 warning_description=warning_desc,
             )
 
-        except Exception as e:
+        except READ_ERRORS as e:
             logger.error(f"Failed to read alarms: {e}")
 
         return None

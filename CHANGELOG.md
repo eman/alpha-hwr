@@ -13,10 +13,39 @@
   mode", masking the real cause. The CLI now reports "Pump disconnected
   from BLE while reading Object X/Y" instead.
 
+- **Telemetry read throughput**: `read_once()` sent a ~0.6s wake burst before
+  every read, which capped polling at well under the 10Hz `stream()` interval
+  and pushed a single read to ~750ms. The burst is now sent once per session
+  and re-armed after a disconnect; the retry path still re-wakes a controller
+  that goes back to sleep mid-session.
+
+### Changed
+
+- **Timestamps are timezone-aware**: absolute instants - telemetry
+  `timestamp`, cycle/trend timestamps, session `connected_at` /
+  `authenticated_at`, and CLI config bookkeeping - are now UTC-aware
+  `datetime` objects rather than naive local ones. The CLI renders them in
+  local time. The pump's own wall clock (`TimeService.get_clock()` /
+  `set_clock()`) stays naive by design: the pump stores bare wall-clock
+  fields with no offset and runs its schedules against them.
+- **Narrower exception handling**: read paths across the services, client,
+  and transport now catch `alpha_hwr.exceptions.READ_ERRORS` (transport and
+  decode failures) instead of bare `Exception`, so genuine bugs surface
+  instead of being logged as "no data". Top-level CLI error boundaries and
+  caller-supplied notification handlers still catch broadly on purpose.
+- `TelemetryData.control_mode` coercion raises `TypeError` (not `ValueError`)
+  for a non-int input.
+
 ### Documentation
 
 - Clarified that ALPHA HWR pumps should be paired/bonded with the host before
   telemetry and control are expected to work reliably.
+
+### Internal
+
+- Upgraded ruff to 0.16.1 and pinned it in CI. Ruff 0.16 widened the default
+  rule set and began formatting Python inside Markdown fences; leaving it
+  unpinned meant every upstream release could fail unrelated PRs.
 
 
 ## [0.6.0] - 2026-05-15

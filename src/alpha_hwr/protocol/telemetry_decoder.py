@@ -122,6 +122,7 @@ function decodeMotorState(payload) {
 """
 
 import logging
+import math
 import struct
 from typing import Any
 
@@ -557,13 +558,27 @@ class TelemetryDecoder:
             try:
                 val = struct.unpack(">f", packet[offset : offset + 4])[0]
                 # Check for NaN/invalid markers
-                if val != val or abs(val) > 1e15:  # NaN or unreasonably large
+                if math.isnan(val) or abs(val) > 1e15:
                     floats.append(None)
                 else:
                     floats.append(val)
                 offset += 4
             except struct.error:
                 break
+
+        def plausible(index: int, lo: float, hi: float) -> float | None:
+            """
+            Return floats[index] if it is present and physically plausible.
+
+            The pump pads its float arrays with NaN and stale garbage, so
+            every field is range-checked before it is trusted.
+            """
+            if index >= len(floats):
+                return None
+            val = floats[index]
+            if val is None or not (lo <= val <= hi):
+                return None
+            return val
 
         # Decode based on OpSpec value
         if opspec == 0x30:  # Motor state response
@@ -576,25 +591,20 @@ class TelemetryDecoder:
             # [5] = Speed (RPM)
             # [6+] = Reserved/NaN
 
-            if len(floats) > 0 and floats[0] is not None:
-                if 0 <= floats[0] <= 500:  # Reasonable AC voltage range
-                    data["voltage_ac_v"] = floats[0]
+            if (val := plausible(0, 0, 500)) is not None:  # AC voltage
+                data["voltage_ac_v"] = val
 
-            if len(floats) > 1 and floats[1] is not None:
-                if 0 <= floats[1] <= 500:  # Reasonable DC voltage range
-                    data["voltage_dc_v"] = floats[1]
+            if (val := plausible(1, 0, 500)) is not None:  # DC voltage
+                data["voltage_dc_v"] = val
 
-            if len(floats) > 2 and floats[2] is not None:
-                if 0 <= floats[2] <= 50:  # Reasonable current range
-                    data["current_a"] = floats[2]
+            if (val := plausible(2, 0, 50)) is not None:  # Current
+                data["current_a"] = val
 
-            if len(floats) > 3 and floats[3] is not None:
-                if 0 <= floats[3] <= 1000:  # Reasonable power range
-                    data["power_w"] = floats[3]
+            if (val := plausible(3, 0, 1000)) is not None:  # Power
+                data["power_w"] = val
 
-            if len(floats) > 5 and floats[5] is not None:
-                if 0 <= floats[5] <= 10000:  # Reasonable RPM range
-                    data["speed_rpm"] = floats[5]
+            if (val := plausible(5, 0, 10000)) is not None:  # Speed
+                data["speed_rpm"] = val
 
         elif opspec == 0x2B:  # Flow/pressure response
             # Float array layout for flow/pressure:
@@ -604,21 +614,17 @@ class TelemetryDecoder:
             # [8] = Inlet pressure (bar) - often NaN
             # [9] = Outlet pressure (bar) - often NaN
 
-            if len(floats) > 6 and floats[6] is not None:
-                if 0 <= floats[6] <= 100:  # Reasonable flow range
-                    data["flow_m3h"] = floats[6]
+            if (val := plausible(6, 0, 100)) is not None:  # Flow rate
+                data["flow_m3h"] = val
 
-            if len(floats) > 7 and floats[7] is not None:
-                if 0 <= floats[7] <= 50:  # Reasonable head range
-                    data["head_m"] = floats[7]
+            if (val := plausible(7, 0, 50)) is not None:  # Head pressure
+                data["head_m"] = val
 
-            if len(floats) > 8 and floats[8] is not None:
-                if 0 <= floats[8] <= 20:  # Reasonable pressure range
-                    data["inlet_pressure_bar"] = floats[8]
+            if (val := plausible(8, 0, 20)) is not None:  # Inlet pressure
+                data["inlet_pressure_bar"] = val
 
-            if len(floats) > 9 and floats[9] is not None:
-                if 0 <= floats[9] <= 20:
-                    data["outlet_pressure_bar"] = floats[9]
+            if (val := plausible(9, 0, 20)) is not None:  # Outlet pressure
+                data["outlet_pressure_bar"] = val
 
         elif opspec == 0x14:  # Temperature response (alternative format)
             # This OpSpec already handled by legacy decoder patterns

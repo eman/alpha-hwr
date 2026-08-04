@@ -6,12 +6,12 @@ Tests the telemetry decoder with various payload types and edge cases.
 
 import struct
 
-from alpha_hwr.protocol.telemetry_decoder import (
-    TelemetryDecoder,
-    TEST_VECTORS,
-)
-from alpha_hwr.protocol.frame_parser import FrameParser, ParsedFrame
 from alpha_hwr.protocol.codec import encode_float_be, encode_uint16_be
+from alpha_hwr.protocol.frame_parser import FrameParser, ParsedFrame
+from alpha_hwr.protocol.telemetry_decoder import (
+    TEST_VECTORS,
+    TelemetryDecoder,
+)
 
 
 class TestMotorStateDecoding:
