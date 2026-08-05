@@ -1,16 +1,48 @@
 # Reimplementing ALPHA HWR in Your Language
 
-This guide helps you implement the Grundfos ALPHA HWR protocol in any programming language. The Python implementation in this repository serves as a reference implementation with extensive documentation.
+This guide describes the GENI-over-BLE protocol the Grundfos ALPHA HWR speaks,
+so you can implement it in any language.
 
-## Why This Guide?
+## What this guide is, and what it is not
 
-The ALPHA HWR pump uses the GENI protocol over Bluetooth Low Energy (BLE). This guide provides:
+It is **the measured protocol**, with two independent implementations to check
+yourself against:
 
-- **Complete protocol specification** with byte-level details
-- **Test vectors** to validate your implementation
-- **Common pitfalls** and how to avoid them
-- **Layer-by-layer implementation** guide
-- **Working reference implementation** in Python
+- **[alpha-hwr](https://github.com/eman/alpha-hwr)** — this repository, Python.
+- **[esphome-alpha-hwr](https://github.com/eman/esphome-alpha-hwr)** — C++,
+  for ESPHome. It has substantially more bench time against real hardware, and
+  several of the corrections in this documentation set originated there.
+
+Neither is "the reference implementation". Where they agree and both have been
+exercised on hardware, believe them. Where a document disagrees with both,
+believe the code — and please open an issue, because it means this page is
+wrong again.
+
+!!! warning "This guide has been wrong before, expensively"
+
+    Until 2026-08 it specified **CRC-16/MODBUS** and listed "using
+    CRC-16/CCITT" as the number-one mistake to avoid. That is exactly
+    backwards, and a port built from it could not exchange a single valid
+    frame with the pump. It also described a two-characteristic GATT topology
+    that does not exist, four authentication packets that contradicted every
+    other file here, and two-chunk MTU splitting that silently truncates the
+    schedule write.
+
+    All of that is corrected. What it should tell you is where to place your
+    trust: **the pages generated from executed code, and the frames captured
+    from hardware, are worth more than the prose.** Start with
+    [test_vectors.md](test_vectors.md), which is emitted by running the codec
+    and cannot drift from it.
+
+## What you get
+
+- **Protocol specification** with byte-level details
+- **[Test vectors](test_vectors.md)** — generated, not hand-written
+- **[Common pitfalls](common_pitfalls.md)** — the ones that actually happened
+- **[Layer-by-layer guide](layer_by_layer.md)**
+- **[Bench findings](../protocol/bench_findings.md)** — things measured on a
+  real pump with motor RPM as ground truth, which is the highest-confidence
+  material in this set
 
 ## Quick Start
 
@@ -27,7 +59,8 @@ The ALPHA HWR pump uses the GENI protocol over Bluetooth Low Energy (BLE). This 
 - BLE (Bluetooth Low Energy) basics
 - Async/concurrent programming in your language
 - Binary data handling (byte arrays, bit manipulation)
-- CRC-16/CCITT checksums
+- CRC-16/CCITT checksums (polynomial `0x1021`, init `0xFFFF`, final XOR
+  `0xFFFF`)
 
 ### Hardware/Tools
 

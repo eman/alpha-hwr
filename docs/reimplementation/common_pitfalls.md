@@ -425,7 +425,7 @@ Keep reading responses in a loop until you get a Class 10 packet or timeout expi
 ```
 Sub/Obj at bytes 6-9, payload follows standard structure.
 
-**Format 2: Register-Read Responses (OpSpec 0x30, 0x2b, 0x14, etc)**
+**Format 2: Direct read responses** (byte 5 is the payload *length* — 48, 43, 20…)
 ```
 24 34 F8 E7 0A 30 [Counters...] [Res] [Float1] [Float2] ... [CRC]
                   ^  ^           ~~~~~ ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -439,7 +439,7 @@ No Sub/Obj headers! Data starts at offset 13 as packed IEEE 754 floats.
 - `0x2b` = Flow/pressure response (flow, head, inlet, outlet)
 - `0x14` = Temperature response (media, PCB, box)
 
-**Motor State Response (OpSpec 0x30) Decoding:**
+**Motor state response decoding** (byte 5 = `0x30` = 48-byte payload):
 ```python
 def decode_register_read_motor(packet):
     # Skip to offset 13 where float data starts
@@ -500,7 +500,7 @@ def decode_telemetry(packet):
 Query sent:
   27 07 E7 F8 0A 03 57 00 45 [CRC]  (Read motor state register 0x570045)
 
-Response received (OpSpec 0x30):
+Response received (byte 5 = 0x30, a 48-byte payload):
   24 34 F8 E7 0A 30 00 01 00 03 00 00 42 EE E5 AA 43 27 D6 00 3E 1B F8 00 41 5A 29 C0 41 58 CD E0 45 65 3A D0 [CRC]
 
 Decoded floats from offset 13:
@@ -802,26 +802,41 @@ assert response.obj_id == 0x57
 schedule_data = "06:30"
 ```
 
-**Correct:**
-```python
-# Encode as minutes since midnight
-hour = 6
-minute = 30
-minutes_since_midnight = hour * 60 + minute  # 390
-# Encode as uint16 big-endian
-time_bytes = encode_uint16_be(minutes_since_midnight)
-```
+**Also wrong:** minutes-since-midnight as a uint16. Earlier revisions of this
+page taught that, and the pump accepts the bytes without complaint.
 
-**Formula:**
-```
-minutes_since_midnight = (hour × 60) + minute
+**Correct — plain hour and minute bytes.** A weekly schedule day is six
+bytes:
+
+```python
+day = bytes([
+    0x01,   # enabled
+    0x01,   # action: 0x01 = run, 0x00 = stop
+    6,      # start hour
+    30,     # start minute
+    8,      # end hour
+    30,     # end minute
+])
 ```
 
 **Examples:**
-- `00:00` = `0` minutes
-- `06:30` = `390` minutes
-- `18:45` = `1125` minutes
-- `23:59` = `1439` minutes
+
+| Time | Bytes |
+| :--- | :--- |
+| `00:00` | `00 00` |
+| `06:30` | `06 1E` |
+| `18:45` | `12 2D` |
+| `23:59` | `17 3B` |
+
+Seven of these, Monday first, make the 42-byte layer — and the layer is
+always written whole. There is no partial update: to change one day, read
+the layer, edit its six bytes, and write all 42 back.
+
+> **Single-event** timestamps are a different encoding entirely: 32-bit
+> **local Unix time**, the wall clock stamped as though it were UTC. Getting
+> that one wrong round-trips byte-identically, so no amount of verification
+> catches it. See
+> [schedules.md](../protocol/schedules.md#timestamps-are-local-unix-time).
 
 ---
 
@@ -967,7 +982,7 @@ Most issues stem from:
 4. **Notifications** (must subscribe on the single characteristic!)
 5. **Packet fragmentation** (reassemble before parsing!)
 6. **Error-then-data pattern** (ignore Class 2 errors, wait for data!)
-7. **Response format** (OpSpec 0x30/0x2b uses different structure!)
+7. **Response format** (byte 5 is a length, not a type code — match on the identifier pair)
 8. **Unit conversions** (9806.65 for meters to Pascals!)
 
 Always validate with test vectors before testing with hardware!

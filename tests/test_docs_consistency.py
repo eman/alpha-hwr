@@ -259,3 +259,64 @@ def test_test_vectors_page_is_not_stale() -> None:
         "test_vectors.md is stale; regenerate it with\n"
         "  uv run python scripts/generate_test_vectors.py"
     )
+
+
+# ---------------------------------------------------------------------------
+# Hex frames
+# ---------------------------------------------------------------------------
+
+#: A complete frame: start byte, then at least six more bytes, written
+#: either packed (``2705e7f8...``) or spaced (``27 05 E7 F8 ...``).
+_PACKED_FRAME = re.compile(r"\b((?:27|24)(?:[0-9a-fA-F]{2}){6,})\b")
+_SPACED_FRAME = re.compile(r"\b((?:27|24)(?:\s[0-9A-Fa-f]{2}){6,})\b")
+
+#: Frames built by hand to illustrate a layout, where no capture exists.
+#: Each is labelled as constructed in the page that carries it.
+_CONSTRUCTED = {
+    # docs/protocol/packet_traces/06_alarms_warnings.md - two simultaneous
+    # active alarms were never recorded, so the multi-code example shows
+    # the field layout with a placeholder CRC.
+    "2411f8e70a0900035800000006002a000700000000",
+}
+
+
+def test_every_documented_frame_has_a_valid_crc() -> None:
+    """
+    A wrong frame in the docs is copied into a port and fails silently -
+    the pump simply ignores it, so there is nothing to debug against.
+
+    Only frames whose length field agrees with their actual length are
+    checked; a chunk or a ``... [CRC]`` template is skipped rather than
+    guessed at.
+    """
+    from alpha_hwr.utils import calc_crc16_read
+
+    bad = []
+    checked = 0
+
+    for path, text in _docs_text():
+        candidates = {m.group(1) for m in _PACKED_FRAME.finditer(text)}
+        candidates |= {
+            m.group(1).replace(" ", "") for m in _SPACED_FRAME.finditer(text)
+        }
+
+        for hex_str in candidates:
+            if len(hex_str) % 2:
+                continue
+            frame = bytes.fromhex(hex_str)
+            if len(frame) < 8 or frame[1] + 4 != len(frame):
+                continue  # a chunk, or a template with a [CRC] placeholder
+            if hex_str.lower() in _CONSTRUCTED:
+                continue
+
+            checked += 1
+            expected = calc_crc16_read(frame[1:-2])
+            actual = int.from_bytes(frame[-2:], "big")
+            if expected != actual:
+                bad.append(
+                    f"{path.relative_to(REPO)}: {hex_str} "
+                    f"has CRC 0x{actual:04X}, should be 0x{expected:04X}"
+                )
+
+    assert checked > 40, f"only {checked} frames found; has the regex broken?"
+    assert not bad, "frames with a wrong CRC:\n" + "\n".join(sorted(bad))

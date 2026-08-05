@@ -78,7 +78,14 @@ The reply uses the standard response layout. Its byte 5 reads `0x09`, which is t
 
 ### Active Alarms Response
 
-**Example with alarm codes 42 and 7:**
+!!! note "Constructed, not captured"
+
+    The no-alarm response above is a real capture. This one is **built by
+    hand** to show how multiple codes are laid out — a pump with two active
+    alarms was not available to record. Its CRC is a placeholder and its
+    length fields are illustrative. Trust the field layout, not the bytes.
+
+**Illustrative example, alarm codes 42 and 7:**
 
 ```
 24 11 F8 E7 0A 09 00 03 58 00 00 00 06 00 2A 00 07 00 00 XX XX
@@ -98,6 +105,7 @@ The reply uses the standard response layout. Its byte 5 reads `0x09`, which is t
 - `00 2A`: Alarm code 42 (uint16 big-endian)
 - `00 07`: Alarm code 7 (uint16 big-endian)
 - `00 00`: Terminating zero (filtered out)
+- `XX XX`: CRC — not computed for this constructed example
 - `XX XX`: CRC16
 
 **Interpretation:** This packet indicates two active alarms with codes 42 and 7.
@@ -115,6 +123,7 @@ Same format as alarms, but ID field reflects Object 88, Sub 11:
 - `04`: DataLen (4 bytes)
 - `00 05`: Warning code 5
 - `00 00`: Terminating zero (filtered out)
+- `XX XX`: CRC — not computed for this constructed example
 
 ## Data Format
 
@@ -163,8 +172,8 @@ def parse_alarm_response(packet: bytes) -> list[int]:
 packet = bytes.fromhex("24 0D F8 E7 0A 09 00 02 3A 01 00 00 02 00 00 DC 50")
 print(parse_alarm_response(packet))  # Output: []
 
-# Example: Active alarms 42 and 7
-# Final two bytes are CRC placeholders for this example and are ignored
+# Example: Active alarms 42 and 7 - CONSTRUCTED, not captured.
+# The final two bytes are placeholders; parse_alarm_response ignores them.
 packet = bytes.fromhex(
     "24 11 F8 E7 0A 09 00 03 58 00 00 00 06 00 2A 00 07 00 00 00 00"
 )

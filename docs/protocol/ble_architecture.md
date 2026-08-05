@@ -124,9 +124,9 @@ CRC:    CRC-16-CCITT (big-endian)
 **Example Request:**
 
 ```text
-2705e7f802c39421a6
+2705e7f802c3941ae2
 ││││││││││││││││││
-│││││││││││││││└└─ CRC: 0x21A6
+│││││││││││││││└└─ CRC: 0x1AE2
 ││││││││││││└└──── Register: 0x94 (Class 2, ID 148)
 │││││││││└└─────── OpSpec: 0xC3 (INFO, 3 bytes)
 ││││││││└────────── Class: 0x02 (Class 2)
