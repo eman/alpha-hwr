@@ -66,6 +66,50 @@ A setpoint written in m³/h reaches the pump 3600× too large and is rejected
 as out of range, leaving the stored value untouched — which is why the
 register looked frozen.
 
+## The temperature-range object validates nothing
+
+Measured 2026-08-05, writing through `set_temperature_range_control` and
+reading back each time. The pump stored **every** value offered, including
+ones no hot-water system could mean:
+
+| Asked | Stored |
+| :--- | :--- |
+| 20.0 – 25.0 | 20.0 – 25.0 |
+| 55.0 – 60.0 | 55.0 – 60.0 |
+| 60.0 – 65.0 | 60.0 – 65.0 |
+| 62.0 – 70.0 | 62.0 – 70.0 |
+| 15.0 – 25.0 | 15.0 – 25.0 |
+| 0.0 – 5.0 | 0.0 – 5.0 |
+| −10.0 – 0.0 | −10.0 – 0.0 |
+| 90.0 – 99.0 | 90.0 – 99.0 |
+| 100.0 – 120.0 | 100.0 – 120.0 |
+
+No clamping, no rejection, no lower or upper bound anywhere in the range
+tried. This is the opposite of the setpoint objects, which clamp silently
+(600 RPM → 1650), and it matters for two reasons:
+
+1. **The client's 20–70 °C guard is the only guard there is.** It is not a
+   mirror of a firmware limit — nothing on the pump will stop a caller
+   storing −10 °C. Ports that omit their own validation have none.
+2. **A `clamped` result is impossible for this object**, so an `accepted`
+   here really does mean the pump holds what you asked for.
+
+The pump was restored to its original 35.0 / 38.9 / autoadapt-on afterwards.
+
+## Setpoint clamping, re-confirmed
+
+Measured again 2026-08-05 through the verified write path, on the same unit:
+
+| Asked | Status | Stored |
+| :--- | :--- | :--- |
+| 600 RPM | `clamped` | 1650.0 |
+| 4400 RPM | `clamped` | 3671.0 |
+| 2000 RPM | `accepted` | 2000.0 |
+
+Identical to the first measurement, and identical to the pump's own limits
+block at Object 86 Sub 13. The schedule was still enabled afterwards, which
+is the configuration-commit fix holding.
+
 ## Object 91: Sub 421 holds the live cycle configuration
 
 `[flow setpoint f32 m³/s][on minutes][off minutes]`, measured as

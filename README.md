@@ -100,10 +100,16 @@ The ALPHA HWR supports 5 primary modes optimized for domestic hot water recircul
 
 Proportional Pressure (0.5-10.0 m) is also fully supported.
 
-> These are the ranges the **client** accepts. The pump has narrower limits of
-> its own and **clamps rather than refuses** — ask for 600 RPM and it stores
-> 1650; ask for 4400 and it stores 3671. A clamped write is a successful
-> write; `WriteResult.value` tells you what was actually stored. See
+> These are the ranges the **client** accepts, and they are not the pump's.
+>
+> For the four scalar modes the pump has narrower limits of its own and
+> **clamps rather than refuses** — ask for 600 RPM and it stores 1650; ask for
+> 4400 and it stores 3671. A clamped write is a successful write;
+> `WriteResult.value` tells you what was actually stored.
+>
+> For the temperature range the pump validates **nothing** — measured, it
+> stored −10 °C and 120 °C without complaint — so the client's bound is the
+> only one there is. See
 > [Verified Writes](https://eman.github.io/alpha-hwr/guides/verified_writes/).
 
 ## Documentation

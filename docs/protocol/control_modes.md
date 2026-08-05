@@ -40,7 +40,7 @@ The ALPHA HWR is a **domestic hot water recirculation pump** designed for reside
 | 24 | USER_DEFINED |  Not Supported | - | - | Custom mode |
 | 25 | DHW_ON_OFF_CONTROL | **Full** | 91/**421** | 0x19 | Cycle time control (on/off minutes) |
 | 26 | PROPORTIONAL_DIFF_PRESSURE | **Raises** | - | - | Not in this firmware; `set_mode` refuses it |
-| 27 | TEMPERATURE_RANGE_CONTROL | **Full** | 91/430 | 0x1B | Temperature range control (min/max) — **the HWR mode** |
+| 27 | TEMPERATURE_RANGE_CONTROL | **Full** | 91/430 | 0x1B | Temperature range control (min/max) — **the HWR mode**. The pump validates this object not at all; the client's 20–70 °C bound is the only guard. |
 | 28 | COMFORT_VALVE_CONTROL |  Not Supported | - | - | Valve control |
 | 29 | ON_OFF_CONTROL |  Not Supported | - | - | Simple on/off |
 | 30 | CONSTANT_VOLTAGE |  Not Supported | - | - | Voltage control (industrial/testing) |

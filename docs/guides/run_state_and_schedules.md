@@ -173,11 +173,10 @@ while the schedule is off. Check `get_run_state()` first.
 ### And beware the configuration commit
 
 Every setpoint write is followed by a configuration commit, and that commit
-carries the schedule's enabled flag. Versions of this library at 0.6 and
-earlier sent a fixed commit blob with that flag set to `0x00`, so **changing
-any setpoint silently switched off a live schedule**. If you restored a
-configuration or changed a setpoint on an older version, check
-`schedule list`.
+carries the schedule's enabled flag. Older versions of this library sent a
+fixed commit blob with that flag set to `0x00`, so **changing any setpoint
+silently switched off a live schedule**. If you restored a configuration or
+changed a setpoint with an older version, check `schedule list`.
 
 ---
 

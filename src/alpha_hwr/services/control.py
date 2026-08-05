@@ -154,12 +154,18 @@ class ControlService(BaseService):
     OPERATION_MODE_NO_CMD = 0x06
 
     #: Bounds accepted for a temperature-range setpoint, in degrees C.
-    #: These are a client-side guard rather than a measured pump limit -
-    #: the pump has not been probed past 60 C - but they are the *only*
-    #: bounds, so the legacy setter and the write layer must agree. They
-    #: used to differ (20-60 here, 20-70 in the write layer), which meant
-    #: the same request was valid or invalid depending on which entry
-    #: point the caller happened to use.
+    #:
+    #: These are a client-side guard, and measurement says they are the
+    #: *only* guard: the pump validates this object not at all. Offered
+    #: -10 C and 120 C it stored both, unchanged - no clamping, no
+    #: rejection, nothing. That is the opposite of the setpoint objects,
+    #: which clamp silently.
+    #:
+    #: So the range here is a judgement about what a hot-water system can
+    #: mean, not a mirror of firmware behaviour. The two entry points used
+    #: to disagree about it (20-60 here, 20-70 in the write layer), which
+    #: made the same request valid or invalid depending on which one the
+    #: caller happened to reach for.
     TEMP_RANGE_MIN_C = 20.0
     TEMP_RANGE_MAX_C = 70.0
 

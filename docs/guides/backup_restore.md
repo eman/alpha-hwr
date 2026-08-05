@@ -113,13 +113,14 @@ serial-number check.
     state back with `alpha-hwr control status` afterwards, or restore through
     the [verified write path](verified_writes.md) if you need certainty.
 
-!!! danger "If you restored on 0.6 or earlier, check your schedule"
+!!! danger "If you restored with an older version, check your schedule"
 
     Every setpoint write was followed by a configuration commit built from a
     hardcoded blob whose `clock_program_enabled` byte was `0x00` — so a
     restore that set any setpoint **switched off a live weekly schedule**,
     silently. Run `alpha-hwr schedule list` and compare against what you
-    expect. Fixed in 0.7.0; the commit is now read-modify-write.
+    expect. The commit is now built read-modify-write from the pump's own
+    overview.
 
 ## Using the Python API
 

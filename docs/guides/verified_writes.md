@@ -7,7 +7,7 @@ Ask for 4400 and it acknowledges, and stores **3671**. Both are the ends of
 its own limits block; both are perfectly normal behaviour; and in neither case
 did anything on the wire say "no".
 
-That is the problem the 0.7.0 write path exists to solve. The old setters
+That is the problem the verified write path exists to solve. The old setters
 returned `bool`, and that `bool` meant "the frame was accepted" — which is not
 the same as "your value is in the pump". A caller could set a speed, get
 `True`, and be running at a completely different speed.
@@ -99,6 +99,14 @@ state, the control mode and the setpoint, so a setpoint write necessarily
 asserts a mode. Rather than hide that, `set_setpoint(mode, value)` takes the
 mode explicitly — there is no way to edit a mode's stored value in the
 background without selecting it.
+
+### The temperature range is guarded by the client, not the pump
+
+`set_temperature_range` validates 20–70 °C before sending. That bound is the
+library's judgement, **not** a firmware limit: offered −10 °C and 120 °C the
+pump stored both without complaint. This object clamps nothing and rejects
+nothing, so a `clamped` result is impossible for it — and a port that omits
+its own validation has none at all.
 
 ### `autoadapt=None` means "keep what you have"
 
