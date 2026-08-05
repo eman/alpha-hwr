@@ -8,6 +8,7 @@ import asyncio
 import logging
 from unittest.mock import AsyncMock, patch
 
+import pytest
 import pytest_asyncio
 from hypothesis import strategies as st
 
@@ -163,6 +164,17 @@ async def mock_client_simple():
             "alpha_hwr.client.AlphaHWRClient._scan_advertisement_data",
             new_callable=AsyncMock,
         ),
+        # This fixture does not model the pump's stored configuration - its
+        # transport answers everything with filler - so the post-connect
+        # read of it can only time out. Opting out keeps connect fast and
+        # keeps the reads it would make out of the call counts these tests
+        # assert on. Tests that care about readiness use the pump-backed
+        # fixture, or drive sync_cache() themselves.
+        patch(
+            "alpha_hwr.client.AlphaHWRClient._sync_cache_best_effort",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
     ):
         # Set up mock BleakClient instance
         mock_instance = AsyncMock()
@@ -185,6 +197,11 @@ async def mock_client_simple():
             return_value=b"\x00" * 7
         )
         client.transport.query = AsyncMock(return_value=b"\x00" * 7)
+        # Stub the wake burst too. It is transport pacing - three writes
+        # and 0.6s of real sleeps - and the filler responses above make
+        # every read look unanswered, so the retry path would fire it on
+        # each one and spend the suite's time sleeping.
+        client.transport.send_wake_burst = AsyncMock()
 
         yield client
 
@@ -243,3 +260,61 @@ async def mock_client_with_pump():
 
         # Give async tasks time to clean up
         await asyncio.sleep(0.1)
+
+
+# ---------------------------------------------------------------------------
+# Canned replies, captured from hardware
+# ---------------------------------------------------------------------------
+
+#: Real frames an ALPHA HWR sent in answer to each object read, captured
+#: 2026-08-04. Keyed by (object, sub). Writes that have to read something
+#: first - the temperature range's limits field, the cycle configuration's
+#: stored flow - decline to run rather than fabricate it, so a mock that
+#: answers everything with the same filler makes them abort. These let a
+#: transport-level test answer those reads with what the pump really says.
+PUMP_REPLIES: dict[tuple[int, int], bytes] = {
+    (86, 6): bytes.fromhex("2412f8e70a0e00012f0100000700001b39678ac34fbc"),
+    (86, 7): bytes.fromhex("2412f8e70a0e00012f0100000701001b39678ac3f7dd"),
+    (91, 430): bytes.fromhex(
+        "2419f8e70a150003f40200000e01420c0000421b999a0f3c020501977e"
+    ),
+    (91, 421): bytes.fromhex("2411f8e70a0d0003d90100000638844f30050fe9cb"),
+    (84, 1): bytes.fromhex(
+        "2415f8e70a110000da0100000a02050005010100000000dd89"
+    ),
+}
+
+#: Bare Class 10 acknowledgement, for anything not in the table above.
+GENERIC_ACK = bytes.fromhex("2406e7f80a01000000")
+
+
+def pump_reply_for(request: bytes) -> bytes:
+    """
+    Answer a Class 10 object read the way the real pump would.
+
+    Reads are ``[27][len][E7][F8][0A][03][obj][subH][subL][crc][crc]``;
+    anything else gets a generic acknowledgement.
+    """
+    if len(request) >= 9 and request[4] == 0x0A and request[5] == 0x03:
+        key = (request[6], (request[7] << 8) | request[8])
+        if key in PUMP_REPLIES:
+            return PUMP_REPLIES[key]
+    return GENERIC_ACK
+
+
+@pytest.fixture
+def answering_transport():
+    """
+    Build a ``query`` side effect that replies like the real pump.
+
+    Usage::
+
+        mock_client_simple.transport.query = AsyncMock(
+            side_effect=answering_transport
+        )
+    """
+
+    async def _reply(packet: bytes, *_args: object, **_kwargs: object) -> bytes:
+        return pump_reply_for(packet)
+
+    return _reply

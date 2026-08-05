@@ -120,6 +120,62 @@ To start the pump in Constant Speed mode (Mode `0x02`):
 
 Each control mode has factory-configured minimum, maximum, and default setpoint values stored in the pump's non-volatile memory.
 
+### Object 86: the control objects
+
+Object 86 carries several sub-objects, and which one you address decides
+what a read or write actually does. Getting this wrong is quiet rather than
+loud, so the distinction is worth stating plainly:
+
+| Sub | Name | Direction | What it does |
+| :--- | :--- | :--- | :--- |
+| 5 | `overall_remote_operation_request` | write | Remote operation request |
+| 6 | `overall_operation_local_request` | write | **Fused**: run state + control mode + setpoint, all in one frame |
+| 7 | `overall_operation_prioritized_request` | read | The pump's state after it has weighed remote, local and alarm influence |
+| 10 | `overall_control_mode_local_request` | write | Control mode **only** |
+| 13/15/39 | setpoint limits | read | Per-mode limits (see below) |
+
+**Read state from Sub 7, not Sub 6.** Sub 6 is the request object: it
+reports what was last written, and its `control_source` byte reads `0`
+whatever the pump is doing. Measured side by side on hardware, Sub 6
+returned `control_source = 0` while Sub 7 returned `1` (Local/Panel).
+Reading remote/local state from Sub 6 can only ever say "undefined".
+
+Response payload, after an optional 3-byte header:
+
+```
+[control_source][operation_mode][control_mode][setpoint f32 BE]
+```
+
+`control_source`: 1 = Local/Panel, 2 = Remote/Digital.
+`operation_mode`: 0 = AUTO, 1 = STOP, 6 = NoCmd (a write sentinel).
+
+**Change the mode through Sub 10, not Sub 6.** Sub 6 writes the setpoint in
+the same frame, so a mode change through it either forces the pump on or
+overwrites the target mode's stored setpoint with whatever was supplied.
+Sub 10 carries no-op sentinels in those fields - `operation_mode = 0x06`
+(NoCmd) and `set_point = 0x7FFFFFFF` (NaN) - and applies only the mode.
+Reading Sub 10 back returns exactly those sentinels, which is how the
+format was confirmed.
+
+Wire form: Sub 10 is addressed as Obj `0x0A01` / Sub `0x5600`; Sub 6 is
+Obj `0x0601` / Sub `0x5600`.
+
+### Run state: Class 3, not Object 86
+
+Starting and stopping the pump uses the Class 3 run commands, which carry
+no mode and no setpoint and so cannot disturb either:
+
+| Command | Frame |
+| :--- | :--- |
+| START | `27 05 E7 F8 03 81 06 <CRC>` |
+| STOP | `27 05 E7 F8 03 81 05 <CRC>` |
+
+The operation specifier is `0x81` (SET). `0xC1` (INFO) is answered with a
+descriptor rather than executed. The pump acknowledges with a bare frame -
+`[03 00]` for a command it ran, `[03 01 xx]` for one it only described -
+and sends no notification afterwards, so the resulting run state has to be
+read back.
+
 ### Factory Configuration Object
 
 Setpoint limits are stored in:

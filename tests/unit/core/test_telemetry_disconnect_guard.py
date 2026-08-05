@@ -42,7 +42,7 @@ def _make_service(
         (service, transport_mock) tuple.
     """
     transport = MagicMock(spec=Transport)
-    transport.query = AsyncMock(return_value=_STUB_RESPONSE)
+    transport.send_command = AsyncMock(return_value=_STUB_RESPONSE)
     transport.send_wake_burst = AsyncMock()
     # Every query answers, so is_connected() is consulted only at the two
     # inter-query guards - once before flow/pressure, once before temperature.
@@ -79,8 +79,8 @@ async def test_disconnect_after_motor_state_skips_flow_query() -> None:
     assert isinstance(result, TelemetryData)
     # query() is called once (motor state) then the guard returns early;
     # it must NOT be called for flow/pressure or temperature
-    assert transport.query.call_count == 1, (
-        f"Expected 1 query (motor state only), got {transport.query.call_count}"
+    assert transport.send_command.call_count == 1, (
+        f"Expected 1 query (motor state only), got {transport.send_command.call_count}"
     )
 
 
@@ -116,8 +116,8 @@ async def test_disconnect_before_temperature_skips_temp_query() -> None:
 
     assert isinstance(result, TelemetryData)
     # motor-state + flow/pressure = 2 calls; temperature must be skipped
-    assert transport.query.call_count == 2, (
-        f"Expected 2 query calls, got {transport.query.call_count}"
+    assert transport.send_command.call_count == 2, (
+        f"Expected 2 query calls, got {transport.send_command.call_count}"
     )
 
 
@@ -146,7 +146,7 @@ async def test_disconnect_before_temperature_returns_partial_telemetry() -> (
 async def test_all_connected_runs_all_three_queries() -> None:
     """When connected throughout, all three register queries execute."""
     transport = MagicMock(spec=Transport)
-    transport.query = AsyncMock(return_value=_STUB_RESPONSE)
+    transport.send_command = AsyncMock(return_value=_STUB_RESPONSE)
     transport.send_wake_burst = AsyncMock()
     transport.is_connected = MagicMock(return_value=True)
 
@@ -160,6 +160,6 @@ async def test_all_connected_runs_all_three_queries() -> None:
     with patch(_PATCH_SLEEP):
         await service.read_once()
 
-    assert transport.query.call_count == 3, (
-        f"Expected 3 query calls, got {transport.query.call_count}"
+    assert transport.send_command.call_count == 3, (
+        f"Expected 3 query calls, got {transport.send_command.call_count}"
     )

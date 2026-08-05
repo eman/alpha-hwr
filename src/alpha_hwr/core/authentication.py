@@ -22,17 +22,28 @@ For implementation in other languages, follow these steps:
 
 See Also
 --------
-docs/protocol/authentication.md : Detailed protocol documentation
-docs/protocol/packet_traces/02_authentication.md : Packet capture examples
+docs/protocol/packet_traces/02_authentication.md : Packet captures and
+    the authoritative order of the four handshake frames
 """
 
 import asyncio
+import contextlib
 import logging
+from collections.abc import AsyncIterator
 from typing import Protocol, runtime_checkable
 
 from ..exceptions import READ_ERRORS
 
 logger = logging.getLogger(__name__)
+
+# Handshake timing, matching the C++ port's auth.cpp (which is the
+# implementation currently validated against hardware). Every packet is
+# followed by INTER_PACKET_DELAY; the stage boundaries add their own gap
+# on top of that.
+INTER_PACKET_DELAY = 0.05
+STAGE_1_TO_2_DELAY = 0.10
+STAGE_2_TO_3_DELAY = 0.20
+STABILIZE_DELAY = 0.5
 
 
 @runtime_checkable
@@ -197,7 +208,11 @@ class AuthenticationHandler:
     # GENI characteristic UUID (where packets are written)
     GENI_CHAR_UUID = "859cffd1-036e-432a-aa28-1a0085b87ba9"
 
-    def __init__(self, ble_writer: BLEWriter):
+    def __init__(
+        self,
+        ble_writer: BLEWriter,
+        transaction: asyncio.Lock | None = None,
+    ):
         """
         Initialize authentication handler.
 
@@ -206,6 +221,12 @@ class AuthenticationHandler:
         ble_writer : BLEWriter
             BLE client capable of writing to GATT characteristics.
             Must implement write_gatt_char() method.
+        transaction : asyncio.Lock, optional
+            The transport's transaction lock. When supplied, the whole
+            handshake is held under it so no other traffic (a telemetry
+            query, a keep-alive burst) can interleave with the packet
+            sequence. The pump drops the link when the handshake is
+            disturbed, so this is not merely tidiness - see issue #31.
 
         Examples
         --------
@@ -216,6 +237,16 @@ class AuthenticationHandler:
         >>> await auth.authenticate()
         """
         self.ble_writer = ble_writer
+        self._transaction = transaction
+
+    @contextlib.asynccontextmanager
+    async def _exclusive(self) -> AsyncIterator[None]:
+        """Hold the transport transaction lock, if one was supplied."""
+        if self._transaction is None:
+            yield
+            return
+        async with self._transaction:
+            yield
 
     async def authenticate(self, fast_mode: bool = False) -> bool:
         """
@@ -229,8 +260,14 @@ class AuthenticationHandler:
         Timing Considerations
         ---------------------
         - Inter-packet delay: 50ms (allows pump processing)
-        - Stage delay: 100-200ms (allows stage completion)
-        - Total sequence time: ~1 second
+        - Stage delay: 100ms after stage 1, 200ms after stage 2
+        - Total sequence time: ~1.5 seconds
+
+        Every packet is written sequentially, and the whole sequence runs
+        under the transport's transaction lock when one was supplied. The
+        pump drops the link when packets arrive out of order or interleaved
+        with other traffic (issues #24, #31), so neither the ordering nor
+        the exclusivity is optional.
 
         Args:
             fast_mode: If True, skips all delays (inter-packet and
@@ -247,37 +284,32 @@ class AuthenticationHandler:
         """
         logger.info("Starting authentication handshake (3-stage sequence)...")
 
+        packet_delay = 0.0 if fast_mode else INTER_PACKET_DELAY
+
         try:
-            # Stage 1: Legacy Magic Burst (backward compatibility)
-            logger.debug("Stage 1: Sending legacy magic burst (3x repeats)...")
-            await self.send_legacy_burst(
-                repeats=3, delay=0 if fast_mode else 0.1
-            )
-            if fast_mode:
-                # When resuming a session, usually only Stage 3 is strictly required
-                # but we send all for robustness
-                pass
-            elif not fast_mode:
-                await asyncio.sleep(0.1)  # Allow processing time
-
-            # Stage 2: Class 10 Unlock (required for DataObjects)
-            logger.debug(
-                "Stage 2: Sending Class 10 unlock burst (5x repeats)..."
-            )
-            delay = 0 if fast_mode else 0.1
-            for _ in range(5):
-                await self.ble_writer.write_gatt_char(
-                    self.GENI_CHAR_UUID, self.CLASS10_UNLOCK, response=False
+            async with self._exclusive():
+                # Stage 1: Legacy Magic Burst (backward compatibility)
+                logger.debug(
+                    "Stage 1: Sending legacy magic burst (3x repeats)..."
                 )
-                if delay > 0:
-                    await asyncio.sleep(delay)
+                await self.send_legacy_burst(repeats=3, delay=packet_delay)
+                if not fast_mode:
+                    await asyncio.sleep(STAGE_1_TO_2_DELAY)
 
-            # Stage 3: Extension Packets (session establishment)
-            logger.debug("Stage 3: Sending extension packets...")
-            await self.send_extension_packets(delay=0 if fast_mode else 0.1)
+                # Stage 2: Class 10 Unlock (required for DataObjects)
+                logger.debug(
+                    "Stage 2: Sending Class 10 unlock burst (5x repeats)..."
+                )
+                await self.send_class10_burst(repeats=5, delay=packet_delay)
+                if not fast_mode:
+                    await asyncio.sleep(STAGE_2_TO_3_DELAY)
 
-            if not fast_mode:
-                await asyncio.sleep(0.5)  # Final stabilization
+                # Stage 3: Extension Packets (session establishment)
+                logger.debug("Stage 3: Sending extension packets...")
+                await self.send_extension_packets(delay=packet_delay)
+
+                if not fast_mode:
+                    await asyncio.sleep(STABILIZE_DELAY)
 
             logger.info("Authentication handshake complete")
             return True
@@ -285,6 +317,24 @@ class AuthenticationHandler:
         except READ_ERRORS as e:
             logger.error(f"Authentication handshake failed: {e}")
             return False
+
+    async def _send_burst(
+        self, packet: bytes, repeats: int, delay: float
+    ) -> None:
+        """
+        Write ``packet`` ``repeats`` times, sequentially, pacing each write.
+
+        Sequential is load-bearing: an earlier revision spawned the writes
+        as concurrent tasks, which let them reach the pump out of order and
+        caused it to drop the link about a second after the handshake
+        (issues #24, #31).
+        """
+        for _ in range(repeats):
+            await self.ble_writer.write_gatt_char(
+                self.GENI_CHAR_UUID, packet, response=False
+            )
+            if delay > 0:
+                await asyncio.sleep(delay)
 
     async def send_legacy_burst(
         self, repeats: int = 7, delay: float = 0.05
@@ -304,15 +354,7 @@ class AuthenticationHandler:
         delay : float, default=0.05
             Delay between packets in seconds.
         """
-        async with asyncio.TaskGroup() as tg:
-            for _ in range(repeats):
-                tg.create_task(
-                    self.ble_writer.write_gatt_char(
-                        self.GENI_CHAR_UUID, self.LEGACY_MAGIC, response=False
-                    )
-                )
-                if delay > 0:
-                    await asyncio.sleep(delay)
+        await self._send_burst(self.LEGACY_MAGIC, repeats, delay)
 
     async def send_class10_burst(
         self, repeats: int = 5, delay: float = 0.05
@@ -332,15 +374,7 @@ class AuthenticationHandler:
         delay : float, default=0.05
             Delay between packets in seconds.
         """
-        async with asyncio.TaskGroup() as tg:
-            for _ in range(repeats):
-                tg.create_task(
-                    self.ble_writer.write_gatt_char(
-                        self.GENI_CHAR_UUID, self.CLASS10_UNLOCK, response=False
-                    )
-                )
-                if delay > 0:
-                    await asyncio.sleep(delay)
+        await self._send_burst(self.CLASS10_UNLOCK, repeats, delay)
 
     async def send_extension_packets(self, delay: float = 0.05) -> None:
         """

@@ -19,7 +19,7 @@ from alpha_hwr.services.time import TimeService
 @pytest.fixture
 def mock_transport():
     transport = MagicMock(spec=Transport)
-    transport.query = AsyncMock()
+    transport.send_command = AsyncMock()
     transport.write = AsyncMock()
     return transport
 
@@ -60,7 +60,7 @@ async def test_get_clock_success(time_service, mock_transport):
         + b"\xaa\xbb"
     )
 
-    mock_transport.query.return_value = response
+    mock_transport.send_command.return_value = response
 
     dt = await time_service.get_clock()
 
@@ -100,7 +100,7 @@ async def test_get_clock_unset(time_service, mock_transport):
         + b"\xaa\xbb"
     )
 
-    mock_transport.query.return_value = response
+    mock_transport.send_command.return_value = response
 
     dt = await time_service.get_clock()
 
@@ -130,17 +130,17 @@ async def test_set_clock_success(time_service, mock_transport):
         + clock_payload
         + b"\xaa\xbb"
     )
-    mock_transport.query.side_effect = [ack_response, read_response]
+    mock_transport.send_command.side_effect = [ack_response, read_response]
 
     success = await time_service.set_clock(target_dt)
 
     assert success is True
 
     # Verify query was called twice (SET + read-back verification)
-    assert mock_transport.query.call_count == 2
+    assert mock_transport.send_command.call_count == 2
 
     # First call is the SET frame built by build_data_object_set
-    set_call = mock_transport.query.call_args_list[0]
+    set_call = mock_transport.send_command.call_args_list[0]
     packet = set_call[0][0]
 
     # Frame starts with STX=0x27

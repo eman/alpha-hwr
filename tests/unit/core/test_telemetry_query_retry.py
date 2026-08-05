@@ -33,7 +33,7 @@ def _make_service(
 ) -> tuple[TelemetryService, MagicMock]:
     """Build a TelemetryService whose every query returns `response`."""
     transport = MagicMock(spec=Transport)
-    transport.query = AsyncMock(return_value=response)
+    transport.send_command = AsyncMock(return_value=response)
     transport.send_wake_burst = AsyncMock()
     transport.is_connected = MagicMock(return_value=connected)
 
@@ -54,9 +54,11 @@ async def test_unanswered_query_is_retried_with_wake_burst() -> None:
     with patch(_PATCH_SLEEP):
         await service.read_once()
 
-    assert transport.query.call_count == _MAX_ATTEMPTS * _REGISTERS_POLLED, (
+    assert (
+        transport.send_command.call_count == _MAX_ATTEMPTS * _REGISTERS_POLLED
+    ), (
         f"Expected {_MAX_ATTEMPTS} attempts per register, "
-        f"got {transport.query.call_count} calls total"
+        f"got {transport.send_command.call_count} calls total"
     )
     # One pre-emptive burst for the session plus one before each retry
     # (2 retries per register).
@@ -73,8 +75,8 @@ async def test_retries_stop_when_transport_disconnects() -> None:
 
     # Motor state is attempted once, the disconnect is noticed, and the
     # guard before flow/pressure ends the read.
-    assert transport.query.call_count == 1, (
-        f"Expected 1 query before bailing out, got {transport.query.call_count}"
+    assert transport.send_command.call_count == 1, (
+        f"Expected 1 query before bailing out, got {transport.send_command.call_count}"
     )
 
 
@@ -124,7 +126,7 @@ async def test_failed_wake_burst_does_not_abort_read() -> None:
 
     # The read proceeds despite the failed burst...
     assert result is not None
-    assert transport.query.call_count == _REGISTERS_POLLED
+    assert transport.send_command.call_count == _REGISTERS_POLLED
     # ...and the burst stays armed for the next attempt.
     assert service._needs_wake is True
 

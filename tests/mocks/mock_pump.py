@@ -18,6 +18,7 @@ from datetime import datetime
 from alpha_hwr.constants import ControlMode
 from alpha_hwr.protocol import FrameParser
 from alpha_hwr.protocol.codec import encode_float_be, encode_uint16_be
+from alpha_hwr.protocol.matcher import expected_reply
 from alpha_hwr.utils import calc_crc16
 
 logger = logging.getLogger(__name__)
@@ -218,7 +219,10 @@ class MockPump:
         # Standard GENI Class 10 SET: bit 7 set, bits 0-5 = length
         # Standard ID order for standard length: SubID(2B) then ObjID(2B)
         # BUT for OpSpec 0xB3 (Long SET), the order is ObjID(1B) then SubID(2B)
-        if opspec == 0xB3:
+        # The long-form SETs (schedule 0xB3, temperature range 0x97, DHW
+        # config 0x8F) address the object first as a single byte, then a
+        # 16-bit sub-id; the ordinary ones put the 16-bit sub-id first.
+        if opspec in (0xB3, 0x97, 0x8F):
             obj_id = raw_data[6]
             sub_id = (raw_data[7] << 8) | raw_data[8]
         else:
@@ -229,18 +233,26 @@ class MockPump:
         if sub_id == 0x5600 and obj_id == 0x0601:
             return self._handle_control_command(frame)
 
-        # Mode 25 Cycle Time Write (Sub 0x01AE, Obj 0x005B)
-        # Payload structure: [Type(2)][Size(1)][0x00, 0x00, OFF, 0x01, 0x42, 0x02, ON, 0xFB]
-        # Offset to OFF = 4 (GENI) + 6 (APDU) + 3 (Type/Size) + 2 (Header) = 15
-        # Offset to ON = 15 + 4 = 19
+        # Mode change only (Sub 0x5600, Obj 0x0A01). The payload carries
+        # operation_mode = NoCmd and set_point = NaN, and the pump applies
+        # neither - only the control mode changes.
+        if sub_id == 0x5600 and obj_id == 0x0A01:
+            # [..][0A][90][56 00][0A 01][2F 01 00 00 07][src][opmode][mode]
+            if len(raw_data) >= 18:
+                self.state.control_mode = raw_data[17]
+            return self._build_ack_response()
+
+        # Cycle Time Write (Obj 91 Sub 421, the live configuration).
+        # Frame: [0A][8F][5B][01 A5][03 D9][01][00 00 06][flow f32][on][off]
+        # so the periods sit at the end of the APDU, which starts at 4.
         if (
             (opspec & 0x80)
-            and sub_id == 0x01AE
-            and obj_id == 0x005B
-            and len(raw_data) >= 20
+            and sub_id == 0x01A5
+            and obj_id == 0x5B
+            and len(raw_data) >= 21
         ):
-            self.state.cycle_off_minutes = raw_data[15]
             self.state.cycle_on_minutes = raw_data[19]
+            self.state.cycle_off_minutes = raw_data[20]
             return self._build_ack_response()
 
         # Schedule overview enable/disable (Obj 84, Sub 1)
@@ -324,9 +336,13 @@ class MockPump:
         if sub_id == 0x5600 and obj_id == 0x0601:
             return self._handle_control_command(frame)
 
-        # Setpoint/mode info (Obj 86, Sub 6)
-        if obj_id == 0x0056 and sub_id == 0x0006:
-            return self._build_setpoint_info_response()
+        # Operation status (Obj 86). Sub 6 is the request object and Sub 7
+        # the prioritized state; on hardware they differ only in
+        # control_source, which Sub 6 reports as 0 (Undefined) whatever the
+        # pump is actually doing. Sub 10 is the mode-request object, which
+        # reads back the no-op sentinels it is written with.
+        if obj_id == 0x0056 and sub_id in (0x0006, 0x0007, 0x000A):
+            return self._build_setpoint_info_response(sub_id)
 
         # Motor state (Obj 87, Sub 69)
         if obj_id == 0x0057 and sub_id == 0x0045:
@@ -358,12 +374,11 @@ class MockPump:
 
         # Mode 25 Cycle Time Config (Obj 91, Sub 421)
         if obj_id == 91 and sub_id == 421:
-            # Format: [Header(2)][OnTime(1)][Unknown(5)][OffTime(1)]
-            payload = bytearray([0x00, 0x00])
+            # dhw_on_off_control_configuration_obj, as measured:
+            # [00 00 06][flow setpoint f32, m3/s][on minutes][off minutes]
+            payload = bytearray([0x00, 0x00, 0x06])
+            payload.extend(bytes([0x38, 0x84, 0x4F, 0x30]))  # 0.227 m3/h
             payload.append(self.state.cycle_on_minutes)
-            payload.extend(
-                bytes([0x38, 0x84, 0x4F, 0x30, 0x05])
-            )  # Unknowns from capture
             payload.append(self.state.cycle_off_minutes)
             return self._build_class10_response(sub_id, obj_id, bytes(payload))
 
@@ -404,6 +419,23 @@ class MockPump:
         op_length_byte = raw_data[5]
         op_spec = (op_length_byte >> 6) & 0x03
         data_length = op_length_byte & 0x3F
+
+        # Run-state commands: [03][81][id]. These carry no mode and no
+        # setpoint, so they change only whether the motor runs. The pump
+        # answers [03 00] for a command it executed; it sends no
+        # notification afterwards, so the caller has to read the state back.
+        if op_length_byte == 0x81 and len(raw_data) >= 7:
+            command_id = raw_data[6]
+            if command_id == self.CLASS3_START:
+                self.state.running = True
+                self._apply_running_telemetry()
+                return self._build_class3_ack()
+            if command_id == self.CLASS3_STOP:
+                self.state.running = False
+                self._apply_stopped_telemetry()
+                return self._build_class3_ack()
+            # Anything else is described rather than executed.
+            return self._build_class3_ack(accepted=False)
 
         # Read operations (op_spec = 0 or 1)
         if op_spec in (0x00, 0x01):
@@ -595,22 +627,47 @@ class MockPump:
 
         return self._build_class10_response(430, 91, bytes(payload))
 
-    def _build_setpoint_info_response(self) -> bytes:
-        """
-        Build Class 10 setpoint info response (Obj 86, Sub 6).
+    #: Operation mode values, as the pump reports them.
+    OPERATION_MODE_AUTO = 0x00
+    OPERATION_MODE_STOP = 0x01
+    OPERATION_MODE_NO_CMD = 0x06
 
-        Format: [00 00 XX][control_source][operation_mode][control_mode][setpoint(4 bytes float BE)]
+    def _build_setpoint_info_response(self, sub_id: int = 7) -> bytes:
         """
-        payload = bytearray()
-        payload.extend(bytes([0x00, 0x00, 0x00]))  # 3-byte header
-        payload.append(0x01)  # control_source (local=1)
-        payload.append(0x01)  # operation_mode (normal=1)
-        payload.append(self.state.control_mode)  # control_mode
-        payload.extend(
-            encode_float_be(self.state.setpoint or 0.0)
-        )  # setpoint value
+        Build a Class 10 operation-status response for Object 86.
 
-        return self._build_class10_response(6, 86, bytes(payload))
+        Format: ``[00 00 07][control_source][operation_mode][control_mode]
+        [setpoint f32 BE]``.
+
+        The three sub-IDs answer differently, as measured on hardware:
+
+        - **Sub 6** (request object) reports ``control_source = 0``
+          regardless of what the pump is doing. Reading remote/local state
+          from here is why it always looked Undefined.
+        - **Sub 7** (prioritized state) reports the real source - ``1`` for
+          Local/Panel, ``2`` for Remote/Digital.
+        - **Sub 10** (mode request) reads back the no-op sentinels it is
+          written with: ``operation_mode = NoCmd`` and ``set_point = NaN``.
+        """
+        payload = bytearray([0x00, 0x00, 0x07])
+
+        if sub_id == 0x000A:
+            payload.append(0x00)  # control_source = Undefined
+            payload.append(self.OPERATION_MODE_NO_CMD)
+            payload.append(self.state.control_mode)
+            payload.extend(b"\x7f\xff\xff\xff")  # set_point = NaN
+            return self._build_class10_response(sub_id, 86, bytes(payload))
+
+        payload.append(0x01 if sub_id == 0x0007 else 0x00)  # control_source
+        payload.append(
+            self.OPERATION_MODE_AUTO
+            if self.state.running
+            else self.OPERATION_MODE_STOP
+        )
+        payload.append(self.state.control_mode)
+        payload.extend(encode_float_be(self.state.setpoint or 0.0))
+
+        return self._build_class10_response(sub_id, 86, bytes(payload))
 
     def _build_timestamp_map_response(self, sub_id: int) -> bytes:
         """Build timestamp map response."""
@@ -671,11 +728,23 @@ class MockPump:
     def _build_class10_response(
         self, sub_id: int, obj_id: int, payload: bytes
     ) -> bytes:
-        """Build generic Class 10 response frame."""
-        # Build APDU: [Class][OpSpec][SubH][SubL][ObjH][ObjL][Payload]
+        """
+        Build a generic Class 10 response frame.
+
+        The identifier fields carry the type code the real pump answers
+        that object with, not an echo of the request. Measured against an
+        ALPHA HWR on 2026-08-04; see ``protocol.matcher.RESPONSE_IDENTIFIERS``.
+        This mock used to echo the request, which no reply from the real
+        device ever does - so any matching logic it exercised was being
+        tested against behaviour the pump does not have.
+        """
+        identifiers = expected_reply(obj_id, sub_id)
+        field_a, field_b = identifiers if identifiers else (sub_id, obj_id)
+
+        # Build APDU: [Class][OpSpec][A-H][A-L][B-H][B-L][Payload]
         apdu = bytearray([0x0A, 0x90])
-        apdu.extend(encode_uint16_be(sub_id))
-        apdu.extend(encode_uint16_be(obj_id))
+        apdu.extend(encode_uint16_be(field_a))
+        apdu.extend(encode_uint16_be(field_b))
         apdu.extend(payload)
 
         # Build frame: [Start][Length][SvcH][SvcL][APDU][CRC]
@@ -690,6 +759,43 @@ class MockPump:
         crc = calc_crc16(bytes(crc_data))
         frame.extend(encode_uint16_be(crc))
 
+        return bytes(frame)
+
+    #: Class 3 run-state command IDs.
+    CLASS3_STOP = 0x05
+    CLASS3_START = 0x06
+
+    def _apply_running_telemetry(self) -> None:
+        """Move the simulated readings to what a running pump reports."""
+        self.state.speed_rpm = 1500.0
+        self.state.flow_m3h = 2.5
+        self.state.current = 1.5
+        self.state.power = 300.0
+
+    def _apply_stopped_telemetry(self) -> None:
+        """Move the simulated readings to what a stopped pump reports."""
+        self.state.speed_rpm = 0.0
+        self.state.flow_m3h = 0.0
+        self.state.current = 0.5
+        self.state.power = 50.0
+
+    def _build_class3_ack(self, accepted: bool = True) -> bytes:
+        """
+        Build the bare acknowledgement a Class 3 command draws.
+
+        ``[03 00]`` means the pump executed it; ``[03 01 xx]`` means it
+        only described the data item and did nothing. The frame is far
+        shorter than an ordinary response and carries no identifiers, so
+        the class byte is all a caller has to match on.
+        """
+        apdu = (
+            bytearray([0x03, 0x00])
+            if accepted
+            else bytearray([0x03, 0x01, 0xAC])
+        )
+        frame = bytearray([0x24, len(apdu) + 2, 0xE7, 0xF8])
+        frame.extend(apdu)
+        frame.extend(encode_uint16_be(calc_crc16(bytes(frame[1:]))))
         return bytes(frame)
 
     def _build_class3_response(self, payload: bytes) -> bytes:

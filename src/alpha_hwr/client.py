@@ -84,6 +84,7 @@ C:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 from types import TracebackType
@@ -97,7 +98,7 @@ from .core.authentication import AuthenticationHandler
 from .core.session import Session, SessionState
 from .core.transport import Transport
 from .exceptions import READ_ERRORS, ConnectionError
-from .models import DeviceInfo
+from .models import DeviceInfo, WriteCommand, WriteResult, WriteStatus
 from .services import (
     ConfigurationService,
     ControlService,
@@ -105,11 +106,38 @@ from .services import (
     EventLogService,
     HistoryService,
     ScheduleService,
+    SingleEventService,
     TelemetryService,
     TimeService,
+    WriteOperationService,
 )
+from .services.run_state import RunState, run_state, write_order
 
 logger = logging.getLogger(__name__)
+
+#: How long the post-connect configuration read may take before the client
+#: gives up on it and simply reports not-ready.
+CACHE_SYNC_TIMEOUT = 8.0
+
+#: Everything a best-effort configuration read may fail with. A quiet pump
+#: is not an error here - the client simply stays not-ready.
+_SYNC_ERRORS: tuple[type[BaseException], ...] = (
+    TimeoutError,
+    ConnectionError,
+    *READ_ERRORS,
+)
+
+#: Write outcomes from best to worst, for folding several into one. A
+#: coupled write reports its most severe leg, so a partial failure is not
+#: averaged away into an apparent success.
+_WRITE_SEVERITY = (
+    WriteStatus.ACCEPTED,
+    WriteStatus.CLAMPED,
+    WriteStatus.SUPERSEDED,
+    WriteStatus.TIMEOUT,
+    WriteStatus.REJECTED,
+    WriteStatus.INVALID,
+)
 
 
 class AlphaHWRClient:
@@ -128,6 +156,8 @@ class AlphaHWRClient:
         time: Read and synchronize pump real-time clock
         history: Read historical trend data (flow, head, temperature)
         event_log: Read pump event log entries and metadata
+        writes: The serialized write path; every write settles through it
+        single_events: One-off scheduled runs and vacations
 
     Attributes:
         address: BLE device address (UUID on macOS, MAC on Linux/Windows)
@@ -208,6 +238,8 @@ class AlphaHWRClient:
         self.time: TimeService | None = None
         self.history: HistoryService | None = None
         self.event_log: EventLogService | None = None
+        self.single_events: SingleEventService | None = None
+        self.writes: WriteOperationService | None = None
 
     @property
     def is_connected(self) -> bool:
@@ -215,6 +247,43 @@ class AlphaHWRClient:
         return (
             self._bleak_client is not None and self._bleak_client.is_connected
         )
+
+    @property
+    def is_ready(self) -> bool:
+        """
+        Whether the client knows enough about the pump to write safely.
+
+        True once connected, authenticated, and the pump's stored
+        configuration has been read. Writes that carry fields the caller
+        did not set need that reading to preserve them, so this is the
+        signal to wait for before driving the pump programmatically -
+        rather than guessing at a settle delay.
+        """
+        return (
+            self.is_authenticated
+            and self.control is not None
+            and self.control.is_cache_valid
+        )
+
+    async def wait_until_ready(self, timeout: float = 30.0) -> bool:
+        """
+        Wait for :attr:`is_ready`, retrying the cache read if it failed.
+
+        Args:
+            timeout: Seconds to keep trying.
+
+        Returns:
+            True if the client became ready in time.
+        """
+        deadline = asyncio.get_running_loop().time() + timeout
+        while asyncio.get_running_loop().time() < deadline:
+            if self.is_ready:
+                return True
+            await self._sync_cache_best_effort()
+            if self.is_ready:
+                return True
+            await asyncio.sleep(1.0)
+        return self.is_ready
 
     @property
     def is_authenticated(self) -> bool:
@@ -288,10 +357,15 @@ class AlphaHWRClient:
                 raise ValueError("BLE device address is not set")
             if self.adapter and sys.platform.startswith("linux"):
                 self._bleak_client = BleakClient(
-                    self.address, bluez={"adapter": self.adapter}
+                    self.address,
+                    bluez={"adapter": self.adapter},
+                    disconnected_callback=self._on_ble_disconnected,
                 )
             else:
-                self._bleak_client = BleakClient(self.address)
+                self._bleak_client = BleakClient(
+                    self.address,
+                    disconnected_callback=self._on_ble_disconnected,
+                )
 
             # Connect to device
             await self._bleak_client.connect(timeout=timeout)
@@ -301,7 +375,11 @@ class AlphaHWRClient:
             self.transport = Transport(self._bleak_client)
             self.session = Session()
             self.session.on_connected()  # Mark session as connected
-            self.auth = AuthenticationHandler(self._bleak_client)
+            # The handshake runs under the transport's transaction lock so
+            # nothing can interleave with the packet sequence (issue #31).
+            self.auth = AuthenticationHandler(
+                self._bleak_client, transaction=self.transport.transaction()
+            )
 
             # Start BLE notifications
             await self.transport.start_notifications()
@@ -332,11 +410,60 @@ class AlphaHWRClient:
             # Auto-authenticate if enabled
             if self.auto_authenticate:
                 await self.authenticate(fast_mode=fast_mode)
+                # Learn what the pump is holding before anything writes to
+                # it. Several writes carry fields the caller did not set,
+                # and they can only preserve those by knowing them.
+                #
+                # Best-effort and bounded: a pump that is not answering yet
+                # should not hold the connection open waiting. `is_ready`
+                # stays False and `wait_until_ready()` will try again.
+                await self._sync_cache_best_effort()
 
         except READ_ERRORS as e:
             logger.error(f"Connection failed: {e}")
             await self._cleanup()
             raise ConnectionError(f"Failed to connect to {self.address}: {e}")
+
+    async def _sync_cache_best_effort(
+        self, timeout: float = CACHE_SYNC_TIMEOUT
+    ) -> bool:
+        """Read the pump's configuration, giving up quietly if it is slow."""
+        if not (self.control and self.is_authenticated):
+            return False
+        try:
+            return await asyncio.wait_for(
+                self.control.sync_cache(), timeout=timeout
+            )
+        except _SYNC_ERRORS:
+            logger.debug(
+                "Could not read the pump's configuration during connect; "
+                "the client stays not-ready until it can"
+            )
+            return False
+
+    def _on_ble_disconnected(self, _client: object) -> None:
+        """
+        Bleak's disconnect callback.
+
+        Runs synchronously on the event loop the moment the link drops, so
+        session state reflects reality without waiting for the next read to
+        fail. Transport handlers run first: anything holding a pending
+        result settles it before the rest of the teardown discards the
+        state it would have settled from.
+        """
+        # Pending writes settle first: the teardown below discards the
+        # state they would otherwise settle from, leaving their callers
+        # waiting on a result that can never arrive.
+        if self.writes:
+            asyncio.get_running_loop().create_task(self.writes.on_disconnect())
+        if self.control:
+            # A cache filled on the previous connection describes a pump
+            # that may have moved since.
+            self.control.invalidate_cache()
+        if self.transport:
+            self.transport.notify_disconnected()
+        if self.session and self.session.is_connected():
+            self.session.on_disconnected()
 
     async def disconnect(self) -> None:
         """
@@ -556,6 +683,12 @@ class AlphaHWRClient:
         self.time = TimeService(self.transport, self.session)
         self.history = HistoryService(self.transport, self.session)
         self.event_log = EventLogService(self.transport, self.session)
+        self.single_events = SingleEventService(self.transport, self.session)
+
+        # Every write goes through here: serialized, confirmed by a
+        # readback, and settled exactly once.
+        self.writes = WriteOperationService(self.control, self.schedule)
+        self.control.attach_write_service(self.writes)
 
         # Configuration service depends on other services
         self.config = ConfigurationService(
@@ -647,10 +780,96 @@ class AlphaHWRClient:
         self.event_log = None
         self._bleak_client = None
 
+    # -------------------------------------------------------------------------
+    # Module-level convenience functions
+    # -------------------------------------------------------------------------
+    async def get_run_state(self) -> RunState | None:
+        """
+        What state the run flag and schedule flag put the pump in.
 
-# -------------------------------------------------------------------------
-# Module-level convenience functions
-# -------------------------------------------------------------------------
+        Worth asking rather than reading the two flags separately: one of
+        their four combinations - stopped with the schedule armed - can
+        never run, and looks healthy from every angle except the water.
+        """
+        if not (self.control and self.schedule):
+            return None
+        info = await self.control.get_mode()
+        if info is None:
+            return None
+        schedule_enabled = await self.schedule.get_state()
+        if schedule_enabled is None:
+            return None
+        return run_state(bool(info.is_running), schedule_enabled)
+
+    async def set_run_state(self, target: RunState) -> WriteResult:
+        """
+        Move the pump to a state it can actually act on.
+
+        Writes only the flags that differ, in an order that never passes
+        through the stalled combination - arming a schedule over a stopped
+        pump, even for the moment between two writes, is a window that can
+        be missed.
+
+        Args:
+            target: ``off``, ``engaged`` or ``scheduled``. ``stalled`` is a
+                diagnosis rather than something to ask for, and is refused.
+
+        Returns:
+            The most severe of the underlying writes, so a partial failure
+            surfaces rather than being averaged away.
+        """
+        if not (self.control and self.schedule and self.writes):
+            raise RuntimeError("Not connected")
+
+        try:
+            plan_source = write_order
+            info = await self.control.get_mode()
+            schedule_enabled = await self.schedule.get_state()
+            if info is None or schedule_enabled is None:
+                return WriteResult(
+                    command=WriteCommand.SET_PUMP_STATE,
+                    status=WriteStatus.REJECTED,
+                    detail="could not read the pump's current state",
+                )
+            plan = plan_source(
+                (bool(info.is_running), schedule_enabled), target
+            )
+        except ValueError as e:
+            return WriteResult(
+                command=WriteCommand.SET_PUMP_STATE,
+                status=WriteStatus.INVALID,
+                detail=str(e),
+            )
+
+        results: list[WriteResult] = []
+        for flag, value in plan:
+            if flag == "enabled":
+                results.append(await self.control.set_enabled(value))
+            else:
+                results.append(
+                    await self.writes.submit(
+                        WriteCommand.SET_SCHEDULE_ENABLED,
+                        "schedule_enabled",
+                        schedule_enabled=value,
+                    )
+                )
+
+        settled = await self.get_run_state()
+        if not results:
+            return WriteResult(
+                command=WriteCommand.SET_PUMP_STATE,
+                status=WriteStatus.ACCEPTED,
+                detail="already in that state",
+            )
+
+        worst = max(results, key=lambda r: _WRITE_SEVERITY.index(r.status))
+        return WriteResult(
+            command=WriteCommand.SET_PUMP_STATE,
+            status=worst.status,
+            detail=worst.detail or (f"settled as {settled}" if settled else ""),
+            enabled=results[-1].enabled,
+            schedule_enabled=results[-1].schedule_enabled,
+        )
 
 
 async def discover_devices(timeout: float = 10.0) -> list[str]:

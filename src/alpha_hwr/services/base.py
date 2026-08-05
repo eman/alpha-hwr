@@ -16,6 +16,8 @@ import logging
 from typing import TYPE_CHECKING
 
 from ..exceptions import READ_ERRORS, ConnectionError
+from ..protocol.frame_builder import FrameBuilder
+from ..protocol.matcher import Command, read_command
 
 if TYPE_CHECKING:
     from alpha_hwr.core.session import Session
@@ -96,28 +98,13 @@ class BaseService:
             - Returns DATA portion only (bytes 10 to -2)
         """
         try:
-            from ..utils import calc_crc16_read
+            frame = FrameBuilder.build_class10_object_read(obj_id, sub_id)
 
-            # Build APDU: [Class][OpSpec][ObjID][SubID_H][SubID_L]
-            apdu = bytes(
-                [
-                    0x0A,  # Class 10 (Configuration/DataObject)
-                    0x03,  # OpSpec INFO (read)
-                    obj_id & 0xFF,  # Object ID (1 byte)
-                    (sub_id >> 8) & 0xFF,  # Sub-ID high byte
-                    sub_id & 0xFF,  # Sub-ID low byte
-                ]
-            )
-
-            # Build full GENI frame with CRC
-            length = 1 + 1 + len(apdu)  # Dst + Src + APDU
-            frame_without_crc = bytes([0x27, length, 0xE7, 0xF8]) + apdu
-            crc = calc_crc16_read(frame_without_crc[1:])
-            frame = frame_without_crc + bytes([(crc >> 8) & 0xFF, crc & 0xFF])
-
-            def match_class10_response(p: bytes) -> bool:
-                """Match Class 10 response packet."""
-                return len(p) > 6 and p[4] == 0x0A
+            # The pump does not echo the identifiers it was asked for; it
+            # answers with a type code that depends on the object. Those
+            # were measured per object, so the reply can be matched exactly
+            # where the object is known and by class alone where it is not.
+            command = read_command(obj_id, sub_id)
 
             for attempt in range(1, retries + 1):
                 logger.debug(
@@ -125,9 +112,9 @@ class BaseService:
                     f"(attempt {attempt}/{retries})"
                 )
 
-                response = await self.transport.query(
+                response = await self.transport.send_command(
                     frame,
-                    match_func=match_class10_response,
+                    command,
                     timeout=3.0,
                 )
 
@@ -225,14 +212,19 @@ class BaseService:
             # Build GENI frame
             frame = self._build_geni_packet(0xF8, 0xE7, apdu)
 
-            def match_class7(p: bytes) -> bool:
-                """Match Class 7 response."""
-                return len(p) > 6 and p[4] == 0x07
+            # Class 7 replies carry no Object/Sub identifiers, so the class
+            # byte is all there is to match on. Gating on the class keeps a
+            # Class 10 telemetry notification arriving first from being
+            # mistaken for the string.
+            command = Command(
+                expect_class=0x07,
+                description=f"read of string {string_id}",
+            )
 
             for attempt in range(1, retries + 1):
-                response = await self.transport.query(
+                response = await self.transport.send_command(
                     frame,
-                    match_func=match_class7,
+                    command,
                     timeout=3.0,
                 )
 
@@ -294,30 +286,66 @@ class BaseService:
             - LEN = length of ServiceID + Source + APDU
             - CRC-16-CCITT over [LEN][ServiceID][Source][APDU]
         """
-        from ..utils import calc_crc16_read
+        return FrameBuilder.build_geni_frame(
+            apdu, source=source, service_id=service_id
+        )
 
-        length = 1 + 1 + len(apdu)  # ServiceID + Source + APDU
-        frame_without_crc = bytes([0x27, length, service_id, source]) + apdu
-        crc = calc_crc16_read(frame_without_crc[1:])
-        frame = frame_without_crc + bytes([(crc >> 8) & 0xFF, crc & 0xFF])
+    #: Byte 5 of ClockProgramOverview: what the pump does outside every
+    #: scheduled window. The Grundfos app always writes Stop here.
+    DEFAULT_ACTION_STOP = 0x01
 
-        return frame
+    #: Length of the ClockProgramOverview structure.
+    OVERVIEW_LEN = 10
 
     async def _send_configuration_commit(self) -> bool:
         """
-        Send a configuration commit command to the pump.
+        Flush pending configuration to the pump's non-volatile memory.
 
-        This command is required after writing configuration objects
-        to ensure they are persisted to the pump's non-volatile memory.
+        The commit carries the whole ClockProgramOverview - the schedule's
+        enabled flag among it - so it can only be built from what the pump
+        currently holds. It used to send a fixed constant whose
+        ``clock_program_enabled`` byte was ``0x00``, and because a commit
+        follows every setpoint write and control request, changing any
+        setpoint silently switched the user's schedule off.
+
+        If the overview cannot be read, no commit is sent: skipping a flush
+        is recoverable, writing a fabricated schedule state over the real
+        one is not.
 
         Returns:
-            True if commit command was sent successfully
+            True if the commit was sent.
         """
-        # Complex APDU format verified from ALPHA HWR traffic
-        # Class 10, SET (0x93), Sub 0x5400, Obj 0xDA01
-        conf_apdu = bytes.fromhex("0A9354000100DA0100000A02050005000100000000")
-        # Use query/send depending on implementation, but write is safe here
+        overview = await self._read_class10_object(84, 1)
+        if not overview or len(overview) < 3 + self.OVERVIEW_LEN:
+            logger.warning(
+                "Skipping configuration commit: the schedule overview could "
+                "not be read, and committing without it would overwrite the "
+                "pump's schedule state"
+            )
+            return False
+
+        # Skip the 3-byte header to get the structure itself.
+        structure = bytearray(overview[3 : 3 + self.OVERVIEW_LEN])
+        structure[5] = self.DEFAULT_ACTION_STOP
+
+        apdu = bytearray(
+            [
+                0x0A,  # Class 10
+                0x93,  # OpSpec: SET + 19 bytes
+                0x54,  # Object 84
+                0x00,
+                0x01,  # Sub-ID 1
+                0x00,
+                0xDA,
+                0x01,  # Type 218 (ClockProgramOverview)
+                0x00,
+                0x00,
+                self.OVERVIEW_LEN,
+            ]
+        )
+        apdu.extend(structure)
+
         await self.transport.write(
-            self._build_geni_packet(0xF8, 0xE7, conf_apdu)
+            self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
         )
         return True

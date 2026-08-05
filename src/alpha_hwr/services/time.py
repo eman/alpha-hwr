@@ -73,6 +73,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ..exceptions import READ_ERRORS
+from ..protocol.matcher import Command
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -281,14 +282,16 @@ class TimeService(BaseService):
             )
             logger.debug(f"Clock SET frame: {frame.hex()} ({len(frame)} bytes)")
 
-            # Send and wait for ACK
-            def ack_filter(p: bytes) -> bool:
-                """Match Class 10 ACK response."""
-                return len(p) > 5 and p[4] == 0x0A and p[5] == 0x01
-
-            response = await self.transport.query(
+            # The clock write is acknowledged by a bare Class 10 ack, which
+            # carries no identifiers - the operation specifier is the only
+            # thing that distinguishes it from a telemetry notification.
+            response = await self.transport.send_command(
                 frame,
-                match_func=ack_filter,
+                Command(
+                    expect_short_ack=True,
+                    accept_opspecs=frozenset({0x01}),
+                    description="clock set",
+                ),
                 timeout=3.0,
             )
 
@@ -335,19 +338,20 @@ class TimeService(BaseService):
         - Telemetry notification (OpSpec 0x0E)
         """
 
-        def ack_filter(data: bytes) -> bool:
-            """Match ACK or telemetry notification responses."""
-            if len(data) < 6:
-                return False
-            # data[4] is Class, data[5] is OpSpec
-            # Accept: 0x01 (ACK) or 0x0E (Telemetry Notification)
-            return data[5] == 0x01 or data[5] == 0x0E
+        # Either the write acknowledgement or a passive notification counts:
+        # having heard anything at all back means the pump processed the
+        # write, and it does not always answer with the ack.
+        command = Command(
+            expect_short_ack=True,
+            accept_opspecs=frozenset({0x01, 0x0E}),
+            description=description,
+        )
 
         for attempt in range(retries):
             try:
-                response = await self.transport.query(
+                response = await self.transport.send_command(
                     packet,
-                    match_func=ack_filter,
+                    command,
                     timeout=3.0,
                 )
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, time
+from enum import StrEnum
 from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -811,3 +813,111 @@ class EventLogMetadata(BaseModel):
     max_buffer_size: int = Field(description="Maximum buffer size (always 20)")
     reserved: int = Field(description="Reserved byte (typically 0)")
     raw_hex: str = Field(description="Raw hex data for debugging")
+
+
+class WriteCommand(StrEnum):
+    """Which kind of write an operation performs."""
+
+    SET_ENABLED = "set_enabled"
+    SET_MODE = "set_mode"
+    SET_SETPOINT = "set_setpoint"
+    SET_TEMPERATURE_RANGE = "set_temperature_range"
+    SET_CYCLE_TIMES = "set_cycle_times"
+    SET_SCHEDULE_ENABLED = "set_schedule_enabled"
+    SET_PUMP_STATE = "set_pump_state"
+    """Coupled run-state and schedule change; composed of the two above."""
+
+
+class WriteStatus(StrEnum):
+    """
+    How a write ended. Every operation reaches exactly one of these.
+
+    The distinction that matters for a caller deciding whether to retry is
+    ``INVALID`` versus ``REJECTED``: the first is a property of the request
+    and is decided before anything reaches the wire, so retrying it
+    unchanged cannot help. The second means the pump or its state refused,
+    which a later attempt might not hit.
+    """
+
+    ACCEPTED = "accepted"
+    """The pump confirmed the requested value."""
+
+    CLAMPED = "clamped"
+    """
+    The pump stored a different value. Measured on an ALPHA HWR: asking for
+    600 RPM stores 1650 and asking for 4400 stores 3671, the ends of its
+    own limits block. A clamp is a successful write, not a failure - the
+    settled value is in :attr:`WriteResult.value`.
+    """
+
+    REJECTED = "rejected"
+    """
+    The pump kept its old value, nacked the command, or a precondition
+    could not be read. ``detail`` says which.
+    """
+
+    INVALID = "invalid"
+    """Malformed or out of range. Decided before any wire write."""
+
+    TIMEOUT = "timeout"
+    """No confirmation within the operation's budget, or the link dropped."""
+
+    SUPERSEDED = "superseded"
+    """A newer write to the same value replaced this one while it queued."""
+
+
+@dataclass(frozen=True)
+class WriteResult:
+    """
+    The settled outcome of one write.
+
+    For ``ACCEPTED``, ``CLAMPED`` and ``REJECTED`` the value fields carry
+    what the pump *actually holds*, read back after the write - not what
+    was asked for. The request survives alongside in the ``requested_*``
+    fields, so the result is self-contained for logging and for deciding
+    whether to retry.
+    """
+
+    command: WriteCommand
+    status: WriteStatus
+    detail: str = ""
+    seq: int = 0
+
+    # Settled values, from the confirm readback.
+    mode: ControlMode | int | None = None
+    value: float | None = None
+    enabled: bool | None = None
+    temp_min: float | None = None
+    temp_max: float | None = None
+    autoadapt: bool | None = None
+    on_minutes: int | None = None
+    off_minutes: int | None = None
+    flow: float | None = None
+    schedule_enabled: bool | None = None
+
+    # What was asked for.
+    requested_mode: ControlMode | int | None = None
+    requested_value: float | None = None
+    requested_enabled: bool | None = None
+    requested_temp_min: float | None = None
+    requested_temp_max: float | None = None
+    requested_autoadapt: bool | None = None
+    requested_on_minutes: int | None = None
+    requested_off_minutes: int | None = None
+    requested_schedule_enabled: bool | None = None
+
+    @property
+    def ok(self) -> bool:
+        """
+        True when the pump took the write.
+
+        A clamp counts: the pump accepted the command and stored a value of
+        its own choosing, which is a different thing from refusing it.
+        """
+        return self.status in (WriteStatus.ACCEPTED, WriteStatus.CLAMPED)
+
+    def __str__(self) -> str:
+        parts = [f"{self.command} {self.status}"]
+        if self.detail:
+            parts.append(f"({self.detail})")
+        return " ".join(parts)

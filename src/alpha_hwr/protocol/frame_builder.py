@@ -358,6 +358,105 @@ class FrameBuilder:
         return bytes(packet)
 
     @staticmethod
+    def build_geni_frame(
+        apdu: bytes,
+        source: int = 0xF8,
+        service_id: int = SERVICE_ID_HIGH,
+    ) -> bytes:
+        """
+        Wrap an APDU in a GENI frame with its length header and CRC.
+
+        Every frame this library sends goes out through here, so the
+        header layout and the CRC convention are stated once. Three
+        hand-rolled copies of this used to exist across the services; a
+        byte-level test of one of them proved nothing about the others.
+
+        Frame structure::
+
+            [0x27][LEN][ServiceID][Source][APDU...][CRC_H][CRC_L]
+
+        where ``LEN`` counts ServiceID + Source + APDU, and the CRC covers
+        everything from ``LEN`` onward (the start byte is excluded).
+
+        Parameters
+        ----------
+        apdu : bytes
+            Application payload, starting with the GENI class byte.
+        source : int, default=0xF8
+            Source address. 0xF8 throughout; the 0x0A "remote master"
+            address was bench-tested and made no difference.
+        service_id : int, default=0xE7
+            Service ID.
+
+        Returns
+        -------
+        bytes
+            Complete frame, ready to write.
+
+        Examples
+        --------
+        >>> FrameBuilder.build_geni_frame(bytes([0x03, 0x81, 0x06])).hex()
+        '2705e7f8038106e587'
+        """
+        length = 2 + len(apdu)  # ServiceID + Source + APDU
+        packet = bytearray([FRAME_START, length, service_id, source])
+        packet.extend(apdu)
+        crc = calc_crc16_read(bytes(packet[1:]))
+        packet.extend([(crc >> 8) & 0xFF, crc & 0xFF])
+        return bytes(packet)
+
+    @staticmethod
+    def build_class10_object_read(
+        obj_id: int, sub_id: int, source: int = 0xF8
+    ) -> bytes:
+        """
+        Build a Class 10 read of one Object/Sub-ID pair.
+
+        Frame structure::
+
+            [0x27][0x07][E7][F8][0x0A][0x03][ObjID][SubID_H][SubID_L][CRC]
+
+        This is the same wire format as :meth:`build_class10_read`, written
+        the other way round: that method takes the address as one 24-bit
+        register, this one takes it as a single-byte Object ID plus a
+        16-bit Sub-ID, and `build_class10_object_read(0x57, 0x0045)` and
+        `build_class10_read(0x570045)` produce identical bytes. Configuration
+        objects are documented as Object/Sub pairs and telemetry as register
+        constants, so both spellings exist to match how callers think about
+        the address rather than because the pump distinguishes them.
+
+        Parameters
+        ----------
+        obj_id : int
+            Object ID (0-255), e.g. 86 for the control objects.
+        sub_id : int
+            Sub-ID (0-65535), e.g. 7 for the prioritized status object.
+        source : int, default=0xF8
+            Source address.
+
+        Returns
+        -------
+        bytes
+            Complete frame, ready to write.
+
+        Examples
+        --------
+        >>> # Read the prioritized control state (Object 86 Sub 7)
+        >>> FrameBuilder.build_class10_object_read(86, 7).hex()
+        '2707e7f80a03560007d57b'
+        """
+        apdu = bytes(
+            [
+                CLASS_10,
+                0x03,  # OpSpec INFO (read)
+                obj_id & 0xFF,
+                (sub_id >> 8) & 0xFF,
+                sub_id & 0xFF,
+            ]
+        )
+        return FrameBuilder.build_geni_frame(apdu, source=source)
+
+    @staticmethod
     def build_class10_read(register: int, source: int = 0xF8) -> bytes:
         """
         Build Class 10 register READ request for telemetry.

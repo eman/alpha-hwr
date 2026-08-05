@@ -5,8 +5,6 @@ Commands:
   - status: Show current control mode and setpoint
   - start: Start the pump motor
   - stop: Stop the pump motor
-  - enable-remote: Enable remote control mode
-  - disable-remote: Disable remote control mode (return to auto)
   - set-pressure: Set constant pressure mode
   - set-proportional: Set proportional pressure mode
   - set-flow: Set constant flow mode
@@ -84,48 +82,6 @@ def cmd_stop(
       alpha-hwr control stop
     """
     run_async(_control_stop(device))
-
-
-@app.command("enable-remote")
-def cmd_enable_remote(
-    device: str | None = typer.Option(
-        None,
-        "--device",
-        "-d",
-        help="Device address (from config if not specified)",
-    ),
-) -> None:
-    """
-    Enable remote control mode.
-
-    Allows external control of the pump via BLE/API commands.
-    When enabled, the pump accepts control commands and ignores local controls.
-
-    Example:
-      alpha-hwr control enable-remote
-    """
-    run_async(_control_enable_remote(device))
-
-
-@app.command("disable-remote")
-def cmd_disable_remote(
-    device: str | None = typer.Option(
-        None,
-        "--device",
-        "-d",
-        help="Device address (from config if not specified)",
-    ),
-) -> None:
-    """
-    Disable remote control mode (return to Auto).
-
-    Returns the pump to automatic operation based on its internal logic
-    and local controls.
-
-    Example:
-      alpha-hwr control disable-remote
-    """
-    run_async(_control_disable_remote(device))
 
 
 @app.command("set-pressure")
@@ -431,42 +387,6 @@ async def _control_stop(device: str | None) -> None:
 
     except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to stop pump")
-
-
-async def _control_enable_remote(device: str | None) -> None:
-    """Internal async implementation of enable-remote command."""
-    try:
-        async with get_client(device) as client:
-            control = require_service(client.control, "Control")
-            # Enable remote mode
-            success = await control.enable_remote_mode()
-
-            if success:
-                print_success("Remote control mode enabled")
-            else:
-                console.print("[error]Failed to enable remote mode[/error]")
-                raise typer.Exit(1)
-
-    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
-        handle_error(e, "Failed to enable remote mode")
-
-
-async def _control_disable_remote(device: str | None) -> None:
-    """Internal async implementation of disable-remote command."""
-    try:
-        async with get_client(device) as client:
-            control = require_service(client.control, "Control")
-            # Disable remote mode
-            success = await control.disable_remote_mode()
-
-            if success:
-                print_success("Remote control mode disabled (returned to Auto)")
-            else:
-                console.print("[error]Failed to disable remote mode[/error]")
-                raise typer.Exit(1)
-
-    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
-        handle_error(e, "Failed to disable remote mode")
 
 
 async def _control_set_mode(

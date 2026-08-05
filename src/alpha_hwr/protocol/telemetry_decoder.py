@@ -29,7 +29,7 @@ All telemetry payloads use big-endian encoding:
 Values are validated against reasonable ranges to detect corruption.
 
 For complete protocol reference, see:
-- docs/protocol/telemetry_streams.md
+- docs/protocol/telemetry.md
 - docs/protocol/wire_format.md
 
 Implementation Notes for Other Languages

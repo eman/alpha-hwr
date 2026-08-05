@@ -174,13 +174,21 @@ class MockBleakClient:
         >>>     await client.connect()
     """
 
-    def __init__(self, address: str, adapter: str | None = None):
+    def __init__(
+        self,
+        address: str,
+        adapter: str | None = None,
+        disconnected_callback: Callable[[object], None] | None = None,
+        **kwargs: object,
+    ):
         """
         Initialize mock Bleak client.
 
         Args:
             address: Device address (can be "MOCK" for testing)
             adapter: BLE adapter (ignored in mock)
+            disconnected_callback: Fired on disconnect, like bleak's.
+            **kwargs: Backend options (e.g. ``bluez=``), ignored in mock.
         """
         self.address = address
         self.adapter = adapter
@@ -188,6 +196,7 @@ class MockBleakClient:
         self._connected = False
         self._notify_callback: Callable | None = None
         self._notify_task: asyncio.Task | None = None
+        self._disconnected_callback = disconnected_callback
 
     async def connect(self, timeout: float = 60.0) -> bool:
         """
@@ -202,6 +211,7 @@ class MockBleakClient:
 
     async def disconnect(self) -> bool:
         """Disconnect from mock pump."""
+        was_connected = self._connected
         self._connected = False
 
         # Cancel notification task if running
@@ -213,6 +223,10 @@ class MockBleakClient:
                 pass
 
         await self.pump.disconnect()
+
+        # Bleak fires this on every drop, deliberate or not.
+        if was_connected and self._disconnected_callback:
+            self._disconnected_callback(self)
         return True
 
     @property

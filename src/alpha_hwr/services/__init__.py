@@ -13,6 +13,9 @@ Services:
 - time: Real-time clock management (read and sync)
 - history: Historical trend data (flow, head, temperature)
 - event_log: Event log entries (start/stop cycles, errors)
+- write_operation: The single serialized path for every write
+- single_event: One-off scheduled runs and vacations
+- run_state: How the run flag and schedule flag combine
 """
 
 from .base import BaseService
@@ -21,9 +24,12 @@ from .control import ControlService
 from .device_info import DeviceInfoService
 from .event_log import EventLogService
 from .history import HistoryService
+from .run_state import RunState, is_stalled, run_state
 from .schedule import ScheduleService
+from .single_event import SingleEvent, SingleEventService
 from .telemetry import TelemetryService
 from .time import TimeService
+from .write_operation import WriteOperationService
 
 __all__ = [
     "BaseService",
@@ -32,7 +38,13 @@ __all__ = [
     "DeviceInfoService",
     "EventLogService",
     "HistoryService",
+    "RunState",
     "ScheduleService",
+    "SingleEvent",
+    "SingleEventService",
     "TelemetryService",
     "TimeService",
+    "WriteOperationService",
+    "is_stalled",
+    "run_state",
 ]

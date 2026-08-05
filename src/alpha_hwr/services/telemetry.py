@@ -83,6 +83,7 @@ from ..exceptions import READ_ERRORS
 from ..models import AdvancedTelemetry, TelemetryData
 from ..protocol import FrameParser, TelemetryDecoder
 from ..protocol.frame_builder import FrameBuilder
+from ..protocol.matcher import Command
 
 if TYPE_CHECKING:
     from alpha_hwr.core.session import Session
@@ -207,29 +208,21 @@ class TelemetryService:
         """
         self.session.ensure_connected()
 
-        def is_response_not_notification(packet: bytes) -> bool:
-            """
-            Filter to accept INFO responses but reject passive notifications and errors.
-
-            INFO responses: Class 0x0A with OpSpec not 0x0E (various data responses)
-            Notifications: OpSpec 0x0E (passive stream) - REJECT
-            Errors: Class 0x02 (error/status) - REJECT (pump sends data after error)
-            """
-            if len(packet) < 6:
-                return False
-            # Reject Class 10 passive notifications (OpSpec 0x0E)
-            if packet[4] == 0x0A and packet[5] == 0x0E:
-                return False
-            # Reject Class 2 error responses (actual data comes after)
-            if packet[4] == 0x02:
-                return False
-            # Accept Class 10 data responses
-            return packet[4] == 0x0A
+        # A telemetry register read is answered on the same class as the
+        # pump's unsolicited notification stream, and these registers carry
+        # no stable type code to match on, so the stream is turned away by
+        # its operation specifier (0x0E) and the read takes the rest.
+        # Class 2 error frames are turned away by the class check; the pump
+        # sends the real data after them.
+        read_reply = Command(
+            reject_opspecs=frozenset({0x0E}),
+            description="telemetry register read",
+        )
 
         async def _query_with_retry(req: bytes, name: str) -> bytes | None:
             for attempt in range(1, 4):  # Up to 3 attempts
-                resp = await self.transport.query(
-                    req, timeout=2.0, match_func=is_response_not_notification
+                resp = await self.transport.send_command(
+                    req, read_reply, timeout=2.0
                 )
                 logger.debug(
                     f"{name} response: {resp.hex() if resp else 'None'} (len={len(resp) if resp else 0})"

@@ -20,7 +20,7 @@ CONNECTED -> AUTHENTICATING : authenticate() called
 AUTHENTICATING -> AUTHENTICATED : authenticate() succeeds
 AUTHENTICATING -> ERROR : authenticate() fails
 AUTHENTICATED -> DISCONNECTED : disconnect() called
-ERROR -> DISCONNECTED : reset() called
+ERROR -> DISCONNECTED : on_disconnected()
 * -> ERROR : any operation fails critically
 """
 

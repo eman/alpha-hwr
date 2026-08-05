@@ -83,15 +83,17 @@ from typing import TYPE_CHECKING, ClassVar
 
 from ..constants import ControlMode
 from ..exceptions import READ_ERRORS, ConnectionError
-from ..models import SetpointInfo
+from ..models import SetpointInfo, WriteCommand, WriteResult
 from ..protocol import FrameBuilder
 from ..protocol.codec import encode_float_be, encode_uint16_be
+from ..protocol.matcher import Command
 from .base import BaseService
 
 if TYPE_CHECKING:
     from alpha_hwr.core.session import Session
     from alpha_hwr.core.transport import Transport
     from alpha_hwr.services.schedule import ScheduleService
+    from alpha_hwr.services.write_operation import WriteOperationService
 
 
 logger = logging.getLogger(__name__)
@@ -132,7 +134,40 @@ class ControlService(BaseService):
     # Control Object Identifiers (from trace)
     # These seem to be shifted or non-standard, but they work on ALPHA HWR
     SUB_CONTROL = 0x5600
+
+    #: Object 86 sub-id 6, ``overall_operation_local_request``. One fused
+    #: write carrying run state, control mode *and* setpoint together, so
+    #: anything sent through it necessarily asserts all three.
     OBJ_CONTROL = 0x0601
+
+    #: Object 86 sub-id 10, ``overall_control_mode_local_request``. Changes
+    #: only the control mode: its payload carries ``operation_mode = NoCmd``
+    #: and ``set_point = NaN``, so the run state and every mode's stored
+    #: setpoint are left alone. Reading this object back from the pump
+    #: returns exactly those sentinels, which is how it was confirmed.
+    OBJ_MODE_REQUEST = 0x0A01
+
+    #: ``set_point`` value meaning "keep whatever is stored". Big-endian
+    #: IEEE-754 NaN. The alternative - the per-mode default suffix below -
+    #: encodes 3671.0 for every scalar mode, which the pump stores durably.
+    SETPOINT_KEEP = bytes([0x7F, 0xFF, 0xFF, 0xFF])
+
+    #: ``operation_mode`` value meaning "leave the run state alone".
+    OPERATION_MODE_NO_CMD = 0x06
+
+    #: Flow setpoints are stored in SI m3/s while the API speaks m3/h.
+    #: Writing m3/h straight through put a commanded 2.5 on the wire as
+    #: 2.5 m3/s - 9000 m3/h - which the pump rejected as out of range,
+    #: keeping its old value and making the register look frozen. Note
+    #: this applies to *setpoints* only: telemetry flow is already m3/h.
+    SECONDS_PER_HOUR = 3600.0
+
+    #: Modes whose setpoint is a single scalar the fused control object
+    #: would overwrite. For these, an absent setpoint must be sent as
+    #: SETPOINT_KEEP rather than falling back to the default suffix.
+    _SCALAR_SETPOINT_MODES: ClassVar[frozenset[int]] = frozenset(
+        {0x00, 0x01, 0x02, 0x08}
+    )
 
     # ALPHA HWR Specific SubIDs for individual setpoints (optional backup)
     SUB_SPEED_SETPOINT = 13
@@ -143,23 +178,31 @@ class ControlService(BaseService):
 
     # Control Mode Mapping for ALPHA HWR
     # Value -> Mode Byte used in control payload
+    # Generic AutoAdapt (mode 5) is deliberately absent: the pump has no
+    # wire byte for it. It used to fall through to the default, which was
+    # Constant Speed - so asking for AutoAdapt put the pump into a
+    # different mode and reported success.
     _MODE_BYTE_MAP: ClassVar[dict[int, int]] = {
         0: 0x00,  # CONSTANT_PRESSURE
         1: 0x01,  # PROPORTIONAL_PRESSURE
         2: 0x02,  # CONSTANT_SPEED
         8: 0x08,  # CONSTANT_FLOW
+        13: 0x0D,  # AUTO_ADAPT_RADIATOR
+        14: 0x0E,  # AUTO_ADAPT_UNDERFLOOR
+        15: 0x0F,  # AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR
         25: 0x19,  # DHW_ON_OFF_CONTROL
         27: 0x1B,  # TEMPERATURE_RANGE_CONTROL
     }
 
-    # Default suffix bytes per mode, used for start/stop when no
-    # explicit setpoint is given.  Values come from the Grundfos GO
-    # app traffic captures.
+    # Default suffix bytes per mode, from the Grundfos GO app captures.
+    #
+    # Only the two non-scalar modes use these. The four scalar modes are
+    # deliberately absent: their entry here was bytes([0x45, 0x65, 0x70,
+    # 0x00]), which decodes to exactly 3671.0, and sending it wrote that
+    # value over whatever setpoint the mode actually had. It is not an
+    # inert placeholder - 3671.0 appears verbatim in the pump's own speed
+    # limits block - so those modes send SETPOINT_KEEP instead.
     _MODE_SUFFIX_MAP: ClassVar[dict[int, bytes]] = {
-        0x00: bytes([0x45, 0x65, 0x70, 0x00]),  # Pressure
-        0x01: bytes([0x45, 0x65, 0x70, 0x00]),  # Proportional Pressure
-        0x02: bytes([0x45, 0x65, 0x70, 0x00]),  # Speed
-        0x08: bytes([0x45, 0x65, 0x70, 0x00]),  # Flow
         0x19: bytes([0x38, 0xC6, 0x76, 0xEF]),  # DHW
         0x1B: bytes([0x39, 0x67, 0x70, 0x00]),  # Temp Range
     }
@@ -181,13 +224,55 @@ class ControlService(BaseService):
         super().__init__(transport, session)
         self._current_mode: ControlMode | int = ControlMode.CONSTANT_SPEED
         self._schedule_service = schedule_service
+        self._writes: WriteOperationService | None = None
+
+        # What the pump holds, read by sync_cache(). Setpoints are keyed by
+        # mode: one shared slot leaks a value from one mode into another
+        # under different units.
+        self._cache_valid = False
+        self._cached_mode: ControlMode | int | None = None
+        self._cached_enabled: bool | None = None
+        self._cached_temp_range: tuple[float, float, bool] | None = None
+        self._cached_cycle: tuple[int, int] | None = None
+        self._cached_setpoints: dict[int, float] = {}
+
+    #: Class 3 command IDs. START/STOP change the run state and nothing
+    #: else - no mode, no setpoint - which is why they replaced the fused
+    #: control object for on/off.
+    CLASS3_STOP = 0x05
+    CLASS3_START = 0x06
+
+    async def _send_run_command(self, start: bool) -> bool:
+        """
+        Start or stop the pump via the Class 3 run-state command.
+
+        Carries no mode and no setpoint, so it cannot disturb either. The
+        pump answers with a bare acknowledgement: ``[03 00]`` means it
+        executed the command, ``[03 01 xx]`` means it only described the
+        data item and did nothing.
+
+        It also sends no notification afterwards, so a caller that needs to
+        know the resulting run state has to read it back.
+        """
+        apdu = bytes(
+            [0x03, 0x81, self.CLASS3_START if start else self.CLASS3_STOP]
+        )
+        req = self._build_geni_packet(0xF8, 0xE7, apdu)
+        return await self._send_with_retry(
+            req, "Start pump" if start else "Stop pump"
+        )
 
     async def start(self, mode: int | None = None) -> bool:
         """
         Start the pump.
 
+        Uses the Class 3 START command, which changes only the run state.
+        The pump keeps its current mode and that mode's stored setpoint.
+
         Args:
-            mode: Optional control mode to use (defaults to current mode)
+            mode: Optional control mode to switch to first. Sent as a
+                separate, unfused mode change rather than folded into the
+                start command.
 
         Returns:
             True if successful, False otherwise
@@ -195,24 +280,21 @@ class ControlService(BaseService):
         self.session.ensure_authenticated()
         logger.info("Starting pump...")
 
-        # Resolve target mode
-        if mode is not None:
-            self._current_mode = mode
+        if mode is not None and not await self.set_mode(mode):
+            logger.error("Aborting start: mode change failed")
+            return False
 
-        mode_val = (
-            self._current_mode.value
-            if isinstance(self._current_mode, ControlMode)
-            else self._current_mode
-        )
-
-        return await self._send_control_request(mode_val, start=True)
+        return await self._send_run_command(start=True)
 
     async def stop(self, mode: int | None = None) -> bool:
         """
         Stop the pump.
 
+        Uses the Class 3 STOP command, which changes only the run state.
+
         Args:
-            mode: Optional control mode (defaults to current mode)
+            mode: Optional control mode to switch to first. Sent as a
+                separate, unfused mode change.
 
         Returns:
             True if successful, False otherwise
@@ -220,17 +302,68 @@ class ControlService(BaseService):
         self.session.ensure_authenticated()
         logger.info("Stopping pump...")
 
-        # Resolve target mode
-        if mode is not None:
-            mode_val = mode
-        else:
-            mode_val = (
-                self._current_mode.value
-                if isinstance(self._current_mode, ControlMode)
-                else self._current_mode
-            )
+        if mode is not None and not await self.set_mode(mode):
+            logger.error("Aborting stop: mode change failed")
+            return False
 
-        return await self._send_control_request(mode_val, start=False)
+        return await self._send_run_command(start=False)
+
+    def _mode_byte(self, mode_val: int) -> int:
+        """
+        Map a control mode to its wire byte.
+
+        Raises rather than substituting a default. The previous fallback
+        was Constant Speed, so asking for a mode the map does not cover -
+        any AutoAdapt variant, for instance - silently put the pump into a
+        different mode from the one requested.
+        """
+        try:
+            return self._MODE_BYTE_MAP[mode_val]
+        except KeyError:
+            supported = ", ".join(str(m) for m in sorted(self._MODE_BYTE_MAP))
+            raise ValueError(
+                f"Control mode {mode_val} is not supported over this "
+                f"protocol; supported modes are {supported}"
+            ) from None
+
+    async def _send_set_mode_request(self, mode_val: int) -> bool:
+        """
+        Change the control mode without touching anything else.
+
+        Writes Object 86 sub-id 10 (``overall_control_mode_local_request``,
+        wire Obj 0x0A01), whose payload carries ``operation_mode = NoCmd``
+        and ``set_point = NaN`` so only the control mode is applied. This
+        is how the Grundfos GO app switches modes.
+
+        The fused control object (Obj 0x0601) cannot do this: it writes the
+        run state and the setpoint in the same frame, so a mode change
+        through it either forces the pump on or overwrites the target
+        mode's stored setpoint, depending on what the caller supplies.
+
+        Deliberately sends no configuration commit - the mode change
+        persists on its own, and the commit writes the schedule, which has
+        nothing to do with the control mode.
+
+        Returns:
+            True if the command was acknowledged.
+        """
+        mode_byte = self._mode_byte(mode_val)
+
+        payload = bytearray([0x2F, 0x01, 0x00, 0x00, 0x07])
+        payload.append(0x00)  # control_source = Undefined (ignored)
+        payload.append(self.OPERATION_MODE_NO_CMD)  # leave run state alone
+        payload.append(mode_byte)  # the only field applied
+        payload.extend(self.SETPOINT_KEEP)
+
+        apdu = bytearray([0x0A, 0x90])
+        apdu.extend(encode_uint16_be(self.SUB_CONTROL))
+        apdu.extend(encode_uint16_be(self.OBJ_MODE_REQUEST))
+        apdu.extend(payload)
+
+        req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
+        return await self._send_with_retry(
+            req, f"Set Mode Request (mode={mode_val})"
+        )
 
     async def _send_control_request(
         self,
@@ -254,7 +387,7 @@ class ControlService(BaseService):
         Returns:
             True if the command was acknowledged.
         """
-        mode_byte = self._MODE_BYTE_MAP.get(mode_val, 0x02)
+        mode_byte = self._mode_byte(mode_val)
 
         # Build payload
         payload = bytearray([0x2F, 0x01, 0x00, 0x00, 0x07, 0x00])
@@ -263,11 +396,11 @@ class ControlService(BaseService):
 
         if setpoint is not None:
             payload.extend(encode_float_be(setpoint))
+        elif mode_byte in self._SCALAR_SETPOINT_MODES:
+            # No value to assert, so tell the pump to keep the one it has.
+            payload.extend(self.SETPOINT_KEEP)
         else:
-            suffix = self._MODE_SUFFIX_MAP.get(
-                mode_byte, bytes([0x45, 0x65, 0x70, 0x00])
-            )
-            payload.extend(suffix)
+            payload.extend(self._MODE_SUFFIX_MAP[mode_byte])
 
         # OpSpec 0x90 = SET + 16 bytes (4 IDs + 12 payload)
         apdu = bytearray([0x0A, 0x90])
@@ -285,72 +418,15 @@ class ControlService(BaseService):
             return True
         return False
 
-    async def enable_remote_mode(self) -> bool:
-        """
-        Enable remote control mode.
-
-        Enables remote control mode (Class 3 command ID 7), allowing external
-        control of the pump via BLE/API commands. When enabled, the pump accepts
-        control commands and ignores local controls.
-
-        Returns:
-            True if remote mode was enabled successfully, False otherwise
-
-        Example:
-            >>> await control.enable_remote_mode()
-            >>> # Now you can send control commands
-            >>> await control.start()
-
-        Implementation Notes:
-            - Uses Class 3 command: [0x03, 0x81, 0x07]
-              (OpSpec 0x81 = SET; command ID 7 = REMOTE)
-            - Service ID: 0xE7, Source: 0xF8
-        """
-        self.session.ensure_authenticated()
-
-        logger.info("Enabling Remote Mode...")
-
-        # Class 3: 03 81 07
-        apdu = bytes([0x03, 0x81, 0x07])
-        cmd = self._build_geni_packet(0xF8, 0xE7, apdu)
-
-        return await self._send_with_retry(cmd, "Enable Remote")
-
-    async def disable_remote_mode(self) -> bool:
-        """
-        Disable remote control mode (hand control back to the pump).
-
-        Sends Class 3 command ID 8 (LOCAL), returning the pump to local
-        control. The pump resumes normal operation based on its internal
-        logic and local controls.
-
-        Returns:
-            True if remote mode was disabled successfully, False otherwise
-
-        Example:
-            >>> await control.disable_remote_mode()
-            >>> # Pump returns to local control
-
-        Implementation Notes:
-            - Uses Class 3 command: [0x03, 0x81, 0x08]
-              (OpSpec 0x81 = SET; command ID 8 = LOCAL)
-            - Previously sent command ID 6 (START) with OpSpec 0xC1
-              (INFO), which did not release remote mode
-            - Service ID: 0xE7, Source: 0xF8
-        """
-        self.session.ensure_authenticated()
-
-        logger.info("Disabling Remote Mode (LOCAL)...")
-
-        # Class 3: 03 81 08
-        apdu = bytes([0x03, 0x81, 0x08])
-        cmd = self._build_geni_packet(0xF8, 0xE7, apdu)
-
-        return await self._send_with_retry(cmd, "Disable Remote")
-
     async def set_mode(self, mode: ControlMode | int) -> bool:
         """
-        Set the control mode without changing setpoint.
+        Set the control mode, and nothing else.
+
+        Neither the run state nor any mode's stored setpoint is touched:
+        the mode change goes through the pump's dedicated mode-request
+        object rather than the fused control object, which used to force
+        the pump on and overwrite the target mode's setpoint with a
+        default.
 
         Args:
             mode: Control mode to set
@@ -363,7 +439,7 @@ class ControlService(BaseService):
         mode_val = mode.value if isinstance(mode, ControlMode) else mode
         logger.info(f"Setting control mode to {mode_val}...")
 
-        if await self._send_control_request(mode_val, start=True):
+        if await self._send_set_mode_request(mode_val):
             self._current_mode = (
                 mode if isinstance(mode, ControlMode) else mode_val
             )
@@ -371,12 +447,21 @@ class ControlService(BaseService):
 
         return False
 
-    async def get_mode(self) -> SetpointInfo | None:
+    async def get_mode(self, retries: int = 3) -> SetpointInfo | None:
         """
         Get the current control mode and setpoint information.
 
-        Reads from Class 10 Object 86, Sub-ID 6 (overall_operation_local_request_obj).
-        For Temperature Range Control (mode 27), reads from Object 91, Sub-ID 430.
+        Reads Class 10 Object 86, Sub-ID 7
+        (``overall_operation_prioritized_request_obj``) - the pump's own
+        view of its state after it has weighed remote, local and alarm
+        influence against each other. For Temperature Range Control
+        (mode 27) it additionally reads Object 91, Sub-ID 430.
+
+        Sub-ID 6, which this used to read, is the *request* object: it
+        echoes what was last written and reports ``control_source = 0``
+        indefinitely. Measured side by side on hardware, Sub 6 returned
+        ``control_source = 0`` while Sub 7 returned ``1`` (Local/Panel),
+        which is why ``is_remote`` was never meaningful before.
 
         Returns:
             SetpointInfo with current control mode, operation mode, and setpoint value,
@@ -393,7 +478,7 @@ class ControlService(BaseService):
             ...     print(f"Running in constant pressure mode: {value} {unit}")
 
         Implementation Notes:
-            - Standard modes: Object 86, Sub-ID 6, Type 303 (OperationStatusRequest)
+            - Standard modes: Object 86, Sub-ID 7, Type 303 (OperationStatusRequest)
             - Temperature Range: Object 91, Sub-ID 430, Type 1012
             - Response format: `[00 00 XX][control_source][operation_mode][control_mode][setpoint(4 bytes float)]`
             - Setpoint is big-endian float at offset 3 (after 3-byte header)
@@ -405,11 +490,13 @@ class ControlService(BaseService):
 
             from ..constants import ControlMode
 
-            # Read Class 10: Object 86, Sub-ID 6 (overall_operation_local_request_obj)
+            # Read Class 10: Object 86, Sub-ID 7
+            # (overall_operation_prioritized_request_obj) - the prioritized
+            # state, not the request object; see the docstring.
             # Retry: this is often the first read issued right after the
             # authentication handshake, and the pump can briefly be
             # unresponsive while it finishes settling into the new session.
-            data = await self._read_class10_object(86, 6, retries=3)
+            data = await self._read_class10_object(86, 7, retries=retries)
 
             if data and len(data) >= 10:
                 logger.debug(
@@ -453,6 +540,12 @@ class ControlService(BaseService):
                         ControlMode.AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR,
                     ):
                         setpoint = setpoint / 9806.65
+
+                    # Flow setpoints are stored in SI m3/s. Reading one
+                    # without this factor is where the ~1000x discrepancy
+                    # came from - 2.5 m3/h reads back as 0.000694.
+                    elif control_mode == ControlMode.CONSTANT_FLOW:
+                        setpoint = setpoint * self.SECONDS_PER_HOUR
 
                     logger.debug(
                         f"Parsed setpoint: mode={control_mode}, op_mode={operation_mode}, "
@@ -647,15 +740,19 @@ class ControlService(BaseService):
             )
             return False
 
+        # The pump stores this setpoint in SI m3/s, so convert before it
+        # goes anywhere near the wire.
+        value_m3s = value_m3h / self.SECONDS_PER_HOUR
+
         # 1. Update overall operation request (Sub 6)
         if not await self._send_control_request(
-            ControlMode.CONSTANT_FLOW, setpoint=value_m3h
+            ControlMode.CONSTANT_FLOW, setpoint=value_m3s
         ):
             return False
 
         # 2. Update specific flow setpoint (Sub 39)
         return await self._set_class10_setpoint(
-            value_m3h, self.SUB_FLOW_SETPOINT
+            value_m3s, self.SUB_FLOW_SETPOINT
         )
 
     async def set_proportional_pressure(self, value_m: float) -> bool:
@@ -919,11 +1016,64 @@ class ControlService(BaseService):
         logger.warning("All setpoint write attempts for Mode 5 failed")
         return False
 
+    #: Length of the temperature-range struct's trailing limits field.
+    TEMP_RANGE_LIMITS_LEN = 5
+
+    async def _read_temp_range_limits_tail(self) -> bytes | None:
+        """
+        Read the pump's stored on/off-time limits from Object 91 Sub 430.
+
+        The struct is ``[autoadapt][min f32][max f32][limits(5)]``; only
+        the limits are returned. Returns None if the object cannot be read,
+        so the caller can decline to write rather than invent them.
+        """
+        data = await self._read_class10_object(91, 430)
+        if not data:
+            return None
+
+        # Skip the 3-byte header, then autoadapt + two floats.
+        offset = (
+            3 if len(data) >= 3 and data[0] == 0x00 and data[1] == 0x00 else 0
+        )
+        tail_start = offset + 9
+        tail = data[tail_start : tail_start + self.TEMP_RANGE_LIMITS_LEN]
+        if len(tail) != self.TEMP_RANGE_LIMITS_LEN:
+            logger.warning(
+                f"Temperature range payload too short for its limits field: "
+                f"{len(data)} bytes"
+            )
+            return None
+
+        logger.debug(f"Pump temperature-range limits: {tail.hex()}")
+        return bytes(tail)
+
+    async def get_temperature_range(self) -> tuple[float, float, bool] | None:
+        """
+        Read the stored temperature range and AutoAdapt flag.
+
+        Returns:
+            ``(min_c, max_c, autoadapt)``, or None if the read failed.
+        """
+        import struct
+
+        data = await self._read_class10_object(91, 430)
+        if not data or len(data) < 12:
+            return None
+
+        offset = 3 if data[0] == 0x00 and data[1] == 0x00 else 0
+        if len(data) < offset + 9:
+            return None
+
+        autoadapt = bool(data[offset])
+        min_temp = struct.unpack(">f", data[offset + 1 : offset + 5])[0]
+        max_temp = struct.unpack(">f", data[offset + 5 : offset + 9])[0]
+        return min_temp, max_temp, autoadapt
+
     async def set_temperature_range_control(
         self,
         min_temp: float,
         max_temp: float,
-        autoadapt: bool = True,
+        autoadapt: bool | None = None,
     ) -> bool:
         """
         Set temperature range control mode (Mode 27) with min/max setpoints.
@@ -932,7 +1082,10 @@ class ControlService(BaseService):
             min_temp: Minimum temperature in Celsius
             max_temp: Maximum temperature in Celsius
             autoadapt: If True, enables automatic flow adjustment (1-4 gpm).
-                      If False, uses fixed flow limits.
+                If False, uses fixed flow limits. If omitted (the default),
+                the pump's current setting is preserved - the three fields
+                share one write, so passing a default here silently turned
+                AutoAdapt back on every time a bound was adjusted.
 
         Returns:
             True if successful, False otherwise
@@ -942,15 +1095,41 @@ class ControlService(BaseService):
         """
         self.session.ensure_authenticated()
 
+        if autoadapt is None:
+            current = await self.get_temperature_range()
+            if current is None:
+                logger.error(
+                    "Could not read the pump's AutoAdapt setting; aborting "
+                    "rather than guessing it"
+                )
+                return False
+            autoadapt = current[2]
+
         logger.info(
             f"Setting Temperature Range Control: {min_temp}°C - {max_temp}°C (autoadapt={autoadapt})..."
         )
 
-        # 1. Switch mode and set baseline (Sub 6)
-        if not await self._send_control_request(
-            ControlMode.TEMPERATURE_RANGE_CONTROL, setpoint=min_temp
+        # 1. Switch mode. Unfused, so this asserts the mode and nothing
+        # else - the min temperature is not a Class 10 setpoint and does
+        # not belong in the control frame.
+        if not await self._send_set_mode_request(
+            ControlMode.TEMPERATURE_RANGE_CONTROL
         ):
             logger.error("Failed to switch to Temperature Range Control mode")
+            return False
+
+        # The struct's trailing bytes are the pump's own on/off-time
+        # limits, not padding. Read them so they can be written back
+        # unchanged; sending constants overwrites the pump's limits with
+        # whatever those constants happen to be. Measured on hardware, the
+        # real tail is 0f 3c 02 05 01 - the constants below it were never
+        # anything the pump had.
+        limits_tail = await self._read_temp_range_limits_tail()
+        if limits_tail is None:
+            logger.error(
+                "Could not read the pump's temperature-range limits; "
+                "aborting rather than overwriting them with defaults"
+            )
             return False
 
         # 2. Write temperature range to Object 91, Sub-ID 430
@@ -978,8 +1157,8 @@ class ControlService(BaseService):
         apdu.extend(encode_float_be(min_temp))
         apdu.extend(encode_float_be(max_temp))
 
-        # Default time limits (5 bytes)
-        apdu.extend(bytes([0x00, 0x00, 0x00, 0x16, 0x00]))
+        # The pump's own on/off-time limits, echoed back verbatim.
+        apdu.extend(limits_tail)
 
         req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
         if await self._send_with_retry(req, "Set Temperature Range (Obj 91)"):
@@ -1012,11 +1191,61 @@ class ControlService(BaseService):
             value_m3h, self.SUB_FLOW_LIMIT, self.PUMP_OBJ
         )
 
+    #: Object 91 Sub 421, ``dhw_on_off_control_configuration_obj``. Holds
+    #: the live cycle configuration: ``[flow setpoint f32 (m3/s)][on][off]``.
+    #:
+    #: Not Sub 430, which this used to read and write. Sub 430 is
+    #: ``TemperatureRangeControlUserSettings`` - its trailing bytes are the
+    #: on/off-time *limits*, invariant to the configuration - so cycle times
+    #: read from it never changed and writes to it never took.
+    SUB_DHW_CONFIG = 0x01A5
+    OBJ_USER_SETTINGS = 91
+
+    async def _read_dhw_config(self) -> tuple[bytes, int, int] | None:
+        """
+        Read the stored cycle configuration.
+
+        Returns ``(flow_setpoint_raw, on_minutes, off_minutes)``, with the
+        flow kept as raw wire bytes so a later write can echo it back
+        without a float round trip. None if the object cannot be read or a
+        period is outside the 1-60 the pump accepts.
+        """
+        data = await self._read_class10_object(
+            self.OBJ_USER_SETTINGS, self.SUB_DHW_CONFIG
+        )
+        if not data:
+            return None
+
+        offset = (
+            3 if len(data) >= 3 and data[0] == 0x00 and data[1] == 0x00 else 0
+        )
+        if len(data) < offset + 6:
+            logger.warning(f"DHW config payload too short: {len(data)} bytes")
+            return None
+
+        flow_raw = bytes(data[offset : offset + 4])
+        on_minutes = data[offset + 4]
+        off_minutes = data[offset + 5]
+
+        if not (1 <= on_minutes <= 60 and 1 <= off_minutes <= 60):
+            logger.warning(
+                f"DHW config reports out-of-range periods "
+                f"(on={on_minutes}, off={off_minutes}); treating as unknown"
+            )
+            return None
+
+        return flow_raw, on_minutes, off_minutes
+
     async def set_cycle_time_control(
         self, on_minutes: int, off_minutes: int
     ) -> bool:
         """
         Set cycle time control mode (Mode 25 / DHW_ON_OFF_CONTROL).
+
+        Writes Object 91 Sub 421 as a read-modify-write: the object also
+        carries the flow the pump targets during ON periods, which is
+        echoed back byte for byte rather than recomputed, so setting the
+        periods cannot disturb it.
 
         Args:
             on_minutes: Duration pump runs (1-60)
@@ -1036,47 +1265,45 @@ class ControlService(BaseService):
             logger.error("Cycle times must be between 1 and 60 minutes")
             return False
 
-        # 1. Switch mode (Sub 6)
-        if not await self._send_control_request(ControlMode.DHW_ON_OFF_CONTROL):
+        stored = await self._read_dhw_config()
+        if stored is None:
+            logger.error(
+                "Could not read the stored cycle configuration; aborting "
+                "rather than writing a fabricated flow setpoint"
+            )
+            return False
+        flow_raw, _, _ = stored
+
+        # 1. Switch mode, unfused.
+        if not await self._send_set_mode_request(
+            ControlMode.DHW_ON_OFF_CONTROL
+        ):
             return False
 
-        # 2. Write configuration (Obj 91, Sub 430)
+        # 2. Write the configuration, in the Grundfos GO app's frame shape:
+        #    [0A][8F][5B][01 A5][03 D9][01][00 00 06][flow f32][on][off]
         try:
-            # Payload construction (8 bytes)
-            # 00 00 [OFF] 01 42 02 [ON] FB
-            struct_payload = bytearray(
+            apdu = bytearray(
                 [
-                    0x00,
-                    0x00,  # Header
-                    off_minutes,  # Byte 2: OFF time
+                    0x0A,  # Class 10
+                    0x8F,  # OpSpec: SET + 15 bytes
+                    0x5B,  # Obj-ID (91)
                     0x01,
-                    0x42,
-                    0x02,  # Fixed magic bytes
-                    on_minutes,  # Byte 6: ON time
-                    0xFB,  # Fixed suffix
-                ]
-            )
-
-            # Prepend Type (1012 = 0x03F4) and Size (0x08)
-            # This 'data' block is what FrameBuilder wraps with IDs and OpSpec
-            data = bytearray(
-                [
+                    0xA5,  # Sub-ID (421)
                     0x03,
-                    0xF4,  # Type: 1012
-                    len(struct_payload),  # Size: 8
+                    0xD9,  # Type 985 (DHWOnOffControlConfiguration)
+                    0x01,  # Object version
+                    0x00,
+                    0x00,
+                    0x06,  # Size (6 bytes)
                 ]
             )
-            data.extend(struct_payload)
+            apdu.extend(flow_raw)
+            apdu.append(on_minutes)
+            apdu.append(off_minutes)
 
-            # Use FrameBuilder to handle OpSpec, Length, and CRC correctly
-            # SubID: 430 (0x01AE), ObjID: 91 (0x5B)
-            packet = FrameBuilder.build_data_object_set(
-                sub_id=0x01AE, obj_id=91, data=bytes(data), source=0xF8
-            )
-
-            success = await self._send_with_retry(packet, "Set Cycle Time")
-
-            if not success:
+            req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
+            if not await self._send_with_retry(req, "Set Cycle Time"):
                 logger.error("Failed to write cycle time configuration")
                 return False
 
@@ -1084,9 +1311,9 @@ class ControlService(BaseService):
                 f"Successfully set cycle times: {on_minutes} min ON, {off_minutes} min OFF"
             )
 
-            # Commit configuration
-            await self._send_configuration_commit()
-
+            # Deliberately no configuration commit: the commit writes the
+            # schedule overview, which has nothing to do with this object,
+            # and captures of the app show it sending none here.
             return True
 
         except READ_ERRORS as e:
@@ -1103,22 +1330,12 @@ class ControlService(BaseService):
         self.session.ensure_authenticated()
 
         try:
-            # Read from Object 91, SubID 430 (0x01AE) - Main user settings block
-            data = await self._read_class10_object(91, 430)
-
-            if not data or len(data) < 16:
-                logger.error(
-                    f"Invalid cycle time data: {data.hex() if data else 'None'}"
-                )
+            stored = await self._read_dhw_config()
+            if stored is None:
+                logger.error("Could not read cycle time configuration")
                 return None
 
-            # Extract cycle times from payload (verified via trace analysis)
-            # Structure: 00 00 0e 01 42 0c 00 00 42 1e de 4c [OFF] 3c 02 [ON] 01
-            # Byte 12: OFF time
-            # Byte 15: ON time
-            off_time = data[12]
-            on_time = data[15]
-
+            _, on_time, off_time = stored
             logger.info(
                 f"Read cycle times: {on_time} min ON, {off_time} min OFF"
             )
@@ -1127,6 +1344,19 @@ class ControlService(BaseService):
         except READ_ERRORS as e:
             logger.error(f"Failed to read cycle time configuration: {e}")
             return None
+
+    async def get_cycle_flow(self) -> float | None:
+        """
+        Flow the pump targets during cycle-mode ON periods, in m3/h.
+
+        Stored in SI m3/s, like every other flow setpoint.
+        """
+        import struct
+
+        stored = await self._read_dhw_config()
+        if stored is None:
+            return None
+        return struct.unpack(">f", stored[0])[0] * self.SECONDS_PER_HOUR
 
     # Helper methods
 
@@ -1173,20 +1403,22 @@ class ControlService(BaseService):
         For control commands, we attempt to verify success by waiting for a response.
         If no response is received, we still consider it successful (fire-and-forget).
         """
+        # A reply only counts if it comes back on the class the command was
+        # sent on. This matters most for the Class 3 commands: their
+        # acknowledgement is a bare two-byte frame with nothing to match on
+        # but the class, so without this gate a Class 10 telemetry
+        # notification arriving first would be read as the answer.
+        command = Command.for_request(
+            packet,
+            expect_short_ack=True,
+            description=description,
+        )
+
         for attempt in range(retries):
             try:
-                # Try to get a response (with timeout)
-                # Control commands typically return Class 10 or Class 3 acknowledgments
-                def match_control_response(p: bytes) -> bool:
-                    """Match control command responses (Class 10 or Class 3)."""
-                    if len(p) <= 4:
-                        return False
-                    # Class 10 response (0x0A) or Class 3 response (0x03)
-                    return p[4] in (0x0A, 0x03)
-
-                response = await self.transport.query(
+                response = await self.transport.send_command(
                     packet,
-                    match_func=match_control_response,
+                    command,
                     timeout=1.0,  # Short timeout for control commands
                 )
 
@@ -1210,3 +1442,193 @@ class ControlService(BaseService):
                     await asyncio.sleep(0.2)
 
         return False
+
+    # ------------------------------------------------------------------
+    # Verified writes
+    #
+    # These return a WriteResult describing what the pump actually stored,
+    # decided by reading it back. The bool-returning setters above are the
+    # wire primitives they are built from; prefer these, because the pump
+    # clamps values it dislikes rather than refusing them, and a bare True
+    # cannot tell you that happened.
+    # ------------------------------------------------------------------
+
+    def attach_write_service(self, writes: WriteOperationService) -> None:
+        """Give this service the write layer its verified methods submit to."""
+        self._writes = writes
+
+    def _require_writes(self) -> WriteOperationService:
+        writes = self._writes
+        if writes is None:
+            raise RuntimeError(
+                "No write service attached; construct this service through "
+                "AlphaHWRClient, which wires one in"
+            )
+        return writes
+
+    async def set_enabled(self, enabled: bool) -> WriteResult:
+        """
+        Start or stop the pump, and confirm the resulting run state.
+
+        The pump sends nothing after a Class 3 run command, so the result
+        comes from reading the state back.
+        """
+        return await self._require_writes().submit(
+            WriteCommand.SET_ENABLED, "enabled", enabled=enabled
+        )
+
+    async def set_mode_verified(self, mode: ControlMode | int) -> WriteResult:
+        """Change the control mode and confirm the pump applied it."""
+        return await self._require_writes().submit(
+            WriteCommand.SET_MODE, "mode", mode=mode
+        )
+
+    async def set_setpoint(
+        self, mode: ControlMode | int, value: float
+    ) -> WriteResult:
+        """
+        Set a mode's setpoint and report what the pump stored.
+
+        Switches the pump into ``mode`` as well - the two share one write,
+        so this cannot merely edit a stored value in the background.
+
+        A ``clamped`` result is normal and not an error: this pump stores
+        1650 for a request of 600 RPM and 3671 for 4400, the ends of its
+        own limits.
+        """
+        return await self._require_writes().submit(
+            WriteCommand.SET_SETPOINT,
+            f"setpoint:{int(mode)}",
+            mode=mode,
+            value=value,
+        )
+
+    async def set_temperature_range(
+        self,
+        min_temp: float,
+        max_temp: float,
+        autoadapt: bool | None = None,
+    ) -> WriteResult:
+        """
+        Set the temperature range and confirm it, preserving the rest.
+
+        ``autoadapt=None`` keeps the pump's current setting; the three
+        fields share one write, so a default here would silently change it.
+        """
+        return await self._require_writes().submit(
+            WriteCommand.SET_TEMPERATURE_RANGE,
+            "temp_range",
+            temp_min=min_temp,
+            temp_max=max_temp,
+            autoadapt=autoadapt,
+        )
+
+    async def set_cycle_times(
+        self, on_minutes: int, off_minutes: int
+    ) -> WriteResult:
+        """Set the cycle periods and confirm them, preserving the flow."""
+        return await self._require_writes().submit(
+            WriteCommand.SET_CYCLE_TIMES,
+            "cycle_times",
+            on_minutes=on_minutes,
+            off_minutes=off_minutes,
+        )
+
+    # ------------------------------------------------------------------
+    # Cache synchronisation and readiness
+    # ------------------------------------------------------------------
+
+    async def sync_cache(self) -> bool:
+        """
+        Read the pump's stored configuration into this service.
+
+        Several writes carry more fields than the caller sets - the
+        temperature range writes min, max and AutoAdapt together, the cycle
+        config writes both periods and a flow - so they have to know what
+        the pump currently holds. Reading it once here, after
+        authentication, is what lets those writes preserve the fields they
+        were not asked to change instead of inventing them.
+
+        Returns:
+            True if everything needed was read.
+        """
+        self._cache_valid = False
+
+        # One attempt per read. The caller decides whether to try again -
+        # blocking a connection for the full retry budget when the pump is
+        # simply not answering yet helps nobody.
+        info = await self.get_mode(retries=1)
+        if info is None:
+            logger.warning(
+                "Cache sync failed: could not read the control state"
+            )
+            return False
+        self._cached_mode = info.control_mode
+        self._cached_enabled = info.is_running
+        self._cache_setpoint(info.control_mode, info.setpoint)
+
+        temp_range = await self.get_temperature_range()
+        if temp_range is None:
+            logger.warning(
+                "Cache sync failed: could not read the temperature range"
+            )
+            return False
+        self._cached_temp_range = temp_range
+
+        # The cycle configuration is deliberately not required. It is not
+        # needed to display anything, and a pump that returns a short or
+        # unusual Object 91 payload would otherwise leave this service
+        # permanently not-ready, blocking every write.
+        self._cached_cycle = await self.get_cycle_time_config()
+
+        self._cache_valid = True
+        logger.info(
+            f"Cache synchronised: mode={self._cached_mode!r} "
+            f"range={temp_range[0]:g}-{temp_range[1]:g}C "
+            f"cycle={self._cached_cycle}"
+        )
+        return True
+
+    def _cache_setpoint(
+        self, mode: ControlMode | int, value: float | None
+    ) -> None:
+        """
+        Store a setpoint against its own mode.
+
+        Per-mode rather than one shared slot: a single field leaks a value
+        from one mode into another under different units, so a 4.0 m
+        pressure setpoint comes back as a 4.0 RPM speed request.
+        """
+        if value is not None:
+            self._cached_setpoints[int(mode)] = value
+
+    def cached_setpoint(self, mode: ControlMode | int) -> float | None:
+        """The last setpoint seen for ``mode``, or None if never read."""
+        return self._cached_setpoints.get(int(mode))
+
+    @property
+    def is_cache_valid(self) -> bool:
+        """
+        Whether this service knows enough about the pump to write safely.
+
+        False until :meth:`sync_cache` has succeeded, and again after a
+        disconnect - a write built from a cache filled on a previous
+        connection can carry values the pump no longer holds.
+        """
+        return self._cache_valid
+
+    def invalidate_cache(self) -> None:
+        """
+        Forget everything read from the pump.
+
+        Called on disconnect. The mode is dropped along with the rest: a
+        command issued on one connection must not be treated as confirmed
+        by a reading taken on the next.
+        """
+        self._cache_valid = False
+        self._cached_mode = None
+        self._cached_enabled = None
+        self._cached_temp_range = None
+        self._cached_cycle = None
+        self._cached_setpoints.clear()
+        logger.debug("Control cache invalidated")

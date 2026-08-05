@@ -18,18 +18,15 @@ from bleak.exc import BleakError
 
 @pytest.mark.asyncio
 async def test_set_autoadapt_mode5(mock_client_simple):
-    """Test generic AutoAdapt mode (Mode 5) setter."""
-    # Test successful call
-    result = await mock_client_simple.control.set_autoadapt(1.5)
+    """
+    Generic AutoAdapt has no wire byte, so asking for it is an error.
 
-    # Should have made transport calls
-    call_count = (
-        mock_client_simple.transport.query.call_count
-        + mock_client_simple.transport.send_with_response.call_count
-        + mock_client_simple.transport.write.call_count
-    )
-    assert call_count > 0
-    assert result is True
+    It used to fall through to the mode map's default - Constant Speed -
+    and report success, so the pump ended up in a different mode from the
+    one requested with nothing to indicate it.
+    """
+    with pytest.raises(ValueError, match="mode 5 is not supported"):
+        await mock_client_simple.control.set_autoadapt(1.5)
 
 
 @pytest.mark.asyncio
@@ -44,8 +41,13 @@ async def test_set_autoadapt_validation_failure(mock_client_simple):
 
 @pytest.mark.asyncio
 async def test_set_autoadapt_mode_switch_failure(mock_client_simple):
-    """Test AutoAdapt when transport fails."""
-    # Mock transport failure
+    """
+    The unsupported-mode error is raised before any transport work.
+
+    It is a property of the request, not of the link, so it does not
+    depend on the transport failing - and it must not be reported as a
+    transport failure either.
+    """
     mock_client_simple.transport.query = AsyncMock(
         side_effect=BleakError("Transport error")
     )
@@ -53,10 +55,8 @@ async def test_set_autoadapt_mode_switch_failure(mock_client_simple):
         side_effect=BleakError("Transport error")
     )
 
-    result = await mock_client_simple.control.set_autoadapt(1.5)
-
-    # Should fail
-    assert result is False
+    with pytest.raises(ValueError, match="mode 5 is not supported"):
+        await mock_client_simple.control.set_autoadapt(1.5)
 
 
 @pytest.mark.asyncio
@@ -106,14 +106,10 @@ async def test_set_autoadapt_combined(mock_client_simple):
 
 @pytest.mark.asyncio
 async def test_autoadapt_unit_conversion(mock_client_simple):
-    """Test that AutoAdapt methods accept meters as input."""
-    # Test with 1.0 meter (should be accepted - valid range is 0.5-10.0m)
-    result = await mock_client_simple.control.set_autoadapt(1.0)
+    """The addressable AutoAdapt variants accept meters as input."""
+    result = await mock_client_simple.control.set_autoadapt_radiator(1.0)
 
-    # Should succeed
     assert result is True
-
-    # Should have made transport calls
     call_count = (
         mock_client_simple.transport.query.call_count
         + mock_client_simple.transport.send_with_response.call_count

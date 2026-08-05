@@ -26,7 +26,7 @@ def _make_service(
     *, query: AsyncMock, connected: bool
 ) -> tuple[BaseService, MagicMock]:
     transport = MagicMock(spec=Transport)
-    transport.query = query
+    transport.send_command = query
     transport.send_wake_burst = AsyncMock()
     transport.is_connected = MagicMock(return_value=connected)
 

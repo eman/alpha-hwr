@@ -12,54 +12,34 @@ logger = logging.getLogger("test_active_control")
 
 
 @pytest.mark.asyncio
-async def test_enable_remote_mode(mock_client_simple):
-    """Test enabling remote mode."""
-    success = await mock_client_simple.control.enable_remote_mode()
-    assert success
-    # Verify transport was called
-    assert (
-        mock_client_simple.transport.query.called
-        or mock_client_simple.transport.send_with_response.called
-    )
-
-
-@pytest.mark.asyncio
-async def test_disable_remote_mode(mock_client_simple):
-    """Test disabling remote mode."""
-    success = await mock_client_simple.control.disable_remote_mode()
-    assert success
-    assert (
-        mock_client_simple.transport.query.called
-        or mock_client_simple.transport.send_with_response.called
-    )
-
-
-@pytest.mark.asyncio
 async def test_start_pump(mock_client_simple):
-    """Test starting the pump."""
+    """
+    Starting the pump sends exactly one frame.
+
+    It used to send the fused control request plus a configuration commit;
+    the Class 3 run command needs neither, since it writes no configuration.
+    """
     success = await mock_client_simple.control.start()
     assert success
-    # Verify commands were sent (start + configuration commit)
     call_count = (
         mock_client_simple.transport.query.call_count
         + mock_client_simple.transport.send_with_response.call_count
         + mock_client_simple.transport.write.call_count
     )
-    assert call_count >= 2
+    assert call_count == 1
 
 
 @pytest.mark.asyncio
 async def test_stop_pump(mock_client_simple):
-    """Test stopping the pump."""
+    """Stopping the pump sends exactly one frame; see test_start_pump."""
     success = await mock_client_simple.control.stop()
     assert success
-    # Verify commands were sent (stop + configuration commit)
     call_count = (
         mock_client_simple.transport.query.call_count
         + mock_client_simple.transport.send_with_response.call_count
         + mock_client_simple.transport.write.call_count
     )
-    assert call_count >= 2
+    assert call_count == 1
 
 
 @pytest.mark.asyncio
