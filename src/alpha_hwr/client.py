@@ -854,21 +854,50 @@ class AlphaHWRClient:
                     )
                 )
 
-        settled = await self.get_run_state()
+        # Read both flags back rather than taking them from a leg. Each
+        # leg only populates the flag it wrote, and which leg runs last
+        # depends on the direction of travel - so reporting from one of
+        # them leaves the other None even when it was written fine.
+        settled_info = await self.control.get_mode()
+        settled_schedule = await self.schedule.get_state()
+        settled = (
+            run_state(bool(settled_info.is_running), settled_schedule)
+            if settled_info is not None and settled_schedule is not None
+            else None
+        )
+
         if not results:
             return WriteResult(
                 command=WriteCommand.SET_PUMP_STATE,
                 status=WriteStatus.ACCEPTED,
                 detail="already in that state",
+                enabled=None
+                if settled_info is None
+                else settled_info.is_running,
+                schedule_enabled=settled_schedule,
             )
 
         worst = max(results, key=lambda r: _WRITE_SEVERITY.index(r.status))
+
+        # A partial failure has to surface as one: the legs can disagree,
+        # and the pump ending up somewhere other than what was asked for
+        # is exactly what a caller needs to hear about.
+        status = worst.status
+        detail = worst.detail
+        if status in (WriteStatus.ACCEPTED, WriteStatus.CLAMPED):
+            if settled is None:
+                status = WriteStatus.TIMEOUT
+                detail = "could not read the resulting state back"
+            elif settled is not target:
+                status = WriteStatus.REJECTED
+                detail = f"pump settled as {settled}, not {target}"
+
         return WriteResult(
             command=WriteCommand.SET_PUMP_STATE,
-            status=worst.status,
-            detail=worst.detail or (f"settled as {settled}" if settled else ""),
-            enabled=results[-1].enabled,
-            schedule_enabled=results[-1].schedule_enabled,
+            status=status,
+            detail=detail or (f"settled as {settled}" if settled else ""),
+            enabled=None if settled_info is None else settled_info.is_running,
+            schedule_enabled=settled_schedule,
         )
 
 

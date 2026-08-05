@@ -461,3 +461,76 @@ async def test_a_single_field_write_does_not_need_the_cache(
     )
 
     assert result.status is WriteStatus.ACCEPTED
+
+
+# ---------------------------------------------------------------------------
+# invalid vs rejected
+#
+# The difference is the retry signal: invalid is a property of the request
+# and cannot be helped by trying again, rejected means the pump or the link
+# refused and a later attempt might not.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_an_out_of_range_setpoint_is_invalid(
+    writes: WriteOperationService, control: MagicMock
+) -> None:
+    result = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:2",
+        mode=ControlMode.CONSTANT_SPEED,
+        value=99_000.0,
+    )
+
+    assert result.status is WriteStatus.INVALID
+    assert "500" in result.detail and "4500" in result.detail
+    control.set_constant_speed.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_failed_write_of_a_valid_setpoint_is_rejected(
+    writes: WriteOperationService, control: MagicMock
+) -> None:
+    """
+    The setters return a bare False for an out-of-range value and for a
+    transport failure alike. Reporting the second as `invalid` would tell a
+    caller never to retry something a retry might well fix.
+    """
+    control.set_constant_speed.return_value = False
+
+    result = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:2",
+        mode=ControlMode.CONSTANT_SPEED,
+        value=1725.0,
+    )
+
+    assert result.status is WriteStatus.REJECTED
+    assert result.status is not WriteStatus.INVALID
+    control.set_constant_speed.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_range_checks_are_per_mode(
+    writes: WriteOperationService, control: MagicMock
+) -> None:
+    """1.5 is a fine flow and a nonsense speed."""
+    control.get_mode.return_value = info(
+        mode=ControlMode.CONSTANT_FLOW, setpoint=1.5
+    )
+    flow = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:8",
+        mode=ControlMode.CONSTANT_FLOW,
+        value=1.5,
+    )
+    speed = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:2",
+        mode=ControlMode.CONSTANT_SPEED,
+        value=1.5,
+    )
+
+    assert flow.status is WriteStatus.ACCEPTED
+    assert speed.status is WriteStatus.INVALID

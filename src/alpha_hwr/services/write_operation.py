@@ -341,23 +341,54 @@ class WriteOperationService:
 
     # -- setpoints -------------------------------------------------------
 
-    #: Which setter writes which mode's setpoint.
-    _SETTERS: ClassVar[dict[ControlMode, str]] = {
-        ControlMode.CONSTANT_PRESSURE: "set_constant_pressure",
-        ControlMode.PROPORTIONAL_PRESSURE: "set_proportional_pressure",
-        ControlMode.CONSTANT_SPEED: "set_constant_speed",
-        ControlMode.CONSTANT_FLOW: "set_constant_flow",
+    #: Which setter writes which mode's setpoint, and the range that
+    #: setter accepts. The range is repeated here deliberately: the setters
+    #: return a bare False for an out-of-range value *and* for a transport
+    #: failure, and those are opposite answers to "should this be retried".
+    #: Checking here lets an out-of-range request settle INVALID before
+    #: anything reaches the wire, leaving a False from the setter to mean
+    #: what it should - the pump or the link refused.
+    _SETTERS: ClassVar[dict[ControlMode, tuple[str, float, float, str]]] = {
+        ControlMode.CONSTANT_PRESSURE: (
+            "set_constant_pressure",
+            0.5,
+            10.0,
+            "m",
+        ),
+        ControlMode.PROPORTIONAL_PRESSURE: (
+            "set_proportional_pressure",
+            0.5,
+            10.0,
+            "m",
+        ),
+        ControlMode.CONSTANT_SPEED: (
+            "set_constant_speed",
+            500.0,
+            4500.0,
+            "RPM",
+        ),
+        ControlMode.CONSTANT_FLOW: ("set_constant_flow", 0.1, 10.0, "m3/h"),
     }
 
     async def _run_set_setpoint(self, op: _Operation) -> None:
         mode = op.args["mode"]
         value = float(op.args["value"])
 
-        setter_name = self._SETTERS.get(mode)
-        if setter_name is None:
+        spec = self._SETTERS.get(mode)
+        if spec is None:
             op.settle(
                 WriteStatus.INVALID,
                 f"{mode!r} has no scalar setpoint to write",
+            )
+            return
+        setter_name, low, high, unit = spec
+
+        if not low <= value <= high:
+            op.settle(
+                WriteStatus.INVALID,
+                f"{value:g} {unit} is outside the {low:g}-{high:g} {unit} "
+                f"this mode accepts",
+                mode=mode,
             )
             return
 
@@ -370,10 +401,12 @@ class WriteOperationService:
             else None
         )
 
+        # The request is known good by here, so a False can only mean the
+        # write did not get through - which a caller may reasonably retry.
         if not await getattr(self._control, setter_name)(value):
             op.settle(
-                WriteStatus.INVALID,
-                f"{value} is outside the range this mode accepts",
+                WriteStatus.REJECTED,
+                "the setpoint write was not acknowledged",
                 mode=mode,
             )
             return
