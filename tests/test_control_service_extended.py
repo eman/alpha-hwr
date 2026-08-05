@@ -271,30 +271,21 @@ class TestSetAutoadaptModes:
 
     @pytest.mark.asyncio
     async def test_set_autoadapt_generic_valid(self, mock_client_simple):
-        """Test setting generic AutoAdapt mode with valid pressure."""
-        mock_client_simple.transport.query = AsyncMock(
-            return_value=b"\x27\x07\xe7\xf8\x03\x00\x00"
-        )
-
-        result = await mock_client_simple.control.set_autoadapt(2.5)
-
-        assert result is True
+        """
+        Generic AutoAdapt has no wire byte, so asking for it is an error.
+        It used to silently become Constant Speed and report success.
+        """
+        with pytest.raises(ValueError, match="mode 5 is not supported"):
+            await mock_client_simple.control.set_autoadapt(2.5)
 
     @pytest.mark.asyncio
     async def test_set_autoadapt_generic_boundary_values(
         self, mock_client_simple
     ):
-        """Test generic AutoAdapt at boundary values."""
-        mock_client_simple.transport.query = AsyncMock(
-            return_value=b"\x27\x07\xe7\xf8\x03\x00\x00"
-        )
-
-        # Test min and max
-        assert await mock_client_simple.control.set_autoadapt(0.5) is True
-        assert await mock_client_simple.control.set_autoadapt(10.0) is True
-        # Test out of bounds
-        assert await mock_client_simple.control.set_autoadapt(0.3) is False
-        assert await mock_client_simple.control.set_autoadapt(12.0) is False
+        """Both bounds are rejected the same way; see the test above."""
+        for value in (0.5, 10.0):
+            with pytest.raises(ValueError, match="mode 5 is not supported"):
+                await mock_client_simple.control.set_autoadapt(value)
 
 
 class TestControlServiceErrorHandling:

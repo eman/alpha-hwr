@@ -21,8 +21,20 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 
 from ..constants import GENI_CHAR_UUID
 from ..exceptions import READ_ERRORS
+from ..protocol.matcher import Command as MatcherCommand
+from ..protocol.matcher import matches as matcher_matches
 
 logger = logging.getLogger(__name__)
+
+#: Largest payload the pump accepts in a single GATT write. Longer GENI
+#: frames are split across this many bytes at a time; the pump reassembles
+#: them from the length field in byte 1.
+BLE_MTU_LIMIT = 20
+
+#: Gap between consecutive BLE writes, whether they are chunks of one frame
+#: or separate commands. The pump drops or ignores traffic that arrives
+#: faster than this.
+SEND_PACING = 0.05
 
 
 class Transport:
@@ -132,13 +144,32 @@ class Transport:
         # Custom notification handlers (for telemetry streaming)
         self._custom_handlers: list[Callable[[bytes], None]] = []
 
+        # Callbacks fired when the link drops, from bleak's own
+        # disconnected_callback rather than from a failed read. Until this
+        # existed, a drop was only noticed the next time something tried to
+        # talk to the pump.
+        self._disconnect_handlers: list[Callable[[], None]] = []
+
         # Notification state tracking
         self._notifications_started = False
 
         # Keep-alive task
         self._keep_alive_task: asyncio.Task | None = None
 
+        # Send pacing: event-loop timestamp of the last BLE write, used to
+        # keep at least SEND_PACING between every write on the link -
+        # between chunks of one frame and between separate commands alike.
+        self._last_write: float | None = None
+
         logger.debug("Transport initialized")
+
+    async def _pace(self) -> None:
+        """Wait out the remainder of the inter-write gap, if any."""
+        if self._last_write is None:
+            return
+        elapsed = asyncio.get_event_loop().time() - self._last_write
+        if elapsed < SEND_PACING:
+            await asyncio.sleep(SEND_PACING - elapsed)
 
     async def start_notifications(
         self, handler: Callable[[bytes], None] | None = None
@@ -288,39 +319,36 @@ class Transport:
 
         Notes
         -----
-        Packets exceeding 20 bytes (BLE MTU limit) are automatically
-        split into multiple writes with a small delay between chunks.
-        This is required for the pump to correctly receive long packets.
+        Packets exceeding the 20-byte BLE MTU are split into as many
+        chunks as it takes, paced ``SEND_PACING`` apart. An earlier
+        revision split into exactly two chunks, which silently truncated
+        anything over 40 bytes - including the 59-byte schedule-layer
+        write, whose second chunk still exceeded the MTU.
 
         Examples
         --------
         >>> packet = protocol.build_command(...)
         >>> await transport.write(packet)
         """
-        # Split packet if it exceeds 20-byte BLE MTU
-        if len(data) > 20:
-            # Write first 20 bytes
-            await self.client.write_gatt_char(
-                GENI_CHAR_UUID, data[:20], response=response
-            )
-            logger.debug("Wrote chunk 1: 20 bytes")
+        chunks = [
+            data[i : i + BLE_MTU_LIMIT]
+            for i in range(0, len(data), BLE_MTU_LIMIT)
+        ] or [data]
 
-            # Small delay between chunks
-            await asyncio.sleep(0.01)
-
-            # Write remaining bytes
+        for chunk in chunks:
+            await self._pace()
             await self.client.write_gatt_char(
-                GENI_CHAR_UUID, data[20:], response=response
+                GENI_CHAR_UUID, chunk, response=response
             )
-            logger.debug(f"Wrote chunk 2: {len(data) - 20} bytes")
+            self._last_write = asyncio.get_event_loop().time()
+
+        if len(chunks) > 1:
+            sizes = " + ".join(str(len(c)) for c in chunks)
             logger.debug(
-                f"Wrote {len(data)} bytes total (split write, response={response})"
+                f"Wrote {len(data)} bytes as {len(chunks)} chunks "
+                f"({sizes}, response={response})"
             )
         else:
-            # Single write for packets <= 20 bytes
-            await self.client.write_gatt_char(
-                GENI_CHAR_UUID, data, response=response
-            )
             logger.debug(f"Wrote {len(data)} bytes (response={response})")
 
     async def read_response(self, timeout: float = 3.0) -> bytes | None:
@@ -487,6 +515,54 @@ class Transport:
             logger.debug("Query timeout waiting for matching response")
             return None
 
+    async def send_command(
+        self,
+        packet: bytes,
+        command: MatcherCommand,
+        timeout: float = 3.0,
+    ) -> bytes | None:
+        """
+        Send a frame and wait for the reply that answers it.
+
+        The counterpart to :func:`~alpha_hwr.protocol.matcher.matches`:
+        this owns the serialization and the timeout, the matcher owns the
+        decision about which reply belongs to which command. Prefer it
+        over :meth:`query` with a hand-rolled predicate - the pump's
+        matching quirks are firmware behaviour, and every caller open-coding
+        them separately is how they drift apart.
+
+        Parameters
+        ----------
+        packet : bytes
+            Complete GENI frame, CRC included.
+        command : protocol.Command
+            What reply to accept.
+        timeout : float, default=3.0
+            Seconds to wait.
+
+        Returns
+        -------
+        bytes | None
+            The matching frame, or None if none arrived in time. A None
+            here is not necessarily a fault: some writes are committed by
+            the pump only after the response window has closed, which is
+            what ``command.quiet_timeout`` marks.
+        """
+        response = await self.query(
+            packet,
+            timeout=timeout,
+            match_func=lambda p: matcher_matches(command, p),
+        )
+
+        if response is None:
+            label = command.description or "command"
+            if command.quiet_timeout:
+                logger.debug(f"No response to {label} (expected)")
+            else:
+                logger.warning(f"No response to {label} within {timeout}s")
+
+        return response
+
     async def send_wake_burst(
         self,
         repeats: int = 3,
@@ -639,6 +715,35 @@ class Transport:
     async def on_disconnected(self) -> None:
         """Alias for disconnect() for consistency with Session."""
         await self.disconnect()
+
+    def add_disconnect_handler(self, handler: Callable[[], None]) -> None:
+        """
+        Register a callback fired when the BLE link drops.
+
+        Handlers run from bleak's own ``disconnected_callback``, so a drop
+        is observed as it happens rather than the next time something tries
+        to read. Handlers must be synchronous and cheap; schedule anything
+        slower onto the loop yourself.
+        """
+        self._disconnect_handlers.append(handler)
+
+    def notify_disconnected(self) -> None:
+        """
+        Run the registered disconnect handlers.
+
+        Ordering matters for anything that settles pending work: handlers
+        run before the queued state is torn down, so a waiter always gets
+        its result rather than being dropped silently.
+        """
+        logger.info("BLE link dropped")
+        self._last_write = None
+        for handler in self._disconnect_handlers:
+            try:
+                handler()
+            except Exception as e:  # noqa: BLE001
+                # A handler is caller-supplied; one bad handler must not
+                # stop the others from learning about the disconnect.
+                logger.error(f"Error in disconnect handler: {e}")
 
 
 # ==========================================================================

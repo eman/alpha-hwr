@@ -15,7 +15,7 @@ from alpha_hwr.services.event_log import EventLogService
 @pytest.fixture
 def mock_transport():
     transport = MagicMock(spec=Transport)
-    transport.query = AsyncMock()
+    transport.send_command = AsyncMock()
     return transport
 
 
@@ -44,7 +44,7 @@ async def test_get_metadata(event_log_service, mock_transport):
         b"\x24\x11\xe7\xf8\x0a\x03\x00\x58\x27\xd7" + payload + b"\xaa\xbb"
     )
 
-    mock_transport.query.return_value = response
+    mock_transport.send_command.return_value = response
 
     meta = await event_log_service.get_metadata()
 
@@ -72,7 +72,7 @@ async def test_get_entry(event_log_service, mock_transport):
         + b"\xaa\xbb"
     )
 
-    mock_transport.query.return_value = response
+    mock_transport.send_command.return_value = response
 
     entry = await event_log_service.get_entry(0)
 
@@ -92,9 +92,9 @@ async def test_get_all_entries(event_log_service, mock_transport):
 
     # Side effect: return resp for first 2 calls, then None
     # Service calls get_entry(0...19)
-    mock_transport.query.side_effect = [resp, resp] + [None] * 18
+    mock_transport.send_command.side_effect = [resp, resp] + [None] * 18
 
     entries = await event_log_service.get_all_entries()
 
     assert len(entries) == 2
-    assert mock_transport.query.call_count == 20
+    assert mock_transport.send_command.call_count == 20

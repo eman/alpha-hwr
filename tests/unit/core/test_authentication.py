@@ -2,11 +2,13 @@
 Unit tests for AuthenticationHandler.
 
 Covers extension packet ordering and timing requirements introduced
-to fix premature disconnection on BLE firmware V06.00.01 (issue #24).
+to fix premature disconnection on BLE firmware V06.00.01 (issue #24),
+and the whole-handshake serialization that followed it (issue #31).
 """
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -132,3 +134,88 @@ async def test_authenticate_normal_mode_sleeps_between_extensions(
     assert sleep_calls[-1] == 0.5, (
         f"Expected final stabilization sleep of 0.5s, got: {sleep_calls}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Whole-handshake serialization (issue #31)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_handshake_writes_are_strictly_sequential(
+    handler: AuthenticationHandler, mock_writer: AsyncMock
+) -> None:
+    """
+    No two handshake writes may ever be in flight at once.
+
+    An earlier revision spawned the stage 1/2 bursts as concurrent tasks,
+    which let packets reach the pump out of order and made it drop the
+    link about a second later.
+    """
+    in_flight = 0
+    max_in_flight = 0
+
+    async def slow_write(uuid: str, data: bytes, **kw: object) -> None:
+        nonlocal in_flight, max_in_flight
+        in_flight += 1
+        max_in_flight = max(max_in_flight, in_flight)
+        await asyncio.sleep(0)  # yield, so an overlapping write could show up
+        in_flight -= 1
+
+    mock_writer.write_gatt_char.side_effect = slow_write
+
+    assert await handler.authenticate(fast_mode=True) is True
+    assert max_in_flight == 1, (
+        f"Handshake writes overlapped ({max_in_flight} concurrent)"
+    )
+
+
+@pytest.mark.asyncio
+async def test_handshake_packet_order(
+    handler: AuthenticationHandler, mock_writer: AsyncMock
+) -> None:
+    """The full 10-packet sequence goes out in the documented order."""
+    await handler.authenticate(fast_mode=True)
+
+    sent = [c[0][1] for c in mock_writer.write_gatt_char.call_args_list]
+    expected = (
+        [AuthenticationHandler.LEGACY_MAGIC] * 3
+        + [AuthenticationHandler.CLASS10_UNLOCK] * 5
+        + [AuthenticationHandler.EXTEND_1, AuthenticationHandler.EXTEND_2]
+    )
+    assert sent == expected
+
+
+@pytest.mark.asyncio
+async def test_handshake_holds_the_transaction_lock(
+    mock_writer: AsyncMock,
+) -> None:
+    """
+    The lock is held for the whole sequence, not per packet.
+
+    Anything else lets a telemetry query or keep-alive burst land between
+    two handshake packets.
+    """
+    lock = asyncio.Lock()
+    handler = AuthenticationHandler(mock_writer, transaction=lock)
+    held_during_writes: list[bool] = []
+
+    async def check_lock(uuid: str, data: bytes, **kw: object) -> None:
+        held_during_writes.append(lock.locked())
+
+    mock_writer.write_gatt_char.side_effect = check_lock
+
+    assert await handler.authenticate(fast_mode=True) is True
+    assert held_during_writes and all(held_during_writes), (
+        "Transaction lock was not held for every handshake write"
+    )
+    assert not lock.locked(), "Transaction lock was not released"
+
+
+@pytest.mark.asyncio
+async def test_handshake_without_transaction_lock_still_works(
+    handler: AuthenticationHandler, mock_writer: AsyncMock
+) -> None:
+    """The lock is optional; a bare BLE writer still authenticates."""
+    assert await handler.authenticate(fast_mode=True) is True
+    assert mock_writer.write_gatt_char.await_count == 10

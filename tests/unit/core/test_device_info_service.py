@@ -15,7 +15,7 @@ from alpha_hwr.services.device_info import DeviceInfoService
 @pytest.fixture
 def mock_transport():
     transport = MagicMock(spec=Transport)
-    transport.query = AsyncMock()
+    transport.send_command = AsyncMock()
     return transport
 
 
@@ -59,7 +59,7 @@ async def test_read_detailed_info(device_info_service, mock_transport):
         )
         return resp
 
-    mock_transport.query.side_effect = mock_query
+    mock_transport.send_command.side_effect = mock_query
 
     info = await device_info_service.read_detailed()
 
@@ -89,7 +89,7 @@ async def test_read_statistics(device_info_service, mock_transport):
         b"\x24\x15\xe7\xf8\x0a\x03\x00\x5d\x00\x01" + payload + b"\xaa\xbb"
     )
 
-    mock_transport.query.return_value = response
+    mock_transport.send_command.return_value = response
 
     stats = await device_info_service.read_statistics()
 
@@ -116,7 +116,7 @@ async def test_read_alarms(device_info_service, mock_transport):
         + b"\xaa\xbb"
     )
 
-    mock_transport.query.side_effect = [alarm_resp, warning_resp]
+    mock_transport.send_command.side_effect = [alarm_resp, warning_resp]
 
     alarms = await device_info_service.read_alarms()
 
@@ -143,7 +143,7 @@ async def test_read_alarms_unknown_code_fallback(
     )
     warning_resp = b"\x24\x0a\xe7\xf8\x0a\x03\x00\x58\x00\x0b" + b"\xaa\xbb"
 
-    mock_transport.query.side_effect = [alarm_resp, warning_resp]
+    mock_transport.send_command.side_effect = [alarm_resp, warning_resp]
 
     alarms = await device_info_service.read_alarms()
 

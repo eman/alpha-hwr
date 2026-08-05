@@ -48,7 +48,7 @@ from typing import TYPE_CHECKING
 from alpha_hwr.models import ScheduleEntry
 
 from ..exceptions import READ_ERRORS
-from ..utils import calc_crc16_read
+from ..protocol.matcher import Command
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -91,6 +91,11 @@ class ScheduleService(BaseService):
         >>> await service.enable()
     """
 
+    #: ClockProgramOverview byte 5: what the pump does outside every
+    #: scheduled window. 0x01 is Stop, 0x02 is Auto - note this is the
+    #: opposite of the interval action byte, where 0x02 means run.
+    DEFAULT_ACTION_STOP = 0x01
+
     def __init__(self, session: Session, transport: Transport):
         """
         Initialize the schedule service.
@@ -101,6 +106,17 @@ class ScheduleService(BaseService):
         """
         super().__init__(transport, session)
         self._schedule_sub_id: int | None = None
+        self._last_read_failed: list[int] = []
+
+    @property
+    def last_read_incomplete(self) -> bool:
+        """
+        Whether the last :meth:`read_entries` missed a layer.
+
+        An unread layer is not an empty one, and the difference matters to
+        anything that writes the result back.
+        """
+        return bool(self._last_read_failed)
 
     async def get_state(self) -> bool | None:
         """
@@ -310,6 +326,7 @@ class ScheduleService(BaseService):
             "Sunday",
         ]
 
+        failed: list[int] = []
         for layer_idx in layers_to_read:
             try:
                 sub_id = 1000 + layer_idx
@@ -322,6 +339,7 @@ class ScheduleService(BaseService):
                         f"Schedule data too short for layer {layer_idx}: "
                         f"{len(data) if data else 0} bytes"
                     )
+                    failed.append(layer_idx)
                     continue
 
                 # Skip 3-byte header
@@ -341,6 +359,19 @@ class ScheduleService(BaseService):
 
             except READ_ERRORS as e:
                 logger.error(f"Error reading schedule layer {layer_idx}: {e}")
+                failed.append(layer_idx)
+
+        # A layer that could not be read is not an empty layer. Reporting
+        # the difference matters because callers write this list back:
+        # clear_entry reads, drops one day, and writes the rest, so a
+        # silently-skipped layer would be written back as all-empty and
+        # take the whole layer with it.
+        self._last_read_failed = failed
+        if failed:
+            logger.warning(
+                f"Could not read schedule layer(s) {failed}; the result is "
+                f"incomplete and must not be written back"
+            )
 
         return entries
 
@@ -583,8 +614,15 @@ class ScheduleService(BaseService):
 
         logger.info(f"Clearing schedule entry for {day} on layer {layer}...")
 
-        # Read current schedule for this layer
+        # Read the layer first: this is a read-modify-write, and the write
+        # replaces every day in the layer, not just the one being cleared.
         entries = await self.read_entries(layer=layer)
+        if self.last_read_incomplete:
+            logger.error(
+                f"Refusing to clear {day}: layer {layer} could not be read, "
+                f"and writing back what was read would clear the whole layer"
+            )
+            return False
 
         # Filter out the entry for the specified day
         filtered_entries = [e for e in entries if e.day != day]
@@ -751,6 +789,14 @@ class ScheduleService(BaseService):
             new_structure = bytearray(structure_bytes)
             new_structure[4] = 0x01 if enable else 0x00
 
+            # Byte 5 is default_action, the action outside every window.
+            # The Grundfos app always writes Stop here, and preserving
+            # whatever the pump held instead is what produced the
+            # long-standing "pump will be idle" reading: with Auto (0x02)
+            # the app labels the whole schedule idle even though the
+            # windows themselves are correct.
+            new_structure[5] = self.DEFAULT_ACTION_STOP
+
             logger.debug(f"New structure bytes: {new_structure.hex()}")
 
             # Build APDU using standard protocol format
@@ -825,15 +871,17 @@ class ScheduleService(BaseService):
         Returns:
             The SubID if found, None otherwise
         """
-        from ..utils import calc_crc16_read
-
         logger.info(
             f"Scanning for Class 10 Object {obj_id} (Sub {start_sub}-{end_sub})..."
         )
 
         for sub_id in range(start_sub, end_sub + 1):
             try:
-                # Build Class 10 GET: [0A][03][SubH][SubL][ObjH][ObjL]
+                # Class 10 GET with both identifiers as 16-bit fields:
+                # [0A][03][SubH][SubL][ObjH][ObjL]. This is a different
+                # addressing form from the single-byte-object read used
+                # elsewhere; the scan probes for an object whose Sub-ID is
+                # unknown, so it wants the echo to identify the hit.
                 apdu = bytes(
                     [
                         0x0A,
@@ -844,32 +892,22 @@ class ScheduleService(BaseService):
                         obj_id & 0xFF,
                     ]
                 )
+                frame = self._build_geni_packet(0xF8, 0xE7, apdu)
 
-                # Build frame
-                length = 1 + 1 + len(apdu)  # Dst + Src + APDU
-                frame_without_crc = bytes([0x27, length, 0xE7, 0xF8]) + apdu
-                crc = calc_crc16_read(frame_without_crc[1:])
-                frame = frame_without_crc + bytes(
-                    [(crc >> 8) & 0xFF, crc & 0xFF]
+                # A probe counts as a hit when the pump echoes back the
+                # pair that was asked for. Note the matcher tolerates the
+                # pump's Sub-ID-0 and swapped-field quirks, so confirm a
+                # hit by reading the object before trusting it.
+                probe = Command(
+                    expect_a=sub_id,
+                    expect_b=obj_id,
+                    quiet_timeout=True,
+                    description=f"probe of Object {obj_id} Sub {sub_id}",
                 )
 
-                def match_obj(
-                    data: bytes, sub_id: int = sub_id, obj_id: int = obj_id
-                ) -> bool:
-                    """Match response for this specific SubID/ObjID."""
-                    if len(data) < 10:
-                        return False
-                    return (
-                        data[4] == 0x0A
-                        and data[6] == (sub_id >> 8) & 0xFF
-                        and data[7] == sub_id & 0xFF
-                        and data[8] == (obj_id >> 8) & 0xFF
-                        and data[9] == obj_id & 0xFF
-                    )
-
                 logger.debug(f"Probing SubID {sub_id}...")
-                resp = await self.transport.query(
-                    frame, timeout=0.2, match_func=match_obj
+                resp = await self.transport.send_command(
+                    frame, probe, timeout=0.2
                 )
 
                 if resp:
@@ -906,28 +944,28 @@ class ScheduleService(BaseService):
             both responses and timeouts (empty bytes) as success.
         """
         try:
-            # Build GENI frame: [Start][Length][Dst][Src][APDU...][CRC]
-            length = 1 + 1 + len(apdu)  # Dst + Src + APDU
-            frame_without_crc = bytes([0x27, length, dst, src]) + bytes(apdu)
-            crc = calc_crc16_read(
-                frame_without_crc[1:]
-            )  # CRC excludes start byte
-            frame = frame_without_crc + bytes([(crc >> 8) & 0xFF, crc & 0xFF])
+            frame = self._build_geni_packet(src, dst, bytes(apdu))
 
             logger.debug(f"Writing Class 10 command: {frame.hex()}")
 
-            # Use query to match original behavior
-            # Original returns b"" on timeout, which is treated as success
-            response = await self.transport.query(frame, timeout=3.0)
+            # A timeout here is the expected case, not a fault: the pump
+            # uses a two-phase commit for flash-backed writes and its
+            # acknowledgement usually lands after the response window has
+            # closed. That is why the return value cannot mean "the pump
+            # took it" - only a readback can establish that.
+            response = await self.transport.send_command(
+                frame,
+                Command(
+                    expect_short_ack=True,
+                    quiet_timeout=True,
+                    description="Class 10 write",
+                ),
+                timeout=3.0,
+            )
 
-            # Treat both response and no response as success
             if response is not None:
                 logger.debug(
-                    f"Got response to Class 10 write: {response.hex() if response else '(empty)'}"
-                )
-            else:
-                logger.debug(
-                    "No response to Class 10 write (treated as success)"
+                    f"Got response to Class 10 write: {response.hex()}"
                 )
 
             return True

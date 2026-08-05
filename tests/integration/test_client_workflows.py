@@ -174,17 +174,6 @@ class TestClientWorkflows:
         success = await mock_client.control.set_constant_flow(setpoint)
         assert success
 
-    @pytest.mark.asyncio
-    async def test_enable_disable_remote_mode(self, mock_client):
-        """Test enabling and disabling remote control mode."""
-        # Enable remote
-        success = await mock_client.control.enable_remote_mode()
-        assert success
-
-        # Disable remote
-        success = await mock_client.control.disable_remote_mode()
-        assert success
-
 
 class TestDeviceInfo:
     """Test device information operations."""

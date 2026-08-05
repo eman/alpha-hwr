@@ -70,6 +70,8 @@ nav:
       - BLE Architecture: protocol/ble_architecture.md
       - Connection & Auth: protocol/connection.md
       - Wire Format: protocol/wire_format.md
+      - Units on the Wire: protocol/units.md
+      - Bench Findings: protocol/bench_findings.md
       - Telemetry & Data: protocol/telemetry.md
       - Control & Commands: protocol/control.md
       - Control Modes Matrix: protocol/control_modes.md

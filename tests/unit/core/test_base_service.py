@@ -14,7 +14,7 @@ from alpha_hwr.services.base import BaseService
 @pytest.fixture
 def mock_transport():
     transport = MagicMock(spec=Transport)
-    transport.query = AsyncMock()
+    transport.send_command = AsyncMock()
     transport.write = AsyncMock()
     return transport
 
@@ -66,18 +66,18 @@ async def test_read_class10_object_success(base_service, mock_transport):
         ]
     )
 
-    mock_transport.query.return_value = mock_response
+    mock_transport.send_command.return_value = mock_response
 
     data = await base_service._read_class10_object(84, 1000)
 
     assert data == b"\x01\x02\x03"
-    mock_transport.query.assert_called_once()
+    mock_transport.send_command.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_read_class10_object_no_response(base_service, mock_transport):
     """Test reading Class 10 object with no response."""
-    mock_transport.query.return_value = None
+    mock_transport.send_command.return_value = None
 
     data = await base_service._read_class10_object(84, 1000)
 
@@ -87,7 +87,7 @@ async def test_read_class10_object_no_response(base_service, mock_transport):
 @pytest.mark.asyncio
 async def test_read_class10_object_short_response(base_service, mock_transport):
     """Test reading Class 10 object with invalid short response."""
-    mock_transport.query.return_value = b"\x00\x01"
+    mock_transport.send_command.return_value = b"\x00\x01"
 
     data = await base_service._read_class10_object(84, 1000)
 
@@ -120,7 +120,7 @@ async def test_read_class7_string_success(base_service, mock_transport):
         ]
     )
 
-    mock_transport.query.return_value = mock_response
+    mock_transport.send_command.return_value = mock_response
 
     string_val = await base_service._read_class7_string(1)
 
@@ -149,7 +149,7 @@ async def test_read_class7_string_null_terminated(base_service, mock_transport):
         ]
     )
 
-    mock_transport.query.return_value = mock_response
+    mock_transport.send_command.return_value = mock_response
 
     string_val = await base_service._read_class7_string(1)
 
