@@ -17,18 +17,18 @@ The ALPHA HWR is a **domestic hot water recirculation pump** designed for reside
 | Mode | Name | Support | SubID | Register | Notes |
 |------|------|---------|-------|----------|-------|
 | 0 | CONSTANT_PRESSURE |  **Full** | 15 | 0x18 | Constant head pressure |
-| 1 | PROPORTIONAL_PRESSURE |  **Full** | 17 | 0x17 | Proportional pressure curve |
-| 2 | CONSTANT_SPEED |  **Full** | 13 | 0x04 | Fixed RPM operation |
-| 5 | AUTO_ADAPT |  Not Supported | - | - | Generic AutoAdapt (deprecated, not for DHW) |
+| 1 | PROPORTIONAL_PRESSURE | **Full** | 17 | 0x01 | Proportional pressure curve |
+| 2 | CONSTANT_SPEED | **Full** | 13 | 0x02 | Fixed RPM operation |
+| 5 | AUTO_ADAPT | **Raises** | 11 | - | No wire byte on this pump; `set_mode` refuses it |
 | 7 | CLOSED_LOOP_SENSOR |  Not Supported | - | - | Generic sensor control |
-| 8 | CONSTANT_FLOW |  **Full** | 39 | 0x15 | Constant flow rate |
+| 8 | CONSTANT_FLOW | **Full** | 39 | 0x08 | Constant flow rate — setpoints are SI m³/s on the wire |
 | 9 | CONSTANT_LEVEL |  Not Supported | - | - | Water level control (tanks/sumps) |
 | 10 | FLOW_ADAPT |  Not Supported | - | - | Adaptive flow control |
 | 11 | CONSTANT_DIFF_PRESSURE |  Not Supported | - | - | Differential pressure sensors required |
 | 12 | CONSTANT_DIFF_TEMP |  Not Supported | - | - | Temperature differential control |
-| 13 | AUTO_ADAPT_RADIATOR |  Not Supported | 19 | 0x1E | Heating system mode (not DHW) |
-| 14 | AUTO_ADAPT_UNDERFLOOR |  Not Supported | 21 | 0x1F | Heating system mode (not DHW) |
-| 15 | AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR |  Not Supported | 23 | 0x20 | Heating system mode (not DHW) |
+| 13 | AUTO_ADAPT_RADIATOR | Mode only | 19 | 0x0D | Switches; setpoint not implemented |
+| 14 | AUTO_ADAPT_UNDERFLOOR | Mode only | 21 | 0x0E | Switches; setpoint not implemented |
+| 15 | AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR | Mode only | 23 | 0x0F | Switches; setpoint not implemented |
 | 16 | CONSTANT_DOSING |  Not Supported | - | - | Chemical dosing (pools/industrial) |
 | 17 | DISINFECTANT_CONTROL |  Not Supported | - | - | Chemical dosing (pools/water treatment) |
 | 18 | FLOCCULENT_CONTROL |  Not Supported | - | - | Chemical dosing (water treatment) |
@@ -38,9 +38,9 @@ The ALPHA HWR is a **domestic hot water recirculation pump** designed for reside
 | 22 | LEVEL_CONTROL |  Not Supported | - | - | Water level control |
 | 23 | ZONE_PUMP_CONTROL |  Not Supported | - | - | Multi-zone systems |
 | 24 | USER_DEFINED |  Not Supported | - | - | Custom mode |
-| 25 | DHW_ON_OFF_CONTROL |   **Full** | - | 0x19 | Cycle time control (on/off minutes) |
-| 26 | PROPORTIONAL_DIFF_PRESSURE |  Not Supported | - | - | Differential pressure sensors required |
-| 27 | TEMPERATURE_RANGE_CONTROL |  **Full** | - | - | Temperature range control (min/max) |
+| 25 | DHW_ON_OFF_CONTROL | **Full** | 91/**421** | 0x19 | Cycle time control (on/off minutes) |
+| 26 | PROPORTIONAL_DIFF_PRESSURE | **Raises** | - | - | Not in this firmware; `set_mode` refuses it |
+| 27 | TEMPERATURE_RANGE_CONTROL | **Full** | 91/430 | 0x1B | Temperature range control (min/max) — **the HWR mode**. The pump validates this object not at all; the client's 20–70 °C bound is the only guard. |
 | 28 | COMFORT_VALVE_CONTROL |  Not Supported | - | - | Valve control |
 | 29 | ON_OFF_CONTROL |  Not Supported | - | - | Simple on/off |
 | 30 | CONSTANT_VOLTAGE |  Not Supported | - | - | Voltage control (industrial/testing) |
@@ -65,12 +65,12 @@ The ALPHA HWR is a **domestic hot water recirculation pump** designed for reside
 
 **Implementation:**
 ```python
-await client.set_constant_pressure(1.5)  # 1.5 meters
+await client.control.set_constant_pressure(1.5)  # 1.5 meters
 ```
 
 **CLI:**
 ```bash
-alpha-hwr control set-pressure --value 1.5
+alpha-hwr control set-pressure 1.5
 ```
 
 ---
@@ -89,12 +89,12 @@ alpha-hwr control set-pressure --value 1.5
 
 **Implementation:**
 ```python
-await client.set_proportional_pressure(1.2)  # 1.2 meters max
+await client.control.set_proportional_pressure(1.2)  # 1.2 meters max
 ```
 
 **CLI:**
 ```bash
-alpha-hwr control set-proportional-pressure --value 1.2
+alpha-hwr control set-proportional 1.2
 ```
 
 ---
@@ -113,12 +113,12 @@ alpha-hwr control set-proportional-pressure --value 1.2
 
 **Implementation:**
 ```python
-await client.set_constant_speed(2500)  # 2500 RPM
+await client.control.set_constant_speed(2500)  # 2500 RPM
 ```
 
 **CLI:**
 ```bash
-alpha-hwr control set-speed --value 2500
+alpha-hwr control set-speed 2500
 ```
 
 ---
@@ -137,12 +137,12 @@ alpha-hwr control set-speed --value 2500
 
 **Implementation:**
 ```python
-await client.set_constant_flow(0.5)  # 0.5 m³/h
+await client.control.set_constant_flow(0.5)  # 0.5 m³/h
 ```
 
 **CLI:**
 ```bash
-alpha-hwr control set-flow --value 0.5
+alpha-hwr control set-flow 0.5
 ```
 
 ---
@@ -163,7 +163,7 @@ alpha-hwr control set-flow --value 0.5
 **Implementation:**
 ```python
 # Set temperature range: 35°C min, 39°C max
-await client.set_temperature_range_control(35.0, 39.0)
+await client.control.set_temperature_range_control(35.0, 39.0)
 ```
 
 **CLI:**
@@ -182,14 +182,21 @@ alpha-hwr control set-temperature --min 35 --max 39
 **Use Case:** DHW recirculation systems where intermittent pump operation maintains water temperature while saving energy.
 
 **Hardware Support:**
--   Mode switching works reliably (mode byte 0x19, suffix 0x38 0xC6 0x70 0x00)
+-   Mode switching works reliably (mode byte `0x19`, suffix `38 C6 76 EF`)
 -   Successfully operates on ALPHA HWR hardware
 -   Supports configurable ON/OFF durations (1-60 minutes)
 
+**Configuration object:** Object 91 **Sub 421**
+(`dhw_on_off_control_configuration_obj`), holding
+`[flow setpoint f32 m³/s][on minutes][off minutes]` — measured as
+`0.227 m³/h, 5, 15`. **Not Sub 430**, which is the temperature-range object
+and which this used to read and write by mistake. Sub 421 is written as a
+read-modify-write so the flow setpoint it also carries survives.
+
 **Implementation:**
 ```python
-# Set cycle times: 5 min on, 15 min off
-await client.set_cycle_time_control(5, 15)
+result = await client.control.set_cycle_times(5, 15)  # verified
+print(result.status, result.on_minutes, result.off_minutes)
 ```
 
 **CLI:**
@@ -198,21 +205,25 @@ alpha-hwr control set-cycle-time --on 5 --off 15
 alpha-hwr control get-cycle-time
 ```
 
-**Next Steps:**
-Investigate additional advanced modes if requested by users.
-
 ---
 
-## Unsupported Modes (26 modes)
+## Unsupported Modes
 
 ### Why These Modes Are Not Supported
 
 The ALPHA HWR is a **residential hot water recirculation pump**, not a general-purpose industrial pump or heating system pump. The unsupported modes fall into these categories:
 
 #### 1. Heating System Modes (Not DHW)
-- **Mode 13 (AUTO_ADAPT_RADIATOR):** For radiator heating systems, not DHW recirculation
-- **Mode 14 (AUTO_ADAPT_UNDERFLOOR):** For underfloor heating systems, not DHW recirculation
-- **Mode 15 (AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR):** For combined heating systems, not DHW recirculation
+
+Modes 13, 14 and 15 target radiator and underfloor heating rather than DHW
+recirculation. They are **partially** supported, which is worth stating
+precisely: the mode switches, and the setpoint does not. `set_mode` accepts
+them; the deprecated pressure setters are documented in the library's own
+source as using "incorrect pressure-based setpoints"; and
+`set_temperature_control()` switches the mode and then returns `False` with
+"not yet implemented" — so a `False` there does *not* mean nothing changed.
+
+Details in [autoadapt_modes.md](autoadapt_modes.md). Use Mode 27 instead.
 
 **Note:** The ALPHA HWR uses Mode 27 (TEMPERATURE_RANGE_CONTROL) for temperature control with AutoAdapt flow adjustment. Modes 13/14/15 are GENI protocol modes for heating system pumps.
 
@@ -268,14 +279,26 @@ All 32 GENI protocol modes were systematically tested on real ALPHA HWR hardware
 
 ### Library Support
 
-**Fully Implemented (6 modes via Class 10):**
-- `set_constant_pressure(value_m)` - Mode 0
-- `set_proportional_pressure(value_m)` - Mode 1  
-- `set_constant_speed(value_rpm)` - Mode 2
-- `set_constant_flow(value_m3h)` - Mode 8
-- `set_temperature_range_control(min_c, max_c, autoadapt=True)` - Mode 27
-- `set_cycle_time_control(on_min, off_min)` - Mode 25
-- `set_flow_limit(value_gpm)` - Sub 39 limitation
+**Verified setters** — return a
+[`WriteResult`](../guides/verified_writes.md) saying what the pump actually
+stored, which is not always what you asked for:
+
+- `set_setpoint(mode, value)` — modes 0, 1, 2, 8
+- `set_mode_verified(mode)` — mode only, no setpoint, no run-state change
+- `set_enabled(on)` — run state
+- `set_temperature_range(min_c, max_c, autoadapt=None)` — mode 27
+- `set_cycle_times(on_min, off_min)` — mode 25
+
+**Primitive setters** — return `bool`, do not read back. `True` means the
+frame was accepted, not that your value is in the pump:
+
+- `set_constant_pressure(value_m)` — mode 0
+- `set_proportional_pressure(value_m)` — mode 1
+- `set_constant_speed(value_rpm)` — mode 2
+- `set_constant_flow(value_m3h)` — mode 8 (converted to SI m³/s on the wire)
+- `set_temperature_range_control(min_c, max_c, autoadapt=True)` — mode 27
+- `set_cycle_time_control(on_min, off_min)` — mode 25
+- `set_flow_limit(value_gpm)` — Sub 39
 
 **Deprecated Methods (for heating systems, not ALPHA HWR):**
 - `set_temperature_control(on_temp, off_temp, heating_type)` - Uses modes 13/14/15 (not for DHW)
@@ -283,8 +306,10 @@ All 32 GENI protocol modes were systematically tested on real ALPHA HWR hardware
 - `set_autoadapt_underfloor(value_m)` - Mode 14 (not for DHW)
 - `set_autoadapt_combined(value_m)` - Mode 15 (not for DHW)
 
-**Not Implemented (26 modes):**
-- Unsupported modes listed above - no methods created
+**Refused outright:**
+- Mode 5 (AUTO_ADAPT) and mode 26 (PROPORTIONAL_DIFF_PRESSURE) raise
+  `ValueError` — the pump has no wire byte for either. Mode 5 used to fall
+  through to Constant Speed and report success.
 
 ### CLI Support
 

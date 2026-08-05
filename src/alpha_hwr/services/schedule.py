@@ -19,23 +19,6 @@ Protocol Details:
 - Enable/Disable: Class 10, OpSpec 0x90
   - Writes to Object 1016 at discovered SubID
   - Value: 0x01=enable, 0x00=disable
-
-Cross-Language Implementation Notes:
-------------------------------------
-TypeScript:
-  - Use Map<string, ScheduleEntry[]> to group entries by day
-  - Validate with zod schema for ScheduleEntry
-  - Implement overlap detection with time arithmetic
-
-Rust:
-  - Use HashMap<String, Vec<ScheduleEntry>> for grouping
-  - chrono::NaiveTime for time validation
-  - Iterator chains for overlap detection
-
-C:
-  - typedef struct for ScheduleEntry (day_index, times as uint8_t)
-  - Array[7][5] for per-day, per-layer entries
-  - Manual validation loops with minute arithmetic
 """
 
 from __future__ import annotations
@@ -143,14 +126,6 @@ class ScheduleService(BaseService):
             - Response format: `[Header(3)][Capabilities(4)][Enabled(1)][DefaultAction(1)][BaseSetpoint(4)]`
             - Byte 7 is the enabled flag (0x01=enabled, 0x00=disabled)
             - No scanning required - SubID 1 is a fixed location
-
-            TypeScript:
-              const data = await readClass10Object(84, 1);
-              return data[7] === 0x01;
-
-            Rust:
-              let data = read_class10_object(84, 1).await?;
-              Ok(data[7] == 0x01)
         """
         self.session.ensure_authenticated()
 
@@ -194,24 +169,6 @@ class ScheduleService(BaseService):
             - SubH, SubL = Discovered SubID (big-endian)
             - 0x03F8 = Object 1016 (big-endian)
             - 0x01 = Enable value
-
-            TypeScript:
-              const apdu = Buffer.from([
-                0x0A, 0x90,
-                (subId >> 8) & 0xFF, subId & 0xFF,
-                0x03, 0xF8,
-                0x01
-              ]);
-              return await sendCommand(apdu);
-
-            Rust:
-              let apdu = vec![
-                0x0A, 0x90,
-                (sub_id >> 8) as u8, sub_id as u8,
-                0x03, 0xF8,
-                0x01
-              ];
-              send_command(&apdu).await
         """
         return await self._set_state(True)
 
@@ -284,30 +241,6 @@ class ScheduleService(BaseService):
             - Byte 5: End minute (0-59)
 
             Days are in order: Mon, Tue, Wed, Thu, Fri, Sat, Sun
-
-            TypeScript:
-              const data = await readClass10Object(84, 1000 + layer);
-              const entries = [];
-              const payload = data.slice(3); // Skip header
-              for (let day = 0; day < 7; day++) {
-                const offset = day * 6;
-                const entry = payload.slice(offset, offset + 6);
-                if (entry[0] === 0x01) { // If enabled
-                  entries.push(parseScheduleEntry(entry, day));
-                }
-              }
-
-            Rust:
-              let data = read_class10_object(84, 1000 + layer).await?;
-              let payload = &data[3..]; // Skip header
-              let mut entries = Vec::new();
-              for day in 0..7 {
-                let offset = day * 6;
-                let entry = &payload[offset..offset+6];
-                if entry[0] == 0x01 {
-                  entries.push(parse_schedule_entry(entry, day)?);
-                }
-              }
         """
         self.session.ensure_authenticated()
 
@@ -422,44 +355,6 @@ class ScheduleService(BaseService):
               [0x00][0x2A]        # Size (42 bytes)
               [42 bytes data]     # Schedule entries
               ```
-
-            TypeScript:
-              const payload = Buffer.alloc(42); // Initialize with zeros
-              for (const entry of entries) {
-                const dayIdx = getDayIndex(entry.day);
-                const offset = dayIdx * 6;
-                payload[offset + 0] = entry.enabled ? 0x01 : 0x00;
-                payload[offset + 1] = entry.action;
-                payload[offset + 2] = entry.begin_hour;
-                payload[offset + 3] = entry.begin_minute;
-                payload[offset + 4] = entry.end_hour;
-                payload[offset + 5] = entry.end_minute;
-              }
-
-              const apdu = Buffer.concat([
-                Buffer.from([0x0A, 0xB3, 84, subH, subL, 0x00]),
-                Buffer.from([0xDE, 0x01, 0x00, 0x00, 0x2A]),
-                payload
-              ]);
-
-            Rust:
-              let mut payload = vec![0u8; 42];
-              for entry in entries {
-                let day_idx = get_day_index(&entry.day);
-                let offset = day_idx * 6;
-                payload[offset] = if entry.enabled { 0x01 } else { 0x00 };
-                payload[offset + 1] = entry.action;
-                payload[offset + 2] = entry.begin_hour;
-                payload[offset + 3] = entry.begin_minute;
-                payload[offset + 4] = entry.end_hour;
-                payload[offset + 5] = entry.end_minute;
-              }
-
-              let mut apdu = vec![
-                0x0A, 0xB3, 84, sub_h, sub_l, 0x00,
-                0xDE, 0x01, 0x00, 0x00, 0x2A
-              ];
-              apdu.extend_from_slice(&payload);
         """
         self.session.ensure_authenticated()
 
@@ -669,30 +564,6 @@ class ScheduleService(BaseService):
             2. Validate each entry's time range (not zero duration)
             3. Check for overlaps between enabled entries on same day/layer
             4. Warn if too many entries per day/layer combination
-
-            TypeScript:
-              function validateSchedule(entries: ScheduleEntry[]): [boolean, string[]] {
-                const errors: string[] = [];
-
-                // Validate time ranges
-                for (const entry of entries) {
-                  if (entry.getDuration() === 0) {
-                    errors.push(`Invalid time range: ${entry.day} ${entry.beginTime}`);
-                  }
-                }
-
-                // Check overlaps
-                const enabled = entries.filter(e => e.enabled);
-                for (let i = 0; i < enabled.length; i++) {
-                  for (let j = i + 1; j < enabled.length; j++) {
-                    if (enabled[i].overlapsWith(enabled[j])) {
-                      errors.push(`Overlap: ${enabled[i].day} ...`);
-                    }
-                  }
-                }
-
-                return [errors.length === 0, errors];
-              }
         """
         errors: list[str] = []
 

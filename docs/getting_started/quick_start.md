@@ -211,33 +211,47 @@ You can change control modes and setpoints programmatically:
 
 ```python
 import asyncio
-from alpha_hwr import AlphaHWRClient
+from alpha_hwr import AlphaHWRClient, ControlMode
 
 
 async def control_pump():
     async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
         await client.authenticate(fast_mode=True)
 
-        # Set constant pressure mode
-        await client.control.set_constant_pressure(1.5)  # 1.5 meters
-        print("Set to Constant Pressure: 1.5m")
+        # Wait for the client to read the pump's state. Writes are refused
+        # until it has: several of them carry fields you did not set, and
+        # the only correct source for those is the pump.
+        if not await client.wait_until_ready():
+            raise SystemExit("pump never became readable")
 
-        # Set constant speed mode
-        await client.control.set_constant_speed(2500)  # 2500 RPM
-        print("Set to Constant Speed: 2500 RPM")
+        # Set constant pressure to 1.5 m
+        result = await client.control.set_setpoint(
+            ControlMode.CONSTANT_PRESSURE, 1.5
+        )
+        print(f"{result.status}: pump holds {result.value} m")
 
-        # Start/Stop pump
-        await client.control.start()
-        print("Pump started")
+        # Set constant speed to 2500 RPM
+        result = await client.control.set_setpoint(
+            ControlMode.CONSTANT_SPEED, 2500
+        )
+        print(f"{result.status}: pump holds {result.value} RPM")
 
+        # Start / stop, confirmed by reading the run state back
+        print(await client.control.set_enabled(True))
         await asyncio.sleep(5)
-
-        await client.control.stop()
-        print("Pump stopped")
+        print(await client.control.set_enabled(False))
 
 
 asyncio.run(control_pump())
 ```
+
+!!! tip "The acknowledgement is not the verdict"
+
+    Ask for 600 RPM and the pump acknowledges the frame, then stores 1650 —
+    its own minimum. `result.status` is `clamped`, `result.value` is what it
+    actually holds, and `result.ok` is `True`, because a clamp is a
+    successful write rather than a failure. See
+    [Verified Writes](../guides/verified_writes.md).
 
 ## 7. Working with Schedules
 

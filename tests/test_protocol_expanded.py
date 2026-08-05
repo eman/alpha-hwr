@@ -2,7 +2,6 @@ import struct
 
 from alpha_hwr.constants import RESPONSE_START
 from alpha_hwr.protocol.codec import decode_float_be, encode_float_be
-from alpha_hwr.protocol.frame_builder import FrameBuilder
 from alpha_hwr.protocol.frame_parser import FrameParser
 from alpha_hwr.protocol.telemetry_decoder import TelemetryDecoder
 
@@ -32,23 +31,6 @@ class TestProtocolExpanded:
         assert res.class_byte == 10
         assert res.sub_id == 0x0102
         assert res.obj_id == 0x0304
-
-    def test_build_write_request(self):
-        # Test 2-byte register write
-        # Reg 0x1234, Value 0xABCD
-        # Header + Reg(2) + Val(?)
-        # Write Request typically writes 1 byte unless value is bytes?
-        # Default value=1
-
-        pkt = FrameBuilder.build_write_request(0x1234, 0x05)
-        # Check op code WRITE (0xC1/193) in header
-        # Header: START(1) LEN(1) DEST(1) SRC(1) RES(1) OP(1)
-        assert pkt[5] == 0xC1
-        # Register: 12 34
-        assert pkt[6] == 0x12
-        assert pkt[7] == 0x34
-        # Value: 05
-        assert pkt[8] == 0x05
 
     def test_class10_temperature_parsing(self):
         """Test Class 10 Temperature Object (Sub 300) Parsing."""

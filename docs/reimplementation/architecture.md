@@ -62,6 +62,18 @@ graph TD
 - Validate inputs
 - Manage service state
 
+**A fifth service worth copying**: a **write layer**. The pump acknowledges
+frames it is about to clamp — ask for 600 RPM and it stores 1650 — so an
+ack-as-success design reports a state the pump is not in. Route every write
+through one serialized path that reads the value back and reports what was
+actually stored. In this implementation that is `write_operation.py`; the
+C++ port has the same shape.
+
+**Services may depend on other services.** A verified write has to read state
+back through the service that owns it, so the write layer takes the control
+service, and the control service takes the schedule service. Inject at
+construction; forbid cycles, not composition.
+
 ### 4. Client Facade
 **Purpose**: Simple unified API
 
@@ -92,8 +104,8 @@ sequenceDiagram
     Auth->>Transport: send(EXTEND_1)
     Auth->>Transport: send(EXTEND_2)
     Transport->>Pump: BLE write
-    Pump-->>Transport: ACK
-    Auth-->>App: Success
+    Note right of Pump: No ack is sent
+    Auth-->>App: Sequence completed
 ```
 
 ### Telemetry Reading
@@ -107,7 +119,7 @@ sequenceDiagram
     participant Pump
     
     App->>Telemetry: read_once()
-    Telemetry->>Protocol: build_info_command(0x0A, 0x45, 0x57)
+    Telemetry->>Protocol: build_class10_read(0x570045)
     Protocol->>Transport: send(packet)
     Transport->>Pump: BLE write
     Pump-->>Transport: Response
@@ -128,15 +140,16 @@ sequenceDiagram
     participant Transport
     participant Pump
     
-    App->>Control: set_mode("constant_pressure", 1.5)
-    Control->>Control: validate_setpoint(1.5)
+    App->>Control: set_setpoint(CONSTANT_PRESSURE, 1.5)
     Control->>Protocol: encode_float_be(14710.0)
-    Protocol->>Protocol: build_set_command(0x5600, 0x0601, data)
-    Protocol->>Transport: send(packet)
+    Protocol->>Protocol: build_set_command(0x5600, 0x0601, payload)
+    Protocol->>Transport: send(packet, 20-byte chunks)
     Transport->>Pump: BLE write
     Pump-->>Transport: ACK
-    Transport-->>Control: Success
-    Control-->>App: True
+    Note right of Pump: The ack is not the verdict
+    Control->>Protocol: read Object 86 Sub 7
+    Protocol-->>Control: stored setpoint
+    Control-->>App: WriteResult(CLAMPED, value=...)
 ```
 
 ## Data Flow

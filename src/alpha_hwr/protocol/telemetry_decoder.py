@@ -32,9 +32,7 @@ For complete protocol reference, see:
 - docs/protocol/telemetry.md
 - docs/protocol/wire_format.md
 
-Implementation Notes for Other Languages
-----------------------------------------
-This decoder is designed to be easily portable to other languages:
+The decoder is deliberately simple, and worth reproducing in this order:
 
 1. **Stateless Decoding**: Each payload decoded independently
 2. **Range Validation**: Always validate against physical limits

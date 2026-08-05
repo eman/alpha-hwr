@@ -80,10 +80,10 @@ The simplest way to backup your pump configuration:
 
 ```bash
 # Backup to a file
-alpha-hwr backup pump_backup.json
+alpha-hwr config backup pump_backup.json
 
 # Backup with timestamp in filename
-alpha-hwr backup "pump_backup_$(date +%Y%m%d_%H%M%S).json"
+alpha-hwr config backup "pump_backup_$(date +%Y%m%d_%H%M%S).json"
 ```
 
 The backup will be saved to the specified file. Parent directories will be created automatically if they don't exist.
@@ -93,20 +93,34 @@ The backup will be saved to the specified file. Parent directories will be creat
 To restore a previously saved configuration:
 
 ```bash
-# Full restore (will prompt for confirmation)
-alpha-hwr restore pump_backup.json
+# Full restore (prompts for confirmation)
+alpha-hwr config restore pump_backup.json
 
-# Restore only control mode (skip schedule)
-alpha-hwr restore pump_backup.json --skip-schedule
-
-# Restore only schedule (skip control mode)
-alpha-hwr restore pump_backup.json --skip-mode
-
-# Restore to different pump (skip serial number verification)
-alpha-hwr restore pump_backup.json --no-verify
+# Skip the prompt
+alpha-hwr config restore pump_backup.json -f
 ```
 
-**Important:** The restore command will show you what will be changed and ask for confirmation before proceeding.
+The restore is all-or-nothing: there is no dry run and no way to restore one
+component in isolation from the CLI. The Python API's
+`ConfigurationService.restore()` takes `verify_device=False` to bypass the
+serial-number check.
+
+!!! warning "Restore reports success before the pump has agreed"
+
+    Restore drives the **unverified** setters, which return `bool` and do not
+    read back. A value the pump clamps is still reported as restored — ask
+    for 600 RPM and you get a success and a pump running at 1650. Read the
+    state back with `alpha-hwr control status` afterwards, or restore through
+    the [verified write path](verified_writes.md) if you need certainty.
+
+!!! danger "If you restored with an older version, check your schedule"
+
+    Every setpoint write was followed by a configuration commit built from a
+    hardcoded blob whose `clock_program_enabled` byte was `0x00` — so a
+    restore that set any setpoint **switched off a live weekly schedule**,
+    silently. Run `alpha-hwr schedule list` and compare against what you
+    expect. The commit is now built read-modify-write from the pump's own
+    overview.
 
 ## Using the Python API
 
@@ -218,13 +232,13 @@ Always backup before experimenting with settings:
 
 ```bash
 # Backup current working configuration
-alpha-hwr backup pump_working.json
+alpha-hwr config backup pump_working.json
 
 # Make experimental changes...
 alpha-hwr control set-pressure 5.0
 
 # If something goes wrong, restore
-alpha-hwr restore pump_working.json
+alpha-hwr config restore pump_working.json
 ```
 
 ### 2. Configuration Versioning
@@ -233,7 +247,7 @@ Store backups in a git repository for version control:
 
 ```bash
 # Create dated backup
-alpha-hwr backup "backups/pump_$(date +%Y%m%d).json"
+alpha-hwr config backup "backups/pump_$(date +%Y%m%d).json"
 
 # Commit to git
 git add backups/
@@ -242,7 +256,7 @@ git commit -m "Pump configuration backup - $(date)"
 # Later, restore specific version
 git log --oneline backups/
 git checkout <commit> -- backups/pump_20260115.json
-alpha-hwr restore backups/pump_20260115.json
+alpha-hwr config restore backups/pump_20260115.json
 ```
 
 ### 3. Scheduled Backups
@@ -256,7 +270,7 @@ cat > /usr/local/bin/backup-pump.sh << 'EOF'
 BACKUP_DIR="/var/backups/alpha-hwr"
 DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p "$BACKUP_DIR"
-alpha-hwr backup "$BACKUP_DIR/pump_$DATE.json"
+alpha-hwr config backup "$BACKUP_DIR/pump_$DATE.json"
 # Keep only last 30 days
 find "$BACKUP_DIR" -name "pump_*.json" -mtime +30 -delete
 EOF
@@ -316,7 +330,7 @@ By default, the restore process checks that the backup was created from the same
 ERROR: Device serial number mismatch
   Backup:    12345678
   Connected: 87654321
-Use --no-verify to restore anyway
+Pass verify_device=False to restore anyway
 ```
 
 ### Validation
@@ -360,11 +374,11 @@ pip install --upgrade alpha-hwr
 
 You're trying to restore a backup from a different pump. Either:
 - Use the correct backup file for this pump
-- Use `--no-verify` flag if you intentionally want to transfer settings
+- Call `ConfigurationService.restore(..., verify_device=False)` from Python if you intentionally want to transfer settings between pumps
 
 ### "Restore succeeded but pump didn't change"
 
-Check the logs to see if specific restore steps were skipped (e.g., using `--skip-mode` or `--skip-schedule`).
+Check the logs for skipped steps. Note that restore uses the unverified setters, so a step can report success while the pump clamped or ignored the value — confirm with `alpha-hwr control status`.
 
 ## Best Practices
 

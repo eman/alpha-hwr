@@ -11,14 +11,16 @@ The client is a thin facade over specialized service modules:
 - Services: Telemetry, Control, Schedule, DeviceInfo, Configuration
 - Protocol: Frame building/parsing, telemetry decoding (used by services)
 
-This design separates concerns and makes the codebase easily portable to
-other languages (TypeScript, Rust, C, etc.).
+This design separates concerns; see docs/reimplementation/ for porting
+guidance, which lives there rather than in these docstrings so that it is
+not mistaken for something the tests check.
 
 Example Usage:
 --------------
 ```python
 import asyncio
 from alpha_hwr import AlphaHWRClient
+
 
 async def main():
     # Connect and authenticate
@@ -40,46 +42,6 @@ async def main():
 
 asyncio.run(main())
 ```
-
-Cross-Language Implementation Notes:
-------------------------------------
-TypeScript:
-  class AlphaHWRClient {
-    public telemetry: TelemetryService;
-    public control: ControlService;
-    public schedule: ScheduleService;
-    public deviceInfo: DeviceInfoService;
-    public config: ConfigurationService;
-
-    async connect(): Promise<void> { }
-    async disconnect(): Promise<void> { }
-  }
-
-Rust:
-  pub struct AlphaHWRClient {
-    telemetry: TelemetryService,
-    control: ControlService,
-    schedule: ScheduleService,
-    device_info: DeviceInfoService,
-    config: ConfigurationService,
-  }
-
-  impl AlphaHWRClient {
-    pub async fn connect(&self) -> Result<()> { }
-    pub async fn disconnect(&self) -> Result<()> { }
-  }
-
-C:
-  typedef struct {
-    TelemetryService* telemetry;
-    ControlService* control;
-    ScheduleService* schedule;
-    DeviceInfoService* device_info;
-    ConfigurationService* config;
-  } AlphaHWRClient;
-
-  int alpha_hwr_connect(AlphaHWRClient* client);
-  int alpha_hwr_disconnect(AlphaHWRClient* client);
 """
 
 from __future__ import annotations
@@ -575,20 +537,6 @@ class AlphaHWRClient:
         Implementation Notes:
             Discovery uses BLE advertisement scanning. Device info is extracted
             from manufacturer data in the advertisement packet without connecting.
-
-            TypeScript:
-              static async discover(timeout: number = 10000): Promise<DeviceInfo[]> {
-                const scanner = new BleakScanner();
-                const devices = await scanner.discover(timeout, GENI_SERVICE_UUID);
-                return devices.map(parseDeviceInfo);
-              }
-
-            Rust:
-              pub async fn discover(timeout: Duration) -> Result<Vec<DeviceInfo>> {
-                let scanner = BleakScanner::new();
-                let devices = scanner.discover(timeout, GENI_SERVICE_UUID).await?;
-                Ok(devices.into_iter().map(parse_device_info).collect())
-              }
         """
         logger.info(f"Scanning for ALPHA HWR pumps (timeout={timeout}s)...")
 

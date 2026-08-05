@@ -42,7 +42,7 @@ This guide explains the metrics reported by the ALPHA HWR pump and how to interp
 from alpha_hwr import AlphaHWRClient
 
 async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
-    telemetry = await client.get_telemetry()
+    telemetry = await client.telemetry.read_once()
     
     flow_m3h = telemetry.flow_m3h
     flow_gpm = flow_m3h * 4.40  # Convert to GPM
@@ -95,7 +95,7 @@ async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
 from alpha_hwr import AlphaHWRClient
 
 async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
-    telemetry = await client.get_telemetry()
+    telemetry = await client.telemetry.read_once()
     
     head_m = telemetry.head_m
     head_ft = head_m * 3.28  # Convert to feet
@@ -269,11 +269,11 @@ from alpha_hwr import AlphaHWRClient
 
 async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
     # Start with baseline
-    await client.set_constant_pressure(3.0)  # 3.0 m initial
+    await client.control.set_constant_pressure(3.0)  # 3.0 m initial
     
     # Monitor and verify comfort at all fixtures
     # If adequate, reduce gradually
-    await client.set_constant_pressure(2.5)  # Reduce to 2.5 m
+    await client.control.set_constant_pressure(2.5)  # Reduce to 2.5 m
     
     # Continue until minimum effective setpoint found
 ```
@@ -376,7 +376,7 @@ alpha-hwr monitor --format json | head -1
 from alpha_hwr import AlphaHWRClient
 
 async with AlphaHWRClient("YOUR-DEVICE-UUID") as client:
-    telemetry = await client.get_telemetry()
+    telemetry = await client.telemetry.read_once()
     
     print(f"Flow: {telemetry.flow_m3h:.2f} m³/h")
     print(f"Head: {telemetry.head_m:.2f} m")
@@ -398,7 +398,7 @@ async def monitor_with_analysis(duration_seconds=60):
         head_samples = []
 
         for _ in range(duration_seconds // 2):  # Sample every 2 seconds
-            telemetry = await client.get_telemetry()
+            telemetry = await client.telemetry.read_once()
 
             flow_samples.append(telemetry.flow_m3h)
             head_samples.append(telemetry.head_m)

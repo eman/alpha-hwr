@@ -9,7 +9,7 @@ import pytest
 from alpha_hwr.constants import CLASS_10, FRAME_START, SERVICE_ID_HIGH
 from alpha_hwr.protocol.codec import encode_float_be
 from alpha_hwr.protocol.frame_builder import FrameBuilder
-from alpha_hwr.utils import calc_crc16, calc_crc16_read
+from alpha_hwr.utils import calc_crc16_read
 
 
 class TestFrameBuilderBasics:
@@ -231,46 +231,6 @@ class TestReadRequest:
         assert packet[8] == 0x2C
 
 
-class TestWriteRequest:
-    """Test WRITE request building."""
-
-    def test_build_write_single_byte(self):
-        """Test WRITE with single byte value."""
-        packet = FrameBuilder.build_write_request(
-            0x5D01, value=0x01, source=0x0A
-        )
-
-        assert packet[0] == FRAME_START
-        assert packet[3] == 0x0A  # Source
-        from alpha_hwr.constants import CommandOpcode
-
-        assert packet[5] == CommandOpcode.WRITE
-
-    def test_build_write_multi_byte(self):
-        """Test WRITE with multi-byte value."""
-        value = bytes([0x01, 0x02, 0x03, 0x04])
-        packet = FrameBuilder.build_write_request(0x5D01, value=value)
-
-        # Find value in packet (after register)
-        # Register is 2 bytes, value starts after that
-        value_start = (
-            8  # Start + Len + ServiceID + Source + Reserved + Opcode + Reg(2)
-        )
-        assert packet[value_start : value_start + 4] == value
-
-    def test_write_uses_different_crc(self):
-        """WRITE uses calc_crc16 (no XOR), excluding start byte."""
-        packet = FrameBuilder.build_write_request(0x5D01, value=0x01)
-
-        # Extract CRC
-        crc_in_packet = (packet[-2] << 8) | packet[-1]
-
-        # WRITE uses calc_crc16 over packet excluding start byte
-        calculated_crc = calc_crc16(packet[1:-2])
-
-        assert crc_in_packet == calculated_crc
-
-
 class TestExecuteRequest:
     """Test EXECUTE command building."""
 
@@ -415,9 +375,6 @@ class TestFrameBuilderEdgeCases:
 
         packet3 = FrameBuilder.build_read_request(0x5D01)
         assert isinstance(packet3, bytes)
-
-        packet4 = FrameBuilder.build_write_request(0x5D01, 0x01)
-        assert isinstance(packet4, bytes)
 
         packet5 = FrameBuilder.build_execute_request(0x03, 0x01)
         assert isinstance(packet5, bytes)

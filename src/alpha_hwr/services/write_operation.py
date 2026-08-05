@@ -457,10 +457,13 @@ class WriteOperationService:
         hi = float(op.args["temp_max"])
         autoadapt = op.args.get("autoadapt")
 
-        if not 20.0 <= lo <= 70.0 or not 20.0 <= hi <= 70.0 or lo >= hi:
+        low = self._control.TEMP_RANGE_MIN_C
+        high = self._control.TEMP_RANGE_MAX_C
+        if not low <= lo <= high or not low <= hi <= high or lo >= hi:
             op.settle(
                 WriteStatus.INVALID,
-                f"{lo}-{hi} C is not a valid range (20-70, min below max)",
+                f"{lo}-{hi} C is not a valid range "
+                f"({low:g}-{high:g}, min below max)",
             )
             return
 

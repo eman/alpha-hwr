@@ -61,6 +61,8 @@ nav:
       - CLI Guide: guides/cli_guide.md
       - Device Profiles: guides/device-profiles.md
       - Understanding Telemetry: guides/understanding_telemetry.md
+      - Verified Writes: guides/verified_writes.md
+      - Run State & Schedules: guides/run_state_and_schedules.md
       - Control Modes & Setpoints: guides/control_modes.md
       - Backup & Restore: guides/backup_restore.md
       - Historical Data: guides/historical_data.md
@@ -85,6 +87,7 @@ nav:
           - Telemetry Stream: protocol/packet_traces/03_telemetry_stream.md
           - Set Mode: protocol/packet_traces/04_set_mode.md
           - Schedule Write: protocol/packet_traces/05_schedule_write.md
+          - Alarms & Warnings: protocol/packet_traces/06_alarms_warnings.md
   - Reimplementation Guide:
       - Overview: reimplementation/README.md
       - Architecture: reimplementation/architecture.md

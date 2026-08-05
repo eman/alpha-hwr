@@ -49,7 +49,15 @@ def resolve_platform_address(address_string: str) -> str | None:
 
 
 def calc_crc16(data: bytes, init: int = 0xFFFF) -> int:
-    """Calculate CRC-16-CCITT checksum (No Final XOR). Used for Writes."""
+    """
+    CRC-16-CCITT without the final XOR.
+
+    This is a building block for :func:`calc_crc16_read`, not a wire
+    convention. Nothing the pump accepts uses it directly: reads and writes
+    both need the final XOR, and every captured frame confirms it. It was
+    once described as "the write convention", on the strength of one code
+    path that never talked to a pump.
+    """
     crc = init
     for byte in data:
         crc = ((crc << 8) ^ CRC_TABLE[((crc >> 8) ^ byte) & 0xFF]) & 0xFFFF
@@ -57,6 +65,11 @@ def calc_crc16(data: bytes, init: int = 0xFFFF) -> int:
 
 
 def calc_crc16_read(data: bytes, init: int = 0xFFFF) -> int:
-    """Calculate CRC-16-CCITT checksum (With Final XOR). Used for Reads/Execute."""
+    """
+    CRC-16-CCITT with the final XOR - the protocol's only CRC.
+
+    Polynomial 0x1021, init 0xFFFF, final XOR 0xFFFF, computed over
+    ``frame[1:-2]``. Used for every frame, in both directions.
+    """
     crc = calc_crc16(data, init)
     return crc ^ 0xFFFF

@@ -11,8 +11,6 @@ This service handles all pump control operations including:
 The service provides a clean API that abstracts the complexity of
 Class 10 and Class 3 protocol operations.
 
-Implementation Notes for Other Languages
-----------------------------------------
 This service demonstrates mode control patterns:
 
 1. **Class 10 Control**: Modern method using DataObjects
@@ -154,6 +152,22 @@ class ControlService(BaseService):
 
     #: ``operation_mode`` value meaning "leave the run state alone".
     OPERATION_MODE_NO_CMD = 0x06
+
+    #: Bounds accepted for a temperature-range setpoint, in degrees C.
+    #:
+    #: These are a client-side guard, and measurement says they are the
+    #: *only* guard: the pump validates this object not at all. Offered
+    #: -10 C and 120 C it stored both, unchanged - no clamping, no
+    #: rejection, nothing. That is the opposite of the setpoint objects,
+    #: which clamp silently.
+    #:
+    #: So the range here is a judgement about what a hot-water system can
+    #: mean, not a mirror of firmware behaviour. The two entry points used
+    #: to disagree about it (20-60 here, 20-70 in the write layer), which
+    #: made the same request valid or invalid depending on which one the
+    #: caller happened to reach for.
+    TEMP_RANGE_MIN_C = 20.0
+    TEMP_RANGE_MAX_C = 70.0
 
     #: Flow setpoints are stored in SI m3/s while the API speaks m3/h.
     #: Writing m3/h straight through put a commanded 2.5 on the wire as
@@ -828,15 +842,18 @@ class ControlService(BaseService):
         )
 
         # Validate temperature range
-        if not (20.0 <= on_temp_c <= 60.0):
+        lo, hi = self.TEMP_RANGE_MIN_C, self.TEMP_RANGE_MAX_C
+        if not (lo <= on_temp_c <= hi):
             logger.error(
-                f"On temperature {on_temp_c}°C is outside valid range (20-60°C)"
+                f"On temperature {on_temp_c}°C is outside valid range "
+                f"({lo:g}-{hi:g}°C)"
             )
             return False
 
-        if not (20.0 <= off_temp_c <= 60.0):
+        if not (lo <= off_temp_c <= hi):
             logger.error(
-                f"Off temperature {off_temp_c}°C is outside valid range (20-60°C)"
+                f"Off temperature {off_temp_c}°C is outside valid range "
+                f"({lo:g}-{hi:g}°C)"
             )
             return False
 

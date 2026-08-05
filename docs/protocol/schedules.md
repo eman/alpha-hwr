@@ -43,8 +43,12 @@ Layer 4: Special events      (holiday adjustments)
 To successfully read the schedule, the client must follow a strict sequence:
 
 1.  **Authentication**: The device must be unlocked via the [Connection Handshake](connection.md).
-2.  **Keep-Alive Burst**: Before requesting large data structures, the client must send a burst of "Keep-Alive" packets to wake up the GENI controller fully.
-3.  **Timing**: A delay of ~200-500ms is required after the burst before sending the Read Request.
+2.  **Bonding**: An unbonded connection is dropped at about 1.8 seconds,
+    whether or not anything is being sent. A schedule read will not complete
+    on one.
+3.  **Keep-Alive Burst**: Before requesting large data structures, send a
+    burst of keep-alive packets to wake the GENI controller fully.
+4.  **Timing**: Allow ~200-500 ms after the burst before the read request.
 
 ## Data Structure
 
@@ -76,46 +80,99 @@ The device responds with a Class 10 packet containing the full week's schedule.
 
 **Day Order**: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.
 
-## One-Time Schedule (Vacation Mode)
+## Single Events (One-Time Schedules and Vacations)
 
-The pump supports a dedicated "One-Time" schedule slot, often used for "Vacation Mode" or temporary overrides.
+A single event is a one-time window layered over the weekly schedule. `Auto`
+makes the pump run for it; `Stop` holds it off, which is how a vacation is
+expressed.
 
-*   **Object ID**: `0x6702` (26370)
-*   **SubID**: `0x5E00` (24064)
-*   **OpSpec**: `0x8B` (Set)
+> Earlier revisions of this page described an object at `0x6702` / SubID
+> `0x5E00` with a `4D`-prefixed payload, and a `set_one_time_schedule()`
+> API on the client. **None of it exists.** Single events live in Object 84 alongside the
+> weekly schedule.
 
-### Packet Structure
-The payload controls whether the one-time schedule is enabled or disabled (deleted).
+*   **Object**: 84 (`0x54`)
+*   **Sub-IDs**: 900 upward, one per slot
+*   **Type**: 220 (`0xDC01`, `ClockProgramSingleEvent`)
+*   **OpSpec**: `0xB3` (long SET)
+*   **Structure**: 10 bytes
 
-**Enable One-Time Schedule:**
-```text
-4D 01 [StartTimestamp] [EndTimestamp] [Mode] ...
+### Structure
+
 ```
-*   `4D`: Command marker
-*   `01`: Enable flag
-*   ... followed by start/end times and mode configuration.
-
-**Disable/Delete One-Time Schedule:**
-```text
-4D 00 ...
+[enabled(1)][action(1)][begin u32 BE][end u32 BE]
 ```
-*   `4D`: Command marker
-*   `00`: Disable flag
-*   ... rest of payload is ignored or zeroed.
 
-### Python Implementation
+| Field | Values |
+| :--- | :--- |
+| `enabled` | `0x01` set, `0x00` cleared |
+| `action` | `0x01` **Stop**, `0x02` **Run** |
+| `begin`, `end` | Local Unix timestamps, big-endian |
+
+!!! warning "The action byte's sense is inverted relative to the weekly schedule"
+
+    In the weekly schedule's `default_action`, `0x01` means Stop. In a single
+    event, `0x01` is also Stop but `0x02` is Run — there is no `0x00`. This is
+    the pump's encoding, not a documentation slip.
+
+### Full write frame
+
+```
+27 [len] E7 F8 0A B3 54 [SubH] [SubL] 00 DC 01 00 00 0A
+[enabled] [action] [begin×4] [end×4] [CRC]
+```
+
+### Slot capacity comes from the pump
+
+The sub-id range suggests 35 slots. The unit this was measured against
+exposes **5**, and reading past them simply goes unanswered. Read the count
+from the `ClockProgramOverview` (Object 84 Sub 1) rather than assuming.
+
+### Timestamps are local Unix time
+
+!!! danger "The failure mode verification cannot catch"
+
+    The wire value is the **wall clock stamped as though it were UTC** —
+    `timegm(local_fields)` — matching the pump's own RTC, which reports bare
+    wall-clock fields with no offset.
+
+    Encoding these as real UTC round-trips **byte-identically**. The write is
+    acknowledged, a readback agrees with itself, and the event opens hours
+    from where it was meant to. Nothing detects it except a clock and a
+    running motor.
+
+    Established by writing an event under this encoding and watching the
+    motor start four seconds from the intended wall clock.
+
+### The clock program must be running
+
+Both confirmed on hardware, by watching a window open with the motor at
+0 RPM:
+
+1.  **A stopped pump ignores single events entirely** — the run state gates
+    the whole clock program, weekly schedule included.
+2.  **Disabling the weekly schedule disables single events too.** They are
+    the same program; there is no separate switch.
+
+### Python
 
 ```python
-# Set a one-time schedule (e.g., Vacation Mode)
-start_time = datetime.now() + timedelta(days=1)
-end_time = start_time + timedelta(weeks=1)
-await client.set_one_time_schedule(
-    start_time, end_time, ControlMode.CONSTANT_SPEED
+from datetime import datetime
+
+# A one-off run window
+slot = await client.single_events.find_free_slot()
+await client.single_events.write(
+    slot, datetime(2026, 8, 10, 6, 0), datetime(2026, 8, 10, 8, 0)
 )
 
-# Delete/Cancel one-time schedule
-await client.delete_schedule()
+# A vacation - a Stop event
+await client.single_events.set_vacation(
+    datetime(2026, 8, 10), datetime(2026, 8, 17)
+)
+await client.single_events.clear_vacation()
 ```
+
+See [Run State and Schedules](../guides/run_state_and_schedules.md).
 
 ## Unsupported Features
 
@@ -133,14 +190,14 @@ async with AlphaHWRClient(address) as client:
     await client.authenticate()
 
     # Check if schedule is globally enabled
-    is_enabled = await client.get_schedule_enabled()
+    is_enabled = await client.schedule.get_state()
     print(f"Schedule Active: {is_enabled}")
 
     # Get detailed entries for all layers (consolidated)
-    schedule = await client.get_schedule()
+    schedule = await client.schedule.read_entries()
 
     # Get entries for a specific layer (e.g., Layer 0)
-    layer0_schedule = await client.get_schedule(layer=0)
+    layer0_schedule = await client.schedule.read_entries(layer=0)
 
     for entry in schedule:
         if entry.enabled:
@@ -157,10 +214,10 @@ The global schedule can be enabled or disabled:
 
 ```python
 # Enable the schedule
-success = await client.set_schedule_enabled(True)
+success = await client.schedule.enable()
 
 # Disable the schedule
-success = await client.set_schedule_enabled(False)
+success = await client.schedule.disable()
 ```
 
 **Protocol Details:**
@@ -236,8 +293,23 @@ Different schedule operations require different OpSpec codes:
 Write a schedule entry for a specific day:
 
 ```python
-# Set Monday 6:00-8:00
-success = await client.set_schedule_entry("Monday", 6, 0, 8, 0)
+from alpha_hwr import ScheduleEntry
+
+# Entries are written a whole layer at a time - there is no partial
+# update on the wire, so read, edit and write all 42 bytes back.
+entries = await client.schedule.read_entries(layer=0)
+entries = [e for e in entries if e.day != "Monday"]
+entries.append(
+    ScheduleEntry(
+        day="Monday",
+        begin_hour=6,
+        begin_minute=0,
+        end_hour=8,
+        end_minute=0,
+        layer=0,
+    )
+)
+success = await client.schedule.write_entries(entries, layer=0)
 ```
 
 **Protocol Details:**
@@ -308,7 +380,7 @@ entries = [
     ),
 ]
 
-success = await client.set_weekly_schedule(entries, layer=0)
+success = await client.schedule.write_entries(entries, layer=0)
 ```
 
 **Protocol Details:**
@@ -345,7 +417,7 @@ Clear a schedule entry for a specific day:
 
 ```python
 # Clear Monday on layer 0
-success = await client.clear_schedule_entry("Monday", layer=0)
+success = await client.schedule.clear_entry("Monday", layer=0)
 ```
 
 **Protocol Details:**
@@ -355,15 +427,15 @@ To clear a single day, the client:
 2. Sets the 6 bytes for the specific day to 0x00 (disabled)
 3. Writes back using Class 10 SET operation with OpSpec `0xB3`
 
-This preserves other days on the same layer. Uses the same packet format as `set_schedule_entry()`.
+This preserves other days on the same layer. Uses the same packet format as `ScheduleService.write_entries()`.
 
 ##### Clear Entire Layer
 
 Clear all schedule entries on a specific layer:
 
 ```python
-# Clear all entries on layer 0
-success = await client.clear_schedule_layer(0)
+# Clear all entries on layer 0 - write an empty layer
+success = await client.schedule.write_entries([], layer=0)
 ```
 
 **Protocol Details:**
@@ -372,81 +444,40 @@ To clear a layer, the client:
 1. Builds a 42-byte payload of all zeros
 2. Writes to the specified layer (SubIDs 1000-1004) using OpSpec `0xB3`
 
-This is more efficient than clearing individual days. Uses the same packet format as `set_weekly_schedule()`.
+This is more efficient than clearing individual days. Uses the same packet format as `ScheduleService.write_entries()`.
 
 ##### Clear All Schedules
 
 Clear all schedule entries on all 5 layers:
 
 ```python
-# Clear everything
-success = await client.clear_all_schedules()
+# Clear everything - one write per layer
+for layer in range(5):
+    await client.schedule.write_entries([], layer=layer)
 ```
 
 **Protocol Details:**
 
 This method iterates through all 5 layers (0-4) and clears each one. Returns True only if all 5 layers are successfully cleared.
 
-#### Export/Import JSON
+#### Export and Import
 
-##### Export Schedule
-
-Export the current schedule to a JSON file:
-
-```python
-# Export current schedule
-success = await client.export_schedule_json("schedule.json")
-```
-
-**Details:**
-
-The export method:
-1. Reads the complete schedule using `get_schedule()`
-2. Writes the data to a JSON file with proper formatting
-3. Creates parent directories if needed
-
-**JSON Format:**
-
-```json
-{
-  "enabled": true,
-  "days": [
-    {
-      "day": "Monday",
-      "enabled": true,
-      "action": 2,
-      "begin_hour": 6,
-      "begin_minute": 0,
-      "end_hour": 8,
-      "end_minute": 0,
-      "begin_time": "06:00",
-      "end_time": "08:00"
-    }
-  ]
-}
-```
-
-##### Import Schedule
-
-Import a schedule from a JSON file:
-
-```python
-# Import from file
-import json
-from alpha_hwr import ScheduleEntry
-
-with open("schedule.json", "r") as f:
-    data = json.load(f)
-
-entries = [ScheduleEntry(**entry) for entry in data["days"]]
-success = await client.set_weekly_schedule(entries, layer=0)
-```
-
-Or use the CLI:
+There is no schedule-specific export API. The schedule travels inside a full
+configuration backup:
 
 ```bash
-alpha-hwr schedule --import-json schedule.json --layer 0
+alpha-hwr config backup my_backup.json
+alpha-hwr config restore my_backup.json
 ```
+
+```python
+await client.config.backup("my_backup.json")
+await client.config.restore("my_backup.json")
+```
+
+The backup's `schedule` section carries the enabled flag and every layer's
+entries. See [Backup & Restore](../guides/backup_restore.md) — including the
+warning that restore drives the unverified setters.
 
 ## Working with Multiple Layers
 
@@ -498,8 +529,8 @@ evening = [
     # ... rest of weekdays
 ]
 
-await client.set_weekly_schedule(morning, layer=0)
-await client.set_weekly_schedule(evening, layer=1)
+await client.schedule.write_entries(morning, layer=0)
+await client.schedule.write_entries(evening, layer=1)
 ```
 
 #### Pattern 2: Weekday/Weekend Separation
@@ -515,7 +546,7 @@ weekend = [
     ),
 ]
 
-await client.set_weekly_schedule(weekend, layer=2)
+await client.schedule.write_entries(weekend, layer=2)
 ```
 
 #### Pattern 3: Seasonal Adjustments
@@ -531,38 +562,39 @@ winter_boost = [
 
 # Enable in winter, clear in summer
 if is_winter:
-    await client.set_weekly_schedule(winter_boost, layer=3)
+    await client.schedule.write_entries(winter_boost, layer=3)
 else:
-    await client.clear_schedule_layer(3)
+    await client.schedule.write_entries([], layer=3)
 ```
 
 ### Reading from Specific Layers
 
 ```python
 # Read all layers (combined view)
-schedule = await client.get_schedule()
+schedule = await client.schedule.read_entries()
 # Returns all enabled entries from all 5 layers
 
 # Read specific layer (direct)
-layer0_data = await client.get_schedule(layer=0)
-layer2_data = await client.get_schedule(layer=2)
+layer0_data = await client.schedule.read_entries(layer=0)
+layer2_data = await client.schedule.read_entries(layer=2)
 ```
 
 ### Layer Operations
 
 ```python
 # Write to specific layer
-await client.set_weekly_schedule(entries, layer=2)
+await client.schedule.write_entries(entries, layer=2)
 
 # Clear specific layer
-await client.clear_schedule_layer(2)
+await client.schedule.write_entries([], layer=2)
 
 # Clear all layers
-await client.clear_all_schedules()
+for layer in range(5):
+    await client.schedule.write_entries([], layer=layer)
 
 # Single entry affects only one layer
-await client.set_schedule_entry("Monday", 6, 0, 8, 0, layer=0)
-await client.clear_schedule_entry("Monday", layer=0)
+await client.schedule.write_entries(entries, layer=0)
+await client.schedule.clear_entry("Monday", layer=0)
 ```
 
 ### Layer Validation
@@ -582,8 +614,8 @@ layer1 = [
     )
 ]
 
-await client.set_weekly_schedule(layer0, layer=0)  #  Valid
-await client.set_weekly_schedule(layer1, layer=1)  #  Valid
+await client.schedule.write_entries(layer0, layer=0)  #  Valid
+await client.schedule.write_entries(layer1, layer=1)  #  Valid
 # Result: Monday 6:00-10:00 (overlapping is allowed across layers)
 
 # This is INVALID (same layer)
@@ -595,7 +627,7 @@ entries = [
         day="Monday", begin_hour=7, begin_minute=0, end_hour=10, end_minute=0
     ),
 ]
-await client.set_weekly_schedule(entries, layer=0)  #  Validation error
+await client.schedule.write_entries(entries, layer=0)  #  Validation error
 # Error: Overlap detected: Monday layer 0: 06:00-09:00 overlaps with 07:00-10:00
 ```
 
@@ -699,7 +731,7 @@ entries = [
     ),  # Overlaps!
 ]
 
-is_valid, errors = client.validate_schedule(entries)
+is_valid, errors = client.schedule.validate_entries(entries)
 if not is_valid:
     for error in errors:
         print(f"Error: {error}")

@@ -6,8 +6,6 @@ This service handles reading device identification and metadata:
 - Serial number, software version, hardware version (from Class 7 strings)
 - Device statistics (alarms, runtime, energy consumption)
 
-Implementation Notes for Other Languages
-----------------------------------------
 Device info can be retrieved from two sources:
 
 1. **BLE Advertisement Data**:

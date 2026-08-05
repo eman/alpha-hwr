@@ -279,17 +279,6 @@ class TestCompleteProtocolVectors:
         assert frame[5] == 0x03
         assert frame[6:9] == bytes([0x5D, 0x01, 0x2C])
 
-    def test_write_request_structure(self):
-        """Test write request command structure."""
-        # Build a write request
-        register = 0x5600  # Control register
-        value = bytes([0x01, 0x00, 0x00, 0x00])  # Start command
-
-        frame = FrameBuilder.build_write_request(register, value)
-
-        assert frame[0] == 0x27
-        assert frame[4] == 0x0A  # Class 10
-
     @pytest.mark.parametrize(
         "register,obj_id,sub_id",
         [

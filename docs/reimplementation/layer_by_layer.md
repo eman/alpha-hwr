@@ -24,7 +24,7 @@ Before starting implementation, ensure you have:
 - **BLE Basics**: GATT services, characteristics, notifications
 - **Binary Data**: Byte arrays, endianness, bit manipulation
 - **Async Programming**: Your language's async/await or callback patterns
-- **CRC Checksums**: CRC-16/MODBUS calculation
+- **CRC Checksums**: CRC-16/CCITT calculation
 
 ### Development Tools
 - BLE debugging tool (nRF Connect, LightBlue, etc.)
@@ -84,45 +84,45 @@ async def discover_pump(serial_number=None):
 
 ### 1.2 Connect to Pump
 
-Connect via BLE and discover GENI service.
+Connect via BLE and discover the GENI service.
 
-**GENI Service UUIDs**:
+**GENI GATT layout** — one service, **one characteristic**, used for both
+directions:
+
 ```python
 GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
-TX_CHAR_UUID = "0000fdd1-0000-1000-8000-00805f9b34fb"  # Write to pump
-RX_CHAR_UUID = "0000fdd2-0000-1000-8000-00805f9b34fb"  # Notifications from pump
+GENI_CHAR_UUID = "859cffd1-036e-432a-aa28-1a0085b87ba9"
 ```
+
+> Earlier revisions of this guide described a two-characteristic topology
+> (`0000fdd1` for writes, `0000fdd2` for notifications). **Neither
+> characteristic exists on this device.** You write to `859cffd1…` and you
+> subscribe to notifications on the same handle. A port looking for a
+> separate RX characteristic fails at service discovery.
 
 **Implementation**:
 ```python
 async def connect_to_pump(device_address):
-    """
-    Connect to pump and setup characteristics.
-    
-    Returns (client, tx_char, rx_char)
-    """
-    # Connect
+    """Connect to the pump and resolve the single GENI characteristic."""
     client = await ble_library.connect(device_address)
-    
-    # Discover services
     await client.discover_services()
-    
-    # Get GENI service
+
     service = client.get_service(GENI_SERVICE_UUID)
-    
-    # Get characteristics
-    tx_char = service.get_characteristic(TX_CHAR_UUID)
-    rx_char = service.get_characteristic(RX_CHAR_UUID)
-    
-    return (client, tx_char, rx_char)
+    char = service.get_characteristic(GENI_CHAR_UUID)
+
+    return (client, char)
 ```
+
+Note also that **the pump drops an idle connection at about 1.8 seconds**
+unless it is bonded. If your connection dies almost immediately and always at
+the same moment, the problem is pairing, not your frames.
 
 
 ---
 
 ### 1.3 Setup Notifications
 
-Enable notifications on RX characteristic to receive pump responses.
+Subscribe on the same characteristic you write to.
 
 **Implementation**:
 ```python
@@ -134,9 +134,9 @@ def notification_handler(sender, data):
     response_queue.append(data)
 
 
-async def enable_notifications(client, rx_char):
-    """Enable BLE notifications."""
-    await client.start_notify(rx_char, notification_handler)
+async def enable_notifications(client):
+    """Enable BLE notifications on the GENI characteristic."""
+    await client.start_notify(GENI_CHAR_UUID, notification_handler)
 ```
 
 
@@ -148,9 +148,13 @@ Implement basic send/receive functions.
 
 **Implementation**:
 ```python
-async def send_packet(tx_char, data: bytes):
-    """Send bytes to pump."""
-    await tx_char.write_value(data, response=False)
+async def send_packet(client, data: bytes):
+    """Send bytes to the pump, in 20-byte chunks."""
+    for i in range(0, len(data), 20):
+        await client.write_gatt_char(
+            GENI_CHAR_UUID, data[i : i + 20], response=False
+        )
+        await asyncio.sleep(0.05)  # the pump needs the pacing
 
 
 async def receive_packet(timeout=5.0):
@@ -172,39 +176,47 @@ async def receive_packet(timeout=5.0):
 
 **Goal**: Encode and decode primitive data types (floats, integers).
 
-### 2.1 CRC-16/MODBUS
+### 2.1 CRC-16/CCITT
 
 Implement CRC calculation for packet integrity.
 
 **Algorithm**:
 ```python
-def calc_crc16_modbus(data: bytes) -> int:
+def calc_crc16(data: bytes) -> int:
     """
-    Calculate CRC-16/MODBUS checksum.
-    
-    Polynomial: 0x8005
+    CRC-16/CCITT-FALSE.
+
+    Polynomial: 0x1021
     Initial value: 0xFFFF
-    Final XOR: 0x0000
-    Reflect input: True
-    Reflect output: True
+    Final XOR: 0xFFFF
+    Reflect input/output: False
+
+    Computed over frame[1:-2] - everything after the start byte, up to
+    but not including the two CRC bytes. The CRC itself is big-endian.
     """
     crc = 0xFFFF
-    
+
     for byte in data:
-        crc ^= byte
+        crc ^= byte << 8
         for _ in range(8):
-            if crc & 0x0001:
-                crc = (crc >> 1) ^ 0xA001  # Reflected polynomial
+            if crc & 0x8000:
+                crc = ((crc << 1) ^ 0x1021) & 0xFFFF
             else:
-                crc >>= 1
-    
-    return crc
+                crc = (crc << 1) & 0xFFFF
+
+    return crc ^ 0xFFFF
 ```
 
-**Test Vectors** (from [test_vectors.md](test_vectors.md)):
+> Earlier revisions of this guide specified CRC-16/MODBUS here. That was
+> wrong, and it is the single most expensive error a port can inherit - no
+> frame is accepted and no response arrives, so there is nothing to debug
+> against. See [common_pitfalls.md](common_pitfalls.md#2-crc-calculation).
+
+**Test Vectors** - captured frames the pump accepted:
 ```python
-assert calc_crc16_modbus(b"\x07\xe7\xf8\x0a\x04\x00\x85") == 0x1202
-assert calc_crc16_modbus(b"\x06\xe7\xf8\x00\x67") == 0xE3A3
+assert calc_crc16(bytes.fromhex("05e7f805c14b")) == 0xC382  # Extend 1
+assert calc_crc16(bytes.fromhex("07e7f80203949596")) == 0xEB47  # Legacy magic
+assert calc_crc16(bytes.fromhex("05e7f8038106")) == 0xE587  # Class 3 START
 ```
 
 
@@ -349,7 +361,7 @@ def build_info_command(class_byte, sub_id, obj_id):
 
     # Calculate CRC over bytes from Length to end of APDU
     crc_data = bytes(frame[1:])  # Exclude start byte
-    crc = calc_crc16_modbus(crc_data)
+    crc = calc_crc16(crc_data)
 
     # Append CRC (big-endian)
     frame.append((crc >> 8) & 0xFF)  # CRC high
@@ -390,8 +402,11 @@ def build_set_command(sub_id, obj_id, data: bytes):
     Returns:
         Complete frame (bytes)
     """
-    # Build APDU
-    opspec = 0x80 | len(data)  # SET operation (bit 7) + data length
+    # Build APDU. The OpSpec's low bits count the SubID and ObjID bytes
+    # as well as the payload - 4 + len(data), not len(data). A 12-byte
+    # control payload gives 0x80 | 16 = 0x90, which is what the pump sees
+    # on every real control frame.
+    opspec = 0x80 | (4 + len(data))
     apdu = []
     apdu.append(CLASS_10)
     apdu.append(opspec)
@@ -412,24 +427,43 @@ def build_set_command(sub_id, obj_id, data: bytes):
     
     # Calculate CRC
     crc_data = bytes(frame[1:])
-    crc = calc_crc16_modbus(crc_data)
+    crc = calc_crc16(crc_data)
     frame.append((crc >> 8) & 0xFF)
     frame.append(crc & 0xFF)
     
     return bytes(frame)
 ```
 
-**Test**:
+**Test** — set Constant Pressure to 1.5 m (14710 Pa) through the fused
+control object. The payload is 12 bytes, not 4: the object carries the run
+state and the mode alongside the setpoint, and there is no way to write one
+without asserting all three.
+
 ```python
-# Set constant pressure mode to 1.5m (14710 Pascals)
-setpoint_data = encode_float_be(14710.0)
-packet = build_set_command(0x5600, 0x0601, setpoint_data)
+payload = bytes(
+    [
+        0x2F,
+        0x01,
+        0x00,
+        0x00,
+        0x07,  # fixed prefix
+        0x00,  # control_source (ignored)
+        0x00,  # operation_mode: AUTO
+        0x00,  # control mode: CONSTANT_PRESSURE
+    ]
+) + encode_float_be(14710.0)
+
+packet = build_set_command(0x5600, 0x0601, payload)
+
 assert packet[0] == 0x27
-assert packet[5] == 0x84  # OpSpec: SET (0x80) + 4 bytes (0x04)
-assert (
-    len(packet) == 16
-)  # Header (4) + APDU (10: class, opspec, ids, data) + CRC (2)
+assert packet[5] == 0x90  # SET (0x80) | 16 (4 id bytes + 12 payload)
+assert len(packet) == 24  # header 4 + APDU 18 + CRC 2
+assert packet.hex() == "2714e7f80a90560006012f010000070000004665d80032a7"
 ```
+
+Then send the configuration commit — see
+[common_pitfalls.md](common_pitfalls.md) — and read Object 86 Sub 7 back,
+because the pump acks setpoints it is about to clamp.
 
 
 ---
@@ -465,7 +499,7 @@ def parse_frame(data: bytes):
 
     # Verify CRC
     crc_received = (data[-2] << 8) | data[-1]
-    crc_calculated = calc_crc16_modbus(data[1:-2])
+    crc_calculated = calc_crc16(data[1:-2])
     if crc_received != crc_calculated:
         raise ValueError("CRC mismatch")
 
@@ -539,43 +573,69 @@ Send exactly these packets in order:
 3. Extend 1 × 1
 4. Extend 2 × 1
 
-**Packets** (pre-calculated with CRC):
+**Packets** — these are captured constants the pump accepts. Earlier
+revisions of this page listed four *different* packets here, contradicting
+every other file in this documentation set; those did not work.
+
 ```python
-LEGACY_MAGIC = bytes([0x27, 0x06, 0xE7, 0xF8, 0x00, 0x67, 0xA3, 0xE3])
-CLASS10_UNLOCK = bytes(
-    [0x27, 0x07, 0xE7, 0xF8, 0x0A, 0x04, 0x00, 0x85, 0x02, 0x12]
-)
-EXTEND_1 = bytes([0x27, 0x07, 0xE7, 0xF8, 0x1A, 0x2C, 0x00, 0x52, 0x01, 0x02])
-EXTEND_2 = bytes([0x27, 0x06, 0xE7, 0xF8, 0x1A, 0x54, 0xD2, 0x55])
+LEGACY_MAGIC = bytes.fromhex("2707e7f80203949596eb47")
+CLASS10_UNLOCK = bytes.fromhex("2707e7f80a03560006c55a")
+EXTEND_1 = bytes.fromhex("2705e7f805c14bc382")
+EXTEND_2 = bytes.fromhex("2705e7f80bc10fd0c3")
 ```
+
+Each is `build_geni_frame(apdu)` over the APDUs `02 03 94 95 96`,
+`0A 03 56 00 06`, `05 C1 4B` and `0B C1 0F` respectively — so if your frame
+builder is right, you can generate them rather than pasting them, and the
+match is a useful test of the builder. See
+[test_vectors.md](test_vectors.md), which is generated by executing the
+codec.
+
+**Timing.** The pump needs the gaps; they are not padding:
+
+| Gap | Delay |
+| :--- | :--- |
+| Between packets, within a stage | 50 ms |
+| Stage 1 → Stage 2 | 100 ms |
+| Stage 2 → Stage 3 | 200 ms |
+| After Stage 3, before any command | 500 ms |
 
 **Implementation**:
 ```python
-async def authenticate(tx_char):
+INTER_PACKET_DELAY = 0.05
+STAGE_1_TO_2_DELAY = 0.10
+STAGE_2_TO_3_DELAY = 0.20
+STABILIZE_DELAY = 0.5
+
+
+async def authenticate(client):
     """
-    Perform authentication sequence.
-    
-    No response expected - success is assumed if no errors.
+    Perform the three-stage handshake.
+
+    No response is expected. The pump sends no ack, so "success" means the
+    sequence was sent without a transport error - not that the pump
+    confirmed anything.
     """
-    # Step 1: Legacy Magic (3x)
-    for _ in range(3):
-        await send_packet(tx_char, LEGACY_MAGIC)
-        await asyncio.sleep(0.05)  # 50ms delay
-    
-    # Step 2: Class 10 Unlock (5x)
-    for _ in range(5):
-        await send_packet(tx_char, CLASS10_UNLOCK)
-        await asyncio.sleep(0.05)
-    
-    # Step 3: Extend 1
-    await send_packet(tx_char, EXTEND_1)
-    await asyncio.sleep(0.05)
-    
-    # Step 4: Extend 2
-    await send_packet(tx_char, EXTEND_2)
-    await asyncio.sleep(0.1)  # Longer delay after final packet
+    for _ in range(3):  # Stage 1: legacy magic
+        await send_packet(client, LEGACY_MAGIC)
+        await asyncio.sleep(INTER_PACKET_DELAY)
+    await asyncio.sleep(STAGE_1_TO_2_DELAY)
+
+    for _ in range(5):  # Stage 2: Class 10 unlock
+        await send_packet(client, CLASS10_UNLOCK)
+        await asyncio.sleep(INTER_PACKET_DELAY)
+    await asyncio.sleep(STAGE_2_TO_3_DELAY)
+
+    await send_packet(client, EXTEND_1)  # Stage 3: extension packets
+    await asyncio.sleep(INTER_PACKET_DELAY)
+    await send_packet(client, EXTEND_2)
+
+    await asyncio.sleep(STABILIZE_DELAY)
 ```
 
+> If the handshake appears to succeed and then everything times out, check
+> **bonding** before you check your frames. An unbonded connection is dropped
+> at about 1.8 seconds regardless of traffic.
 
 See [02_authentication.md](../protocol/packet_traces/02_authentication.md) for detailed explanation.
 
@@ -608,18 +668,15 @@ class Session:
     def __init__(self):
         self.state = SessionState.DISCONNECTED
         self.client = None
-        self.tx_char = None
-        self.rx_char = None
+        self.char = None
 
     async def connect(self, device_address):
         """Connect to pump."""
         if self.state != SessionState.DISCONNECTED:
             raise Exception(f"Cannot connect from state: {self.state}")
 
-        self.client, self.tx_char, self.rx_char = await connect_to_pump(
-            device_address
-        )
-        await enable_notifications(self.client, self.rx_char)
+        self.client, self.char = await connect_to_pump(device_address)
+        await enable_notifications(self.client)
         self.state = SessionState.CONNECTED
 
     async def authenticate(self):
@@ -629,7 +686,7 @@ class Session:
 
         self.state = SessionState.AUTHENTICATING
         try:
-            await authenticate(self.tx_char)
+            await authenticate(self.client)
             self.state = SessionState.AUTHENTICATED
         except Exception as e:
             self.state = SessionState.ERROR
@@ -676,7 +733,7 @@ class TelemetryService:
 
         # Request motor state (Sub 0x0045, Obj 0x0057)
         packet = build_info_command(0x0A, 0x0045, 0x0057)
-        await send_packet(self.session.tx_char, packet)
+        await send_packet(self.session.client, packet)
 
         # Wait for response
         response = await receive_packet(timeout=2.0)
@@ -699,7 +756,7 @@ class TelemetryService:
 
         # Request flow/pressure (Sub 0x0122, Obj 0x005D)
         packet = build_info_command(0x0A, 0x0122, 0x005D)
-        await send_packet(self.session.tx_char, packet)
+        await send_packet(self.session.client, packet)
 
         response = await receive_packet(timeout=2.0)
         frame = parse_frame(response)
@@ -723,50 +780,65 @@ Control pump operation.
 class ControlService:
     def __init__(self, session):
         self.session = session
-    
+
     async def set_constant_pressure_mode(self, target_meters):
         """
         Set constant pressure mode.
-        
+
         Args:
             target_meters: Target head pressure in meters (e.g., 1.5)
         """
         self.session.ensure_authenticated()
-        
+
         # Convert meters to Pascals
         target_pascals = target_meters * 9806.65
-        
+
         # Encode setpoint
         setpoint_data = encode_float_be(target_pascals)
-        
-        # Send SET command (Sub 0x5600, Obj 0x0601)
-        packet = build_set_command(0x5600, 0x0601, setpoint_data)
-        await send_packet(self.session.tx_char, packet)
-        
-        # Wait for ACK
-        response = await receive_packet(timeout=2.0)
-        frame = parse_frame(response)
-        
-        # Check for success (OpSpec should indicate success)
-        if frame["opspec"] & 0x40:  # Error bit
-            raise Exception("Pump rejected command")
-    
+
+        # Setpoint goes through the FUSED object (Sub 0x5600, Obj 0x0601),
+        # which carries the run state and mode in the same frame. Assert
+        # them deliberately: operation_mode = AUTO (0x00), and the mode you
+        # actually want.
+        payload = bytes([0x2F, 0x01, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00])
+        packet = build_set_command(0x5600, 0x0601, payload + setpoint_data)
+        await send_packet(self.session.client, packet)
+
+        # Then the configuration commit, built from the pump's CURRENT
+        # ClockProgramOverview - never from a constant. Byte 4 of that
+        # structure is the schedule's enabled flag.
+        await self.send_configuration_commit()
+
+        # THE ACK IS NOT THE VERDICT. The pump acks values it is about to
+        # clamp: 600 RPM is stored as 1650, 4400 as 3671. Read Object 86
+        # Sub 7 back and report what it holds.
+        stored = await self.read_prioritized_state()
+        return stored.setpoint
+
     async def stop(self):
-        """Stop the pump."""
+        """
+        Stop the pump - Class 3, and nothing else.
+
+        Nine bytes, with no room for a mode or a setpoint. Do NOT route this
+        through the fused control object: earlier versions did, and every
+        start or stop also asserted a mode and overwrote that mode's stored
+        setpoint. There is no Obj 0x0600.
+        """
         self.session.ensure_authenticated()
-        
-        # Send stop command (Sub 0x5600, Obj 0x0600, value=0)
-        stop_data = encode_float_be(0.0)
-        packet = build_set_command(0x5600, 0x0600, stop_data)
-        await send_packet(self.session.tx_char, packet)
-        
+
+        packet = build_geni_frame(bytes([0x03, 0x81, 0x05]))  # 0x06 = START
+        await send_packet(self.session.client, packet)
+
+        # A clean ack is [03 00]. A descriptor-only reply [03 01 AC] means
+        # the pump described the item instead of acting on it - a rejection.
         response = await receive_packet(timeout=2.0)
-        frame = parse_frame(response)
-        
-        if frame["opspec"] & 0x40:
-            raise Exception("Stop command failed")
+        return response[4:6] == bytes([0x03, 0x00])
 ```
 
+> **Do not read state from Object 86 Sub 6.** It is the *request* object: it
+> reports what was last written, and its `control_source` byte reads `0`
+> whatever the pump is doing. Sub 7 is the pump's actual state after it has
+> weighed remote, local and alarm influence. Measured side by side.
 
 ---
 

@@ -34,9 +34,7 @@ For complete protocol reference, see:
 - docs/protocol/wire_format.md
 - docs/protocol/ble_architecture.md
 
-Implementation Notes for Other Languages
-----------------------------------------
-This parser is designed to be easily portable to other languages:
+The parser is deliberately simple, and worth reproducing in this order:
 
 1. **Validation First**: Always validate start byte, length, and CRC before parsing
 2. **Big-Endian**: All multi-byte values are big-endian (network byte order)

@@ -124,9 +124,9 @@ CRC:    CRC-16-CCITT (big-endian)
 **Example Request:**
 
 ```text
-2705e7f802c39421a6
+2705e7f802c3941ae2
 ││││││││││││││││││
-│││││││││││││││└└─ CRC: 0x21A6
+│││││││││││││││└└─ CRC: 0x1AE2
 ││││││││││││└└──── Register: 0x94 (Class 2, ID 148)
 │││││││││└└─────── OpSpec: 0xC3 (INFO, 3 bytes)
 ││││││││└────────── Class: 0x02 (Class 2)
@@ -331,7 +331,7 @@ weekday_morning = [
         day="Friday", begin_hour=6, begin_minute=30, end_hour=8, end_minute=30
     ),
 ]
-await client.set_weekly_schedule(weekday_morning, layer=0)
+await client.schedule.write_entries(weekday_morning, layer=0)
 
 # Layer 1: Weekday evenings
 weekday_evening = [
@@ -340,7 +340,7 @@ weekday_evening = [
     ),
     # ... Tuesday-Friday same pattern
 ]
-await client.set_weekly_schedule(weekday_evening, layer=1)
+await client.schedule.write_entries(weekday_evening, layer=1)
 
 # Layer 2: Weekend all-day
 weekend = [
@@ -351,7 +351,7 @@ weekend = [
         day="Sunday", begin_hour=8, begin_minute=0, end_hour=23, end_minute=0
     ),
 ]
-await client.set_weekly_schedule(weekend, layer=2)
+await client.schedule.write_entries(weekend, layer=2)
 ```
 
 **Protocol Operations:**

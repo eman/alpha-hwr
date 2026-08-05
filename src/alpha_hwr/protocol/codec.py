@@ -19,63 +19,8 @@ Examples:
 - Uint16 1000 = 0x03E8 = bytes [03, E8]
 - Uint32 1234567890 = 0x499602D2 = bytes [49, 96, 02, D2]
 
-For reference implementations in other languages, use platform-native
-big-endian encoding functions or manual bit shifting.
-
-Reference Implementations
--------------------------
-
-C:
-```c
-// Float encoding (big-endian)
-void encode_float_be(float value, uint8_t *bytes) {
-    uint32_t temp;
-    memcpy(&temp, &value, 4);
-    bytes[0] = (temp >> 24) & 0xFF;
-    bytes[1] = (temp >> 16) & 0xFF;
-    bytes[2] = (temp >> 8) & 0xFF;
-    bytes[3] = temp & 0xFF;
-}
-
-// Float decoding (big-endian)
-float decode_float_be(const uint8_t *bytes) {
-    uint32_t temp = (bytes[0] << 24) | (bytes[1] << 16) |
-                    (bytes[2] << 8) | bytes[3];
-    float value;
-    memcpy(&value, &temp, 4);
-    return value;
-}
-```
-
-JavaScript:
-```javascript
-// Float encoding
-function encodeFloatBE(value) {
-    const buffer = new ArrayBuffer(4);
-    const view = new DataView(buffer);
-    view.setFloat32(0, value, false); // false = big-endian
-    return new Uint8Array(buffer);
-}
-
-// Float decoding
-function decodeFloatBE(bytes, offset) {
-    const view = new DataView(bytes.buffer);
-    return view.getFloat32(offset, false); // false = big-endian
-}
-```
-
-Rust:
-```rust
-// Float encoding
-fn encode_float_be(value: f32) -> [u8; 4] {
-    value.to_be_bytes()
-}
-
-// Float decoding
-fn decode_float_be(bytes: &[u8]) -> f32 {
-    f32::from_be_bytes(bytes[0..4].try_into().unwrap())
-}
-```
+In other languages, use platform-native big-endian encoding or manual bit
+shifting - the values above are the ones to check against.
 """
 
 import struct

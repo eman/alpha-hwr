@@ -19,6 +19,9 @@ from .models import (
     SetpointInfo,
     Statistics,
     TelemetryData,
+    WriteCommand,
+    WriteResult,
+    WriteStatus,
 )
 
 # Service modules (for advanced usage)
@@ -26,8 +29,17 @@ from .services import (
     ConfigurationService,
     ControlService,
     DeviceInfoService,
+    EventLogService,
+    HistoryService,
+    RunState,
     ScheduleService,
+    SingleEvent,
+    SingleEventService,
     TelemetryService,
+    TimeService,
+    WriteOperationService,
+    is_stalled,
+    run_state,
 )
 
 # Grouped by category rather than sorted: the groups document the
@@ -43,12 +55,26 @@ __all__ = [  # noqa: RUF022
     "Statistics",
     "AlarmInfo",
     "DeviceInfo",
+    # Verified writes - what a write reports back
+    "WriteResult",
+    "WriteStatus",
+    "WriteCommand",
+    # Run state and single events
+    "RunState",
+    "run_state",
+    "is_stalled",
+    "SingleEvent",
     # Services (for advanced usage)
     "TelemetryService",
     "ControlService",
     "ScheduleService",
     "DeviceInfoService",
     "ConfigurationService",
+    "EventLogService",
+    "HistoryService",
+    "SingleEventService",
+    "TimeService",
+    "WriteOperationService",
     # Exceptions
     "AlphaHWRError",
     # Constants
