@@ -68,7 +68,7 @@ These three have real wire bytes (`0x0D`, `0x0E`, `0x0F`) and switching to
 them works:
 
 ```python
-await client.control.set_mode(ControlMode.AUTO_ADAPT_RADIATOR)   # works
+await client.control.set_mode(ControlMode.AUTO_ADAPT_RADIATOR)  # works
 ```
 
 What does **not** work is setting their setpoint.

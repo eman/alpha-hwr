@@ -72,7 +72,7 @@ from datetime import datetime
 
 events = await client.single_events.read_all()
 for e in events:
-    print(e)      # slot 0: 2026-08-10 06:00 -> 2026-08-10 08:00 (run)
+    print(e)  # slot 0: 2026-08-10 06:00 -> 2026-08-10 08:00 (run)
 ```
 
 | Method | Does |
@@ -148,9 +148,9 @@ one would invent information.
 ```python
 from alpha_hwr.services.single_event import to_pump_time, from_pump_time
 
-when = datetime(2026, 8, 10, 6, 0)     # 06:00 local, as the user means it
-to_pump_time(when)                      # what goes on the wire
-from_pump_time(...)                     # naive, back to the same wall clock
+when = datetime(2026, 8, 10, 6, 0)  # 06:00 local, as the user means it
+to_pump_time(when)  # what goes on the wire
+from_pump_time(...)  # naive, back to the same wall clock
 ```
 
 Pass naive local datetimes and let the library handle it.

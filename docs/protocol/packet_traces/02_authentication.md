@@ -207,7 +207,7 @@ EXTEND_2 = bytes.fromhex("2705e7f80bc10fd0c3")
 
 # BLE UUIDs
 GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
-GENI_CHAR_UUID = "859cffd1-036e-432a-aa28-1a0085b87ba9"   # write + notify
+GENI_CHAR_UUID = "859cffd1-036e-432a-aa28-1a0085b87ba9"  # write + notify
 
 
 async def authenticate(client: BleakClient):
@@ -216,14 +216,18 @@ async def authenticate(client: BleakClient):
     # Step 1: Legacy Magic (3x)
     print("Sending Legacy Magic packets...")
     for i in range(3):
-        await client.write_gatt_char(GENI_CHAR_UUID, LEGACY_MAGIC, response=False)
+        await client.write_gatt_char(
+            GENI_CHAR_UUID, LEGACY_MAGIC, response=False
+        )
         print(f"  Sent {i + 1}/3: {LEGACY_MAGIC.hex(' ')}")
         await asyncio.sleep(0.05)
 
     # Step 2: Class 10 Unlock (5x)
     print("Sending Class 10 Unlock packets...")
     for i in range(5):
-        await client.write_gatt_char(GENI_CHAR_UUID, CLASS10_UNLOCK, response=False)
+        await client.write_gatt_char(
+            GENI_CHAR_UUID, CLASS10_UNLOCK, response=False
+        )
         print(f"  Sent {i + 1}/5: {CLASS10_UNLOCK.hex(' ')}")
         await asyncio.sleep(0.05)
 

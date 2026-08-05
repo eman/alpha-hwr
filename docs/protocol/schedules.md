@@ -301,8 +301,12 @@ entries = await client.schedule.read_entries(layer=0)
 entries = [e for e in entries if e.day != "Monday"]
 entries.append(
     ScheduleEntry(
-        day="Monday", begin_hour=6, begin_minute=0,
-        end_hour=8, end_minute=0, layer=0,
+        day="Monday",
+        begin_hour=6,
+        begin_minute=0,
+        end_hour=8,
+        end_minute=0,
+        layer=0,
     )
 )
 success = await client.schedule.write_entries(entries, layer=0)

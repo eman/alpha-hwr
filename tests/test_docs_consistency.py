@@ -19,6 +19,7 @@ import re
 from pathlib import Path
 
 import pytest
+from typer.core import TyperGroup  # type: ignore[import-not-found]
 from typer.main import get_command  # type: ignore[import-not-found]
 
 from alpha_hwr.cli.app import app
@@ -28,8 +29,14 @@ DOC_FILES = sorted(
     [*(REPO / "docs").rglob("*.md"), REPO / "README.md"],
 )
 
-#: Words that follow "alpha-hwr" in prose without being commands.
-_NOT_COMMANDS = {"pip", "backup", "restore", "library", "config"}
+#: Words that follow "alpha-hwr" without being a command group - prose,
+#: not invocations ("the alpha-hwr library provides...").
+#:
+#: A real CLI group must never appear here. `config` did, which silently
+#: skipped every documented `alpha-hwr config ...` example - including the
+#: backup and restore ones this very audit had just rewritten.
+#: test_no_real_cli_group_is_skipped now makes that impossible.
+_NOT_COMMANDS = {"library", "package", "repository"}
 
 
 def _docs_text() -> list[tuple[Path, str]]:
@@ -39,6 +46,11 @@ def _docs_text() -> list[tuple[Path, str]]:
 def _cli_registry() -> dict[str, dict[str, set[str]]]:
     """``{group: {command: {--flag, ...}}}`` for the real CLI."""
     cli = get_command(app)
+    assert isinstance(cli, TyperGroup), (
+        f"the CLI root is a {type(cli).__name__}, not a group; "
+        "this whole guard assumes `alpha-hwr <group> <command>`"
+    )
+
     registry: dict[str, dict[str, set[str]]] = {}
     for group_name, group in cli.commands.items():
         commands: dict[str, set[str]] = {}
@@ -52,9 +64,12 @@ def _cli_registry() -> dict[str, dict[str, set[str]]]:
     return registry
 
 
-#: ``alpha-hwr <group> <command> <rest of the line>``
+#: ``alpha-hwr <group> <command> <rest of the line>``, all on one line.
+#: ``\s`` would span newlines, making a code block that ends in
+#: ``alpha-hwr`` and is followed by ``pip install`` look like an
+#: invocation - which is why `pip` needed excusing before.
 _INVOCATION = re.compile(
-    r"alpha-hwr\s+([a-z][a-z-]*)\s+([a-z][a-z-]*)([^\n`]*)"
+    r"alpha-hwr[ \t]+([a-z][a-z-]*)[ \t]+([a-z][a-z-]*)([^\n`]*)"
 )
 
 
@@ -72,6 +87,31 @@ def _invocations() -> list[tuple[Path, str, str, str]]:
 def test_the_docs_invoke_some_cli_commands() -> None:
     """A guard that finds nothing to check has stopped working."""
     assert len(_invocations()) > 20
+
+
+def test_no_real_cli_group_is_skipped() -> None:
+    """
+    ``_NOT_COMMANDS`` is for prose, not for silencing failures.
+
+    Listing a real group there disables the guard for every command in it.
+    ``config`` was listed, so every ``alpha-hwr config ...`` example in the
+    docs went unchecked - the backup and restore ones included.
+    """
+    overlap = _NOT_COMMANDS & set(_cli_registry())
+
+    assert not overlap, (
+        f"these are real CLI groups and must not be skipped: {sorted(overlap)}"
+    )
+
+
+def test_config_commands_are_actually_checked() -> None:
+    """The specific regression above, pinned by name."""
+    groups = {group for _, group, _, _ in _invocations()}
+
+    assert "config" in groups, (
+        "no 'alpha-hwr config ...' invocation was collected; the guard is "
+        "not seeing the examples in docs/guides/backup_restore.md"
+    )
 
 
 def test_every_documented_command_exists() -> None:

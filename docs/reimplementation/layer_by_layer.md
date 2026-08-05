@@ -91,7 +91,7 @@ directions:
 
 ```python
 GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
-GENI_CHAR_UUID    = "859cffd1-036e-432a-aa28-1a0085b87ba9"
+GENI_CHAR_UUID = "859cffd1-036e-432a-aa28-1a0085b87ba9"
 ```
 
 > Earlier revisions of this guide described a two-characteristic topology
@@ -152,9 +152,9 @@ async def send_packet(client, data: bytes):
     """Send bytes to the pump, in 20-byte chunks."""
     for i in range(0, len(data), 20):
         await client.write_gatt_char(
-            GENI_CHAR_UUID, data[i:i + 20], response=False
+            GENI_CHAR_UUID, data[i : i + 20], response=False
         )
-        await asyncio.sleep(0.05)   # the pump needs the pacing
+        await asyncio.sleep(0.05)  # the pump needs the pacing
 
 
 async def receive_packet(timeout=5.0):
@@ -214,9 +214,9 @@ def calc_crc16(data: bytes) -> int:
 
 **Test Vectors** - captured frames the pump accepted:
 ```python
-assert calc_crc16(bytes.fromhex("05e7f805c14b")) == 0xC382        # Extend 1
-assert calc_crc16(bytes.fromhex("07e7f80203949596")) == 0xEB47    # Legacy magic
-assert calc_crc16(bytes.fromhex("05e7f8038106")) == 0xE587        # Class 3 START
+assert calc_crc16(bytes.fromhex("05e7f805c14b")) == 0xC382  # Extend 1
+assert calc_crc16(bytes.fromhex("07e7f80203949596")) == 0xEB47  # Legacy magic
+assert calc_crc16(bytes.fromhex("05e7f8038106")) == 0xE587  # Class 3 START
 ```
 
 
@@ -440,18 +440,24 @@ state and the mode alongside the setpoint, and there is no way to write one
 without asserting all three.
 
 ```python
-payload = bytes([
-    0x2F, 0x01, 0x00, 0x00, 0x07,   # fixed prefix
-    0x00,                            # control_source (ignored)
-    0x00,                            # operation_mode: AUTO
-    0x00,                            # control mode: CONSTANT_PRESSURE
-]) + encode_float_be(14710.0)
+payload = bytes(
+    [
+        0x2F,
+        0x01,
+        0x00,
+        0x00,
+        0x07,  # fixed prefix
+        0x00,  # control_source (ignored)
+        0x00,  # operation_mode: AUTO
+        0x00,  # control mode: CONSTANT_PRESSURE
+    ]
+) + encode_float_be(14710.0)
 
 packet = build_set_command(0x5600, 0x0601, payload)
 
 assert packet[0] == 0x27
-assert packet[5] == 0x90          # SET (0x80) | 16 (4 id bytes + 12 payload)
-assert len(packet) == 24          # header 4 + APDU 18 + CRC 2
+assert packet[5] == 0x90  # SET (0x80) | 16 (4 id bytes + 12 payload)
+assert len(packet) == 24  # header 4 + APDU 18 + CRC 2
 assert packet.hex() == "2714e7f80a90560006012f010000070000004665d80032a7"
 ```
 
@@ -572,10 +578,10 @@ revisions of this page listed four *different* packets here, contradicting
 every other file in this documentation set; those did not work.
 
 ```python
-LEGACY_MAGIC   = bytes.fromhex("2707e7f80203949596eb47")
+LEGACY_MAGIC = bytes.fromhex("2707e7f80203949596eb47")
 CLASS10_UNLOCK = bytes.fromhex("2707e7f80a03560006c55a")
-EXTEND_1       = bytes.fromhex("2705e7f805c14bc382")
-EXTEND_2       = bytes.fromhex("2705e7f80bc10fd0c3")
+EXTEND_1 = bytes.fromhex("2705e7f805c14bc382")
+EXTEND_2 = bytes.fromhex("2705e7f80bc10fd0c3")
 ```
 
 Each is `build_geni_frame(apdu)` over the APDUs `02 03 94 95 96`,
@@ -610,17 +616,17 @@ async def authenticate(client):
     sequence was sent without a transport error - not that the pump
     confirmed anything.
     """
-    for _ in range(3):                       # Stage 1: legacy magic
+    for _ in range(3):  # Stage 1: legacy magic
         await send_packet(client, LEGACY_MAGIC)
         await asyncio.sleep(INTER_PACKET_DELAY)
     await asyncio.sleep(STAGE_1_TO_2_DELAY)
 
-    for _ in range(5):                       # Stage 2: Class 10 unlock
+    for _ in range(5):  # Stage 2: Class 10 unlock
         await send_packet(client, CLASS10_UNLOCK)
         await asyncio.sleep(INTER_PACKET_DELAY)
     await asyncio.sleep(STAGE_2_TO_3_DELAY)
 
-    await send_packet(client, EXTEND_1)      # Stage 3: extension packets
+    await send_packet(client, EXTEND_1)  # Stage 3: extension packets
     await asyncio.sleep(INTER_PACKET_DELAY)
     await send_packet(client, EXTEND_2)
 
@@ -669,9 +675,7 @@ class Session:
         if self.state != SessionState.DISCONNECTED:
             raise Exception(f"Cannot connect from state: {self.state}")
 
-        self.client, self.char = await connect_to_pump(
-            device_address
-        )
+        self.client, self.char = await connect_to_pump(device_address)
         await enable_notifications(self.client)
         self.state = SessionState.CONNECTED
 
@@ -776,22 +780,22 @@ Control pump operation.
 class ControlService:
     def __init__(self, session):
         self.session = session
-    
+
     async def set_constant_pressure_mode(self, target_meters):
         """
         Set constant pressure mode.
-        
+
         Args:
             target_meters: Target head pressure in meters (e.g., 1.5)
         """
         self.session.ensure_authenticated()
-        
+
         # Convert meters to Pascals
         target_pascals = target_meters * 9806.65
-        
+
         # Encode setpoint
         setpoint_data = encode_float_be(target_pascals)
-        
+
         # Setpoint goes through the FUSED object (Sub 0x5600, Obj 0x0601),
         # which carries the run state and mode in the same frame. Assert
         # them deliberately: operation_mode = AUTO (0x00), and the mode you
@@ -822,7 +826,7 @@ class ControlService:
         """
         self.session.ensure_authenticated()
 
-        packet = build_geni_frame(bytes([0x03, 0x81, 0x05]))   # 0x06 = START
+        packet = build_geni_frame(bytes([0x03, 0x81, 0x05]))  # 0x06 = START
         await send_packet(self.session.client, packet)
 
         # A clean ack is [03 00]. A descriptor-only reply [03 01 AC] means

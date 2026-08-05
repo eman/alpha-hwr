@@ -195,7 +195,7 @@ read-modify-write so the flow setpoint it also carries survives.
 
 **Implementation:**
 ```python
-result = await client.control.set_cycle_times(5, 15)   # verified
+result = await client.control.set_cycle_times(5, 15)  # verified
 print(result.status, result.on_minutes, result.off_minutes)
 ```
 

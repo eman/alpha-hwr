@@ -15,10 +15,10 @@ the same as "your value is in the pump". A caller could set a speed, get
 ```python
 result = await client.control.set_setpoint(ControlMode.CONSTANT_SPEED, 600.0)
 
-result.status           # WriteStatus.CLAMPED
-result.value            # 1650.0   <- what the pump holds
+result.status  # WriteStatus.CLAMPED
+result.value  # 1650.0   <- what the pump holds
 result.requested_value  # 600.0    <- what you asked for
-result.ok               # True
+result.ok  # True
 ```
 
 `result.value` comes from **reading the pump back** after the write, not from
@@ -66,8 +66,8 @@ This is the distinction that decides whether retrying can possibly help.
 
 ```python
 result = await client.control.set_setpoint(ControlMode.CONSTANT_SPEED, 99.0)
-result.status   # INVALID: 99 RPM is outside the 500-4500 this mode accepts
-result.detail   # says exactly that
+result.status  # INVALID: 99 RPM is outside the 500-4500 this mode accepts
+result.detail  # says exactly that
 ```
 
 `detail` is always populated for the non-accepted statuses. Log it.
@@ -122,7 +122,7 @@ silently change something the caller never mentioned.
 `set_proportional_pressure()` and friends return `bool` and do not read back.
 
 ```python
-ok = await client.control.set_constant_speed(600.0)   # True
+ok = await client.control.set_constant_speed(600.0)  # True
 # ...and the pump is running at 1650.
 ```
 
@@ -145,8 +145,10 @@ that cache are refused until it is valid**:
 
 ```python
 async with AlphaHWRClient(address) as client:
-    await client.wait_until_ready()          # blocks until the cache is good
-    result = await client.control.set_setpoint(ControlMode.CONSTANT_SPEED, 2000.0)
+    await client.wait_until_ready()  # blocks until the cache is good
+    result = await client.control.set_setpoint(
+        ControlMode.CONSTANT_SPEED, 2000.0
+    )
 ```
 
 `client.is_ready` is the non-blocking form. `wait_until_ready(timeout=30.0)`

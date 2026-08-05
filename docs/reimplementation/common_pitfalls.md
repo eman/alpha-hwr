@@ -59,13 +59,14 @@ not self-consistency:**
 def check(frame_hex, expected):
     frame = bytes.fromhex(frame_hex)
     assert calc_crc16(frame[1:-2]) == expected
-    assert frame[-2:] == expected.to_bytes(2, "big")   # CRC is big-endian
+    assert frame[-2:] == expected.to_bytes(2, "big")  # CRC is big-endian
 
-check("2705e7f805c14bc382", 0xC382)          # Extend 1
-check("2705e7f80bc10fd0c3", 0xD0C3)          # Extend 2
-check("2707e7f80203949596eb47", 0xEB47)      # Legacy magic
-check("2707e7f80a03560006c55a", 0xC55A)      # Class 10 unlock
-check("2705e7f8038106e587", 0xE587)          # Class 3 START
+
+check("2705e7f805c14bc382", 0xC382)  # Extend 1
+check("2705e7f80bc10fd0c3", 0xD0C3)  # Extend 2
+check("2707e7f80203949596eb47", 0xEB47)  # Legacy magic
+check("2707e7f80a03560006c55a", 0xC55A)  # Class 10 unlock
+check("2705e7f8038106e587", 0xE587)  # Class 3 START
 ```
 
 **Reference implementation:**
@@ -77,7 +78,11 @@ def calc_crc16(data: bytes, init: int = 0xFFFF) -> int:
     for byte in data:
         crc ^= byte << 8
         for _ in range(8):
-            crc = ((crc << 1) ^ 0x1021) & 0xFFFF if crc & 0x8000 else (crc << 1) & 0xFFFF
+            crc = (
+                ((crc << 1) ^ 0x1021) & 0xFFFF
+                if crc & 0x8000
+                else (crc << 1) & 0xFFFF
+            )
     return crc ^ 0xFFFF
 ```
 
@@ -809,14 +814,16 @@ page taught that, and the pump accepts the bytes without complaint.
 bytes:
 
 ```python
-day = bytes([
-    0x01,   # enabled
-    0x01,   # action: 0x01 = run, 0x00 = stop
-    6,      # start hour
-    30,     # start minute
-    8,      # end hour
-    30,     # end minute
-])
+day = bytes(
+    [
+        0x01,  # enabled
+        0x01,  # action: 0x01 = run, 0x00 = stop
+        6,  # start hour
+        30,  # start minute
+        8,  # end hour
+        30,  # end minute
+    ]
+)
 ```
 
 **Examples:**

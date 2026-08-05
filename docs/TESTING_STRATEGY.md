@@ -310,7 +310,7 @@ evidence and the claim stay together.
 replies — captured from an ALPHA HWR, identical across two runs — with the
 object each answers:
 
-```python
+```text
 MEASURED = [
     (86, 6, "2412f8e70a0e00012f0100000700001b39678ac34fbc", "operation status"),
     (86, 7, "2412f8e70a0e00012f0100000701001b39678ac3f7dd", "prioritized state"),

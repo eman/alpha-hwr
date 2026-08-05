@@ -349,8 +349,8 @@ value back and reports it:
 
 ```python
 result = await client.control.set_setpoint(ControlMode.CONSTANT_SPEED, 600.0)
-result.status   # CLAMPED
-result.value    # 1650.0
+result.status  # CLAMPED
+result.value  # 1650.0
 ```
 
 ## Cumulative Statistics
@@ -390,7 +390,7 @@ answers.
 **Parsing:**
 
 ```python
-start_count      = int.from_bytes(payload[0:4],  "big")
+start_count = int.from_bytes(payload[0:4], "big")
 operating_seconds = int.from_bytes(payload[8:12], "big")
-operating_hours   = operating_seconds / 3600
+operating_hours = operating_seconds / 3600
 ```
