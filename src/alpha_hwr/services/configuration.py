@@ -8,7 +8,6 @@ Backup includes:
 - Device information (serial number, product name, versions)
 - Control mode and setpoint
 - Schedule enabled status and all entries (all 5 layers)
-
 """
 
 from __future__ import annotations
@@ -136,52 +135,6 @@ class ConfigurationService:
                 ]
               }
             }
-
-            TypeScript:
-              interface BackupData {
-                version: string;
-                timestamp: string;
-                device: DeviceInfo;
-                control_mode: ControlModeData;
-                schedule: ScheduleData;
-              }
-
-              async function backup(filepath: string): Promise<boolean> {
-                const data: BackupData = {
-                  version: "1.0",
-                  timestamp: new Date().toISOString(),
-                  device: await readDeviceInfo(),
-                  control_mode: await readControlMode(),
-                  schedule: await readSchedule()
-                };
-
-                await fs.writeFile(filepath, JSON.stringify(data, null, 2));
-                return true;
-              }
-
-            Rust:
-              #[derive(Serialize)]
-              struct BackupData {
-                version: String,
-                timestamp: String,
-                device: DeviceInfo,
-                control_mode: ControlModeData,
-                schedule: ScheduleData,
-              }
-
-              async fn backup(filepath: &str) -> Result<bool> {
-                let data = BackupData {
-                  version: "1.0".to_string(),
-                  timestamp: Utc::now().to_rfc3339(),
-                  device: read_device_info().await?,
-                  control_mode: read_control_mode().await?,
-                  schedule: read_schedule().await?,
-                };
-
-                let json = serde_json::to_string_pretty(&data)?;
-                tokio::fs::write(filepath, json).await?;
-                Ok(true)
-              }
         """
         logger.info(f"Backing up configuration to {filepath}...")
 
@@ -303,96 +256,6 @@ class ConfigurationService:
             3. Optionally verify device serial number
             4. Restore control mode and setpoint if requested
             5. Restore schedule entries and enabled state if requested
-
-            TypeScript:
-              async function restore(
-                filepath: string,
-                options: RestoreOptions
-              ): Promise<boolean> {
-                // Read backup file
-                const data = JSON.parse(await fs.readFile(filepath, 'utf8'));
-
-                // Verify version
-                if (data.version !== "1.0") {
-                  throw new Error(`Unsupported version: ${data.version}`);
-                }
-
-                // Verify device if requested
-                if (options.verifyDevice) {
-                  const currentDevice = await readDeviceInfo();
-                  if (currentDevice.serial !== data.device.serial_number) {
-                    throw new Error("Device serial mismatch");
-                  }
-                }
-
-                // Restore mode
-                if (options.restoreMode && data.control_mode) {
-                  await setControlMode(
-                    data.control_mode.mode_name,
-                    data.control_mode.setpoint
-                  );
-                }
-
-                // Restore schedule
-                if (options.restoreSchedule && data.schedule) {
-                  const entries = data.schedule.days.map(parseScheduleEntry);
-
-                  // Group by layer
-                  const layers = groupBy(entries, e => e.layer);
-                  for (const [layer, layerEntries] of layers) {
-                    await writeSchedule(layerEntries, layer);
-                  }
-
-                  await setScheduleEnabled(data.schedule.enabled);
-                }
-
-                return true;
-              }
-
-            Rust:
-              async fn restore(
-                filepath: &str,
-                options: RestoreOptions
-              ) -> Result<bool> {
-                // Read backup file
-                let json = tokio::fs::read_to_string(filepath).await?;
-                let data: BackupData = serde_json::from_str(&json)?;
-
-                // Verify version
-                if data.version != "1.0" {
-                  return Err(Error::UnsupportedVersion(data.version));
-                }
-
-                // Verify device
-                if options.verify_device {
-                  let current = read_device_info().await?;
-                  if current.serial != data.device.serial_number {
-                    return Err(Error::DeviceMismatch);
-                  }
-                }
-
-                // Restore mode
-                if options.restore_mode && let Some(mode) = data.control_mode {
-                  set_control_mode(&mode.mode_name, mode.setpoint).await?;
-                }
-
-                // Restore schedule
-                if options.restore_schedule && let Some(schedule) = data.schedule {
-                  // Group by layer
-                  let mut layers: HashMap<u8, Vec<ScheduleEntry>> = HashMap::new();
-                  for entry in schedule.days {
-                    layers.entry(entry.layer).or_default().push(entry);
-                  }
-
-                  for (layer, entries) in layers {
-                    write_schedule(&entries, layer).await?;
-                  }
-
-                  set_schedule_enabled(schedule.enabled).await?;
-                }
-
-                Ok(true)
-              }
         """
         logger.info(f"Restoring configuration from {filepath}...")
 

@@ -155,7 +155,7 @@ alpha-hwr control set-pressure 1.5
 
 **Description:** Maintains a fixed flow rate regardless of head pressure.
 
-**Setpoint:** 0.1-3.0 m³/h.
+**Setpoint:** 0.1-10.0 m³/h (the client's range; the pump clamps to its own).
 
 **Example:**
 ```bash
@@ -194,13 +194,20 @@ alpha-hwr control set-proportional 1.2
 
 ## Deprecated/Unsupported Modes
 
-The following modes are defined in the GENI protocol but are **not recommended** for ALPHA HWR as they are designed for heating systems (radiators/underfloor heating) rather than DHW recirculation:
-- AUTOADAPT Radiator (Mode 13)
-- AUTOADAPT Underfloor (Mode 14)
-- AUTOADAPT Combined (Mode 15)
-- AUTOADAPT Generic (Mode 5)
+These are defined in the GENI protocol but are designed for heating systems
+(radiators, underfloor) rather than DHW recirculation.
 
-Use **Temperature Control (Mode 27)** with the `--autoadapt` flag instead.
+| Mode | Status |
+| :--- | :--- |
+| AUTOADAPT Generic (5) | **Raises.** The pump has no wire byte for it; it used to fall through to Constant Speed and report success. |
+| Proportional Diff. Pressure (26) | **Raises.** Not in this firmware. |
+| AUTOADAPT Radiator (13) | Mode switches; setpoint is not implemented |
+| AUTOADAPT Underfloor (14) | Mode switches; setpoint is not implemented |
+| AUTOADAPT Combined (15) | Mode switches; setpoint is not implemented |
+
+Use **Temperature Control (Mode 27)** instead — `alpha-hwr control
+set-temperature --min 35 --max 39`. Details in
+[autoadapt_modes.md](../protocol/autoadapt_modes.md).
 
 ## Temperature Range Control
 
@@ -228,6 +235,18 @@ alpha-hwr control status
 **Data Source:** Object 91, Sub-ID 430 (TemperatureRangeControlUserSettings, Type 1012)
 
 ## Setpoint Data Structures
+
+!!! warning "Read state from Sub 7, not Sub 6"
+
+    Sub 6 is the *request* object: it reports what was last written, and its
+    `control_source` byte reads `0` whatever the pump is doing. The pump's
+    actual state — after it has weighed remote, local and alarm influence —
+    is Sub 7, `overall_operation_prioritized_request`. Measured side by side
+    on hardware.
+
+    Sub 6 is also *fused*: run state, control mode and setpoint travel in one
+    frame, so writing it necessarily asserts all three. Mode changes go
+    through Sub 10 instead.
 
 ### Standard Modes (Object 86, Sub-ID 6)
 
@@ -298,8 +317,16 @@ The library automatically handles unit conversions for display:
 
 ### Flow Modes
 
-- **Stored as:** m³/h
-- **Displayed as:** m³/h (no conversion)
+- **Setpoints stored as:** SI **m³/s**
+- **Telemetry reported as:** m³/h
+- **API speaks:** m³/h in both directions
+- **Conversion:** setpoints are divided by 3600 on the way out
+
+    Both encodings are real, and they differ. This is not a mismatch to
+    "fix" — a setpoint written in m³/h reaches the pump 3600× too large and
+    is rejected as out of range, which leaves the stored value untouched and
+    makes the register look frozen. That was issue #28, and it was a *write*
+    bug, not a read one.
 
 ### Speed Modes
 

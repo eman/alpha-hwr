@@ -55,9 +55,15 @@ asyncio.run(main())
         - device_info
         - schedule
         - history
-        - events
-        - clock
+        - event_log
+        - time
+        - single_events
+        - writes
         - config
+        - is_ready
+        - wait_until_ready
+        - get_run_state
+        - set_run_state
       show_root_heading: true
       show_source: false
       heading_level: 3

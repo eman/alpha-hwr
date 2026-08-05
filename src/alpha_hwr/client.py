@@ -21,6 +21,7 @@ Example Usage:
 import asyncio
 from alpha_hwr import AlphaHWRClient
 
+
 async def main():
     # Connect and authenticate
     async with AlphaHWRClient("DEVICE_ADDRESS") as client:
@@ -41,7 +42,6 @@ async def main():
 
 asyncio.run(main())
 ```
-
 """
 
 from __future__ import annotations
@@ -537,20 +537,6 @@ class AlphaHWRClient:
         Implementation Notes:
             Discovery uses BLE advertisement scanning. Device info is extracted
             from manufacturer data in the advertisement packet without connecting.
-
-            TypeScript:
-              static async discover(timeout: number = 10000): Promise<DeviceInfo[]> {
-                const scanner = new BleakScanner();
-                const devices = await scanner.discover(timeout, GENI_SERVICE_UUID);
-                return devices.map(parseDeviceInfo);
-              }
-
-            Rust:
-              pub async fn discover(timeout: Duration) -> Result<Vec<DeviceInfo>> {
-                let scanner = BleakScanner::new();
-                let devices = scanner.discover(timeout, GENI_SERVICE_UUID).await?;
-                Ok(devices.into_iter().map(parse_device_info).collect())
-              }
         """
         logger.info(f"Scanning for ALPHA HWR pumps (timeout={timeout}s)...")
 

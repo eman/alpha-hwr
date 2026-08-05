@@ -91,6 +91,10 @@ The `SetpointInfo` class represents the current setpoint configuration with opti
 | `min_setpoint` | `float \| None` | Factory-configured minimum (converted to display units) |
 | `max_setpoint` | `float \| None` | Factory-configured maximum (converted to display units) |
 | `unit` | `str \| None` | Unit of measurement for display |
+| `is_remote` | `bool` | Whether the pump reports remote operation |
+| `is_running` | `bool` | The run state — half of the [run-state pair](../guides/run_state_and_schedules.md) |
+| `schedule_enabled` | `bool \| None` | The other half; `None` when it could not be read |
+| `delta_temp_enabled` | `bool \| None` | AUTOADAPT flag for Mode 27 |
 
 ### Methods
 
@@ -102,9 +106,17 @@ Returns the setpoint with appropriate unit conversion.
 *   **Speed modes**: Returns RPM directly
 *   **Flow modes**: Returns m³/h directly
 
-#### `get_limits_display() -> str | None`
+#### `get_limits_display() -> tuple[tuple[float, str], tuple[float, str]] | None`
 
-Returns a formatted string like `"1.00 - 2.45 m"` showing the valid setpoint range.
+Returns `((min_value, unit), (max_value, unit))`, or `None` when the pump did
+not report limits. It is **not** a formatted string — format it yourself:
+
+```python
+limits = info.get_limits_display()
+if limits:
+    (lo, unit), (hi, _) = limits
+    print(f"{lo:.2f} - {hi:.2f} {unit}")
+```
 
 ## Statistics Model
 
@@ -235,3 +247,58 @@ restored = ScheduleEntry.from_bytes(data, day="Monday")
 d = entry.to_dict()
 restored = ScheduleEntry.from_dict(d)
 ```
+## Write Result Models
+
+Returned by every verified write. See
+[Verified Writes](../guides/verified_writes.md) for the concepts.
+
+### WriteStatus
+
+| Value | Meaning | `ok` |
+| :--- | :--- | :--- |
+| `accepted` | The pump confirmed the requested value | ✔ |
+| `clamped` | The pump stored something else; it is in `result.value` | ✔ |
+| `rejected` | The pump kept its old value, nacked, or a precondition failed | ✘ |
+| `invalid` | Malformed or out of range; nothing was sent | ✘ |
+| `timeout` | No confirmation in budget, or the link dropped | ✘ |
+| `superseded` | A newer write to the same resource replaced this one | ✘ |
+
+`invalid` versus `rejected` is the retry signal: the first is a property of
+your request and retrying it unchanged cannot help.
+
+### WriteResult
+
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| `command` | `WriteCommand` | Which kind of write this was |
+| `status` | `WriteStatus` | How it ended |
+| `detail` | `str` | Why, for the non-accepted statuses |
+| `seq` | `int` | Monotonic sequence number, for logs |
+| `ok` | `bool` | True for `accepted` **and** `clamped` |
+
+Settled fields — what the pump *holds*, read back after the write:
+`mode`, `value`, `enabled`, `temp_min`, `temp_max`, `autoadapt`,
+`on_minutes`, `off_minutes`, `flow`, `schedule_enabled`.
+
+Each has a `requested_*` counterpart carrying what was asked for, so the
+result is self-contained.
+
+### WriteCommand
+
+`set_enabled`, `set_mode`, `set_setpoint`, `set_temperature_range`,
+`set_cycle_times`, `set_schedule_enabled`, `set_pump_state`.
+
+## RunState
+
+How the run flag and the schedule flag combine.
+
+| Value | Run state | Schedule | Behaviour |
+| :--- | :--- | :--- | :--- |
+| `off` | Stopped | off | Idle |
+| `engaged` | Running | off | Follows the control mode continuously |
+| `scheduled` | Running | on | Runs inside its windows |
+| `stalled` | Stopped | on | **Never runs, and reports no fault** |
+
+`stalled` is a diagnosis, not a target — `set_run_state(RunState.STALLED)`
+settles as `invalid`. See
+[Run State and Schedules](../guides/run_state_and_schedules.md).

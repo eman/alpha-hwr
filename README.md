@@ -17,7 +17,7 @@ Python library and CLI for controlling Grundfos ALPHA HWR pumps via Bluetooth Lo
 
 - Automatic discovery and guidance for pairing/bonding ALPHA HWR pumps
 - Stream telemetry data (flow, pressure, power, temperature)
-- Set pump modes and setpoints with automatic validation
+- Set pump modes and setpoints, and find out what the pump actually stored
 - Create and manage time-based operation schedules
 - Save and restore complete pump configurations
 - Full type hints and validation with Pydantic
@@ -58,7 +58,7 @@ alpha-hwr control set-pressure 1.5 --device AA:BB:CC:DD:EE:FF
 
 ```python
 import asyncio
-from alpha_hwr import AlphaHWRClient
+from alpha_hwr import AlphaHWRClient, ControlMode
 
 
 async def main():
@@ -70,8 +70,12 @@ async def main():
         print(f"Head: {telemetry.head_m} m")
         print(f"Power: {telemetry.power_w} W")
 
-        # Set constant pressure mode
-        await client.control.set_constant_pressure(1.5)  # 1.5 meters
+        # Set constant pressure to 1.5 m, and see what the pump stored
+        await client.wait_until_ready()
+        result = await client.control.set_setpoint(
+            ControlMode.CONSTANT_PRESSURE, 1.5
+        )
+        print(f"{result.status}: pump holds {result.value} m")
 
         # Read device info
         info = await client.device_info.read_info()
@@ -86,15 +90,21 @@ asyncio.run(main())
 
 The ALPHA HWR supports 5 primary modes optimized for domestic hot water recirculation:
 
-| Mode | Setpoint Range | Notes |
+| Mode | Accepted range | Notes |
 |------|---------------|-------|
-| **Temperature Control** | 20-60°C | Dual setpoints (min/max), AUTOADAPT flow adjustment, optional Flow Limit |
+| **Temperature Control** | 20-70 °C | Dual setpoints (min/max), AUTOADAPT flow adjustment, optional Flow Limit |
 | **Cycle Time Control** | 1-60 min | Configurable ON/OFF durations |
-| **Constant Curve** | 1000-4500 RPM | Fixed speed with optional Flow Limit |
-| **Constant Pressure** | 0.5-6.0 m | Fixed head pressure |
-| **Constant Flow** | 0.1-3.0 m³/h | Fixed flow rate |
+| **Constant Speed** | 500-4500 RPM | Fixed speed with optional Flow Limit |
+| **Constant Pressure** | 0.5-10.0 m | Fixed head pressure |
+| **Constant Flow** | 0.1-10.0 m³/h | Fixed flow rate |
 
-Proportional Pressure (0.5-6.0 m) is also fully supported.
+Proportional Pressure (0.5-10.0 m) is also fully supported.
+
+> These are the ranges the **client** accepts. The pump has narrower limits of
+> its own and **clamps rather than refuses** — ask for 600 RPM and it stores
+> 1650; ask for 4400 and it stores 3671. A clamped write is a successful
+> write; `WriteResult.value` tells you what was actually stored. See
+> [Verified Writes](https://eman.github.io/alpha-hwr/guides/verified_writes/).
 
 ## Documentation
 
@@ -104,6 +114,8 @@ Proportional Pressure (0.5-6.0 m) is also fully supported.
 - [Quick Start Tutorial](https://eman.github.io/alpha-hwr/getting_started/quick_start/)
 - [CLI Reference](https://eman.github.io/alpha-hwr/guides/cli_guide/)
 - [Python API Reference](https://eman.github.io/alpha-hwr/api/client/)
+- [Verified Writes](https://eman.github.io/alpha-hwr/guides/verified_writes/)
+- [Run State & Schedules](https://eman.github.io/alpha-hwr/guides/run_state_and_schedules/)
 - [Control Modes Guide](https://eman.github.io/alpha-hwr/guides/control_modes/)
 - [Protocol Documentation](https://eman.github.io/alpha-hwr/protocol/ble_architecture/)
 

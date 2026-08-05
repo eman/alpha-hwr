@@ -14,6 +14,36 @@ Real-time telemetry data from the pump including flow, pressure, power, temperat
       show_source: false
       heading_level: 4
 
+## Write Results
+
+What a verified write reports back. The value fields carry what the pump
+**actually holds**, read back after the write — see
+[Verified Writes](../guides/verified_writes.md).
+
+### WriteResult
+
+::: alpha_hwr.models.WriteResult
+    options:
+      show_root_heading: false
+      show_source: false
+      heading_level: 4
+
+### WriteStatus
+
+::: alpha_hwr.models.WriteStatus
+    options:
+      show_root_heading: false
+      show_source: false
+      heading_level: 4
+
+### WriteCommand
+
+::: alpha_hwr.models.WriteCommand
+    options:
+      show_root_heading: false
+      show_source: false
+      heading_level: 4
+
 ## Control Models
 
 ### SetpointInfo
