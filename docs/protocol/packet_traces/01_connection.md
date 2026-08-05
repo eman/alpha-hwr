@@ -27,7 +27,7 @@ sequenceDiagram
     Pump-->>Client: GENI Service (0xFDD0)
     
     Client->>Pump: Discover Characteristics
-    Pump-->>Client: TX (0xFDD1), RX (0xFDD2)
+    Pump-->>Client: GENI characteristic (859cffd1-...), notify + write
     
     Client->>Pump: Enable Notifications
     Pump-->>Client: Notifications Enabled
@@ -149,10 +149,22 @@ async def connect_to_pump(address):
     return client
 ```
 
+### 2.2 Bonding
+
+**The pump drops an unbonded connection after about 1.8 seconds** — reliably,
+to within a few tens of milliseconds, and whether or not you are sending
+anything. This is not a client bug, a keepalive problem or a pacing problem,
+and no amount of traffic prevents it.
+
+Pair/bond with the device once at the OS level and the connection stays up.
+On Linux this is `bluetoothctl pair`; on macOS it happens through the system
+Bluetooth pane. If your session dies at the same moment every time, this is
+the cause.
+
 **Test Milestone**:
 - [x] Successfully connects to pump
-- [x] Connection is stable
-- [x] No immediate disconnection
+- [x] Device is bonded
+- [x] Connection survives past ~2 s of idle
 
 ---
 
@@ -160,46 +172,42 @@ async def connect_to_pump(address):
 
 ### 3.1 GENI Service UUIDs
 
-The pump exposes a GATT service with two characteristics:
+The pump exposes one GATT service with **one** characteristic, used for both
+directions.
 
 **GENI Service**:
 - **UUID**: `0000fdd0-0000-1000-8000-00805f9b34fb`
 
-**TX Characteristic** (Write to pump):
-- **UUID**: `0000fdd1-0000-1000-8000-00805f9b34fb`
-- **Properties**: Write, Write Without Response
+**GENI Characteristic**:
+- **UUID**: `859cffd1-036e-432a-aa28-1a0085b87ba9`
+- **Properties**: Write Without Response, Notify
 
-**RX Characteristic** (Notifications from pump):
-- **UUID**: `0000fdd2-0000-1000-8000-00805f9b34fb`
-- **Properties**: Notify
+> Earlier revisions of this document described two characteristics —
+> `0000fdd1` for writes and `0000fdd2` for notifications. Neither exists.
+> An implementation that requires them fails at service discovery, before it
+> ever sends a frame.
 
 ### 3.2 Discover Services
 
 ```python
-# UUIDs
 GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
-TX_CHAR_UUID = "0000fdd1-0000-1000-8000-00805f9b34fb"
-RX_CHAR_UUID = "0000fdd2-0000-1000-8000-00805f9b34fb"
+GENI_CHAR_UUID = "859cffd1-036e-432a-aa28-1a0085b87ba9"
 
 
 async def discover_geni_service(client):
     """
-    Discover GENI service and characteristics.
+    Discover the GENI service and its characteristic.
 
     Args:
         client: Connected BleakClient
 
     Returns:
-        (service, tx_char, rx_char)
+        (service, char)
     """
     print("Discovering services...")
 
-    # Get all services
-    services = client.services
-
-    # Find GENI service
     service = None
-    for svc in services:
+    for svc in client.services:
         if svc.uuid.lower() == GENI_SERVICE_UUID.lower():
             service = svc
             break
@@ -209,59 +217,42 @@ async def discover_geni_service(client):
 
     print(f"Found GENI service: {service.uuid}")
 
-    # Find TX characteristic
-    tx_char = None
-    for char in service.characteristics:
-        if char.uuid.lower() == TX_CHAR_UUID.lower():
-            tx_char = char
-            print(f"  TX Char: {char.uuid} (properties: {char.properties})")
+    char = None
+    for c in service.characteristics:
+        if c.uuid.lower() == GENI_CHAR_UUID.lower():
+            char = c
+            print(f"  GENI Char: {c.uuid} (properties: {c.properties})")
 
-    # Find RX characteristic
-    rx_char = None
-    for char in service.characteristics:
-        if char.uuid.lower() == RX_CHAR_UUID.lower():
-            rx_char = char
-            print(f"  RX Char: {char.uuid} (properties: {char.properties})")
+    if not char:
+        raise Exception("GENI characteristic not found")
 
-    if not tx_char or not rx_char:
-        raise Exception("Required characteristics not found")
-
-    return (service, tx_char, rx_char)
+    return (service, char)
 ```
 
 **Test Milestone**:
 - [x] GENI service discovered
-- [x] TX characteristic found
-- [x] RX characteristic found
+- [x] GENI characteristic found
 - [x] Correct UUIDs matched
 
 ---
 
 ## Step 4: Enable Notifications
 
-### 4.1 Subscribe to RX Characteristic
+### 4.1 Subscribe on the GENI Characteristic
 
-The pump sends responses and telemetry via notifications on the RX characteristic.
+The pump sends responses and telemetry via notifications on the same
+characteristic you write to.
 
 **Implementation**:
 ```python
-async def enable_notifications(client, rx_char_uuid):
-    """
-    Enable notifications for responses from pump.
-
-    Args:
-        client: Connected BleakClient
-        rx_char_uuid: RX characteristic UUID
-    """
+async def enable_notifications(client):
+    """Enable notifications for responses from the pump."""
 
     def notification_handler(sender, data):
-        """Handle incoming notifications."""
         print(f"<< Received ({len(data)} bytes): {data.hex(' ')}")
-        # Store in queue for processing
         response_queue.append(bytes(data))
 
-    # Enable notifications
-    await client.start_notify(rx_char_uuid, notification_handler)
+    await client.start_notify(GENI_CHAR_UUID, notification_handler)
     print("Notifications enabled")
 
 
@@ -295,8 +286,7 @@ from bleak import BleakClient, BleakScanner
 
 # UUIDs
 GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
-TX_CHAR_UUID = "0000fdd1-0000-1000-8000-00805f9b34fb"
-RX_CHAR_UUID = "0000fdd2-0000-1000-8000-00805f9b34fb"
+GENI_CHAR_UUID = "859cffd1-036e-432a-aa28-1a0085b87ba9"
 
 # Response queue
 response_queue = []
@@ -316,7 +306,7 @@ async def setup_connection(address=None):
         address: BLE address (if None, will scan)
 
     Returns:
-        (client, tx_char_uuid, rx_char_uuid)
+        (client, char_uuid)
     """
     # Step 1: Discover pump if no address provided
     if address is None:
@@ -353,38 +343,34 @@ async def setup_connection(address=None):
         await client.disconnect()
         raise Exception("GENI service not found")
 
-    # Step 4: Verify characteristics
-    print("\nVerifying characteristics...")
-    tx_found = False
-    rx_found = False
+    # Step 4: Verify the characteristic
+    print("\nVerifying characteristic...")
+    found = False
 
     for char in geni_service.characteristics:
-        if char.uuid.lower() == TX_CHAR_UUID.lower():
-            tx_found = True
-            print(f"  TX: {char.uuid} ({char.properties})")
-        elif char.uuid.lower() == RX_CHAR_UUID.lower():
-            rx_found = True
-            print(f"  RX: {char.uuid} ({char.properties})")
+        if char.uuid.lower() == GENI_CHAR_UUID.lower():
+            found = True
+            print(f"  GENI: {char.uuid} ({char.properties})")
 
-    if not tx_found or not rx_found:
+    if not found:
         await client.disconnect()
-        raise Exception("Required characteristics not found")
+        raise Exception("GENI characteristic not found")
 
     # Step 5: Enable notifications
     print("\nEnabling notifications...")
-    await client.start_notify(RX_CHAR_UUID, notification_handler)
+    await client.start_notify(GENI_CHAR_UUID, notification_handler)
     print("Notifications enabled!")
 
     print("\n✓ Connection setup complete!")
     print("  Ready for authentication\n")
 
-    return (client, TX_CHAR_UUID, RX_CHAR_UUID)
+    return (client, GENI_CHAR_UUID)
 
 
 async def main():
     """Test connection setup."""
     try:
-        client, tx_uuid, rx_uuid = await setup_connection()
+        client, char_uuid = await setup_connection()
 
         # Keep connection alive
         print("Connection active. Press Ctrl+C to disconnect...")
@@ -414,9 +400,8 @@ Connected!
 Discovering services...
 Found GENI service: 0000fdd0-0000-1000-8000-00805f9b34fb
 
-Verifying characteristics...
-  TX: 0000fdd1-0000-1000-8000-00805f9b34fb (['write', 'write-without-response'])
-  RX: 0000fdd2-0000-1000-8000-00805f9b34fb (['notify'])
+Verifying characteristic...
+  GENI: 859cffd1-036e-432a-aa28-1a0085b87ba9 (['write-without-response', 'notify'])
 
 Enabling notifications...
 Notifications enabled!
@@ -498,7 +483,7 @@ Connection active. Press Ctrl+C to disconnect...
 - Pump not sending data yet
 
 **Fix**:
-1. Verify RX characteristic UUID is correct
+1. Verify the GENI characteristic UUID is correct
 2. Ensure notifications enabled before sending commands
 3. Send authentication packets to unlock telemetry
 4. Check handler is `async` if required by library
@@ -575,8 +560,7 @@ Use this checklist to verify your connection implementation:
 - [ ] Discovers pump via BLE scan
 - [ ] Connects successfully
 - [ ] Finds GENI service (0xFDD0)
-- [ ] Finds TX characteristic (0xFDD1)
-- [ ] Finds RX characteristic (0xFDD2)
+- [ ] Finds the GENI characteristic (859cffd1-036e-432a-aa28-1a0085b87ba9)
 - [ ] Enables notifications successfully
 - [ ] Notification handler receives data
 - [ ] Connection remains stable for 30+ seconds

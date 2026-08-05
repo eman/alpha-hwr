@@ -70,7 +70,7 @@ await client.set_constant_pressure(1.5)  # 1.5 meters
 
 **CLI:**
 ```bash
-alpha-hwr control set-pressure --value 1.5
+alpha-hwr control set-pressure 1.5
 ```
 
 ---
@@ -94,7 +94,7 @@ await client.set_proportional_pressure(1.2)  # 1.2 meters max
 
 **CLI:**
 ```bash
-alpha-hwr control set-proportional-pressure --value 1.2
+alpha-hwr control set-proportional 1.2
 ```
 
 ---
@@ -118,7 +118,7 @@ await client.set_constant_speed(2500)  # 2500 RPM
 
 **CLI:**
 ```bash
-alpha-hwr control set-speed --value 2500
+alpha-hwr control set-speed 2500
 ```
 
 ---
@@ -142,7 +142,7 @@ await client.set_constant_flow(0.5)  # 0.5 m³/h
 
 **CLI:**
 ```bash
-alpha-hwr control set-flow --value 0.5
+alpha-hwr control set-flow 0.5
 ```
 
 ---

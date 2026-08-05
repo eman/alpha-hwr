@@ -236,26 +236,19 @@ alpha-hwr history timestamps --count 100
 ### Start and Stop
 
 ```bash
-# Start with specific mode
-alpha-hwr control start --mode constant_pressure
+# Start the motor in whatever mode the pump is already in
+alpha-hwr control start
 
 # Stop the pump
 alpha-hwr control stop
 ```
 
-### Remote Control Mode
+`start` takes no mode and no setpoint: it changes the run state and nothing
+else. To change the mode as well, run `control set-mode` first.
 
-By default, the pump operates in "Auto" mode where both the physical panel and Bluetooth commands are accepted. You can use Remote Mode to prioritize digital control:
-
-```bash
-# Prioritize Bluetooth commands and lock physical panel
-alpha-hwr control enable-remote
-
-# Return to normal operation (physical panel enabled)
-alpha-hwr control disable-remote
-```
-
-**Note**: Use Remote Mode when you want to ensure your automation logic isn't overridden by someone pressing buttons on the pump.
+A running pump with the weekly schedule enabled circulates only inside its
+scheduled windows, so `control start` alone does not necessarily move water —
+check `schedule list`.
 
 ### Set Control Mode
 
@@ -351,11 +344,8 @@ alpha-hwr device scan --timeout 5.0
 Display pump identification and firmware details:
 
 ```bash
-# Table format (default)
 alpha-hwr device info
 
-# JSON format
-alpha-hwr device info --format json
 ```
 
 **Example Output**:
@@ -379,11 +369,8 @@ alpha-hwr device info --format json
 View cumulative operating statistics:
 
 ```bash
-# Show operating hours and start count
 alpha-hwr device stats
 
-# JSON format
-alpha-hwr device stats --format json
 ```
 
 **Example Output**:
@@ -399,11 +386,8 @@ Average Runtime: 13 minutes per cycle
 Check for active alarms and warnings:
 
 ```bash
-# Show current alarms
 alpha-hwr device alarms
 
-# JSON format for automation
-alpha-hwr device alarms --format json
 ```
 
 ---
@@ -436,37 +420,20 @@ The pump supports weekly schedules across 5 independent layers (0-4).
 
 ### View Schedule
 
-Display current schedule configuration:
-
 ```bash
-# Show all schedule layers
-alpha-hwr schedule show
-
-# Show specific layer
-alpha-hwr schedule show --layer 0
-
-# JSON format
-alpha-hwr schedule show --format json
+alpha-hwr schedule list
 ```
 
 **Example Output**:
 
 ```
-Schedule Status: Enabled
+Schedule: Enabled
 
-Layer 0:
-  Monday:    06:00 - 08:00 (Enabled)
-  Tuesday:   06:00 - 08:00 (Enabled)
-  Wednesday: 06:00 - 08:00 (Enabled)
-  Thursday:  06:00 - 08:00 (Enabled)
-  Friday:    06:00 - 08:00 (Enabled)
-  Saturday:  (Disabled)
-  Sunday:    (Disabled)
-
-Layer 1:
-  Monday:    18:00 - 22:00 (Enabled)
-  Tuesday:   18:00 - 22:00 (Enabled)
-  ...
+  Monday     06:00 - 08:00
+  Tuesday    06:00 - 08:00
+  Wednesday  06:00 - 08:00
+  Thursday   06:00 - 08:00
+  Friday     06:00 - 08:00
 ```
 
 ### Enable/Disable Schedule
@@ -479,69 +446,30 @@ alpha-hwr schedule enable
 alpha-hwr schedule disable
 ```
 
-### Set Schedule Entry
+!!! warning "A schedule over a stopped pump never runs"
 
-Add or modify a schedule entry:
+    With the schedule enabled and the pump stopped, every window opens with
+    the motor idle and nothing reports a fault — the water simply goes cold.
+    Enabling a schedule is not the same as starting the pump; do both.
+
+### Add and Remove Entries
+
+Day, start time, end time — all positional:
 
 ```bash
-# Set Monday 06:00-08:00 on Layer 0
-alpha-hwr schedule set-entry \
-  --day monday \
-  --start 06:00 \
-  --end 08:00 \
-  --layer 0
+# Monday 06:00-08:30
+alpha-hwr schedule add monday 06:00 08:30
 
-# Set multiple days with weekday shorthand
-alpha-hwr schedule set-entry \
-  --days mon,tue,wed,thu,fri \
-  --start 06:00 \
-  --end 08:00 \
-  --layer 0
+# Remove Monday's entry
+alpha-hwr schedule remove monday
 ```
 
 ### Clear Schedule
 
-Remove schedule entries:
-
 ```bash
-# Clear specific layer
-alpha-hwr schedule clear --layer 0
-
-# Clear all layers
-alpha-hwr schedule clear --all
-```
-
-### Import/Export Schedule
-
-```bash
-# Export current schedule to JSON
-alpha-hwr schedule export my_schedule.json
-
-# Import schedule from JSON
-alpha-hwr schedule import my_schedule.json
-```
-
-**Schedule JSON Format**:
-
-```json
-{
-  "enabled": true,
-  "layers": [
-    {
-      "layer": 0,
-      "entries": [
-        {
-          "day": "Monday",
-          "enabled": true,
-          "start_hour": 6,
-          "start_minute": 0,
-          "end_hour": 8,
-          "end_minute": 0
-        }
-      ]
-    }
-  ]
-}
+# Remove every entry (prompts unless -f is given)
+alpha-hwr schedule clear
+alpha-hwr schedule clear -f
 ```
 
 ---
@@ -550,82 +478,62 @@ alpha-hwr schedule import my_schedule.json
 
 ### Backup Configuration
 
-Save current pump configuration to a file:
+Save the current pump configuration to a file:
 
 ```bash
-# Backup to default location (~/.config/alpha-hwr/backup.json)
+# Backup to an auto-named file under ~/.config/alpha-hwr/backups/
 alpha-hwr config backup
 
-# Backup to specific file
-alpha-hwr config backup --output my_backup.json
+# Backup to a specific file
+alpha-hwr config backup my_backup.json
 
-# Include schedule in backup
-alpha-hwr config backup --include-schedule
-
-# Compact JSON format
-alpha-hwr config backup --compact
+# Overwrite an existing file without prompting
+alpha-hwr config backup my_backup.json -f
 ```
 
-**What's backed up:**
-- Control mode and setpoint
-- Device settings
-- Optionally: weekly schedule (all layers)
+The output path is a positional argument. With none given, the filename is
+built from the pump's serial number and the local time.
 
 ### Restore Configuration
 
-Restore configuration from a backup file:
-
 ```bash
-# Restore from default backup
-alpha-hwr config restore
+alpha-hwr config restore my_backup.json
 
-# Restore from specific file
-alpha-hwr config restore --input my_backup.json
-
-# Dry run (show what would be restored without applying)
-alpha-hwr config restore --dry-run
-
-# Restore only specific components
-alpha-hwr config restore --mode-only
-alpha-hwr config restore --schedule-only
+# Skip the confirmation prompt
+alpha-hwr config restore my_backup.json -f
 ```
 
-### List Backups
+The input path is required — there is no default-backup lookup, no dry run,
+and no way to restore one component in isolation.
 
-Show available backup files:
+!!! warning "Restore reports success before the pump has agreed"
 
-```bash
-# List backups in default directory
-alpha-hwr config list-backups
-
-# Show backup details
-alpha-hwr config list-backups --details
-```
+    Restore drives the unverified setters, so a value the pump clamps is
+    still reported as restored. Read the state back with `control status`
+    afterwards.
 
 ---
 
 ## Output Formats
 
-Most commands support multiple output formats:
+The two `monitor` commands take `--format`. Everything else prints a table.
 
 ### Table Format (Default)
-
-Beautiful formatted tables with Rich:
 
 ```bash
 alpha-hwr monitor snapshot
 alpha-hwr device info
-alpha-hwr schedule show
+alpha-hwr schedule list
 ```
 
 ### JSON Format
 
-Machine-readable output for scripts:
+Machine-readable output for scripts — `monitor live` and `monitor snapshot`
+only:
 
 ```bash
 alpha-hwr monitor snapshot --format json
-alpha-hwr device info --format json
-alpha-hwr schedule show --format json
+alpha-hwr monitor live --format json
 ```
 
 **Use cases:**
@@ -669,7 +577,7 @@ done
 
 4. **Increase connection timeout:**
    ```bash
-   alpha-hwr monitor live --timeout 30
+   alpha-hwr monitor live --interval 2
    ```
 
 ### Authentication Failed
@@ -740,10 +648,10 @@ hour=$(date +%H)
 
 if [ $hour -ge 6 ] && [ $hour -lt 9 ]; then
     # Morning: high pressure
-    alpha-hwr control set-mode constant-pressure --setpoint 3.0
+    alpha-hwr control set-mode constant-pressure 3.0
 elif [ $hour -ge 18 ] && [ $hour -lt 22 ]; then
     # Evening: medium pressure
-    alpha-hwr control set-mode constant-pressure --setpoint 2.0
+    alpha-hwr control set-mode constant-pressure 2.0
 else
     # Off hours: stop
     alpha-hwr control stop
@@ -822,7 +730,7 @@ alpha-hwr monitor live
 | `control set-flow` | Set constant flow mode (Mode 8) |
 | `control set-proportional` | Set proportional pressure mode (Mode 1) |
 | `control set-flow-limit` | Set maximum flow limit (GPM) |
-| `control set-mode <mode>` | Set control mode with setpoint (generic) |
+| `control set-mode <mode> <setpoint>` | Set control mode and setpoint together |
 
 ### Device Commands
 
@@ -844,21 +752,19 @@ alpha-hwr monitor live
 
 | Command | Description |
 |---------|-------------|
-| `schedule show` | Display current schedule |
+| `schedule list` | Display current schedule |
 | `schedule enable` | Enable schedule globally |
 | `schedule disable` | Disable schedule globally |
-| `schedule set-entry` | Add/modify schedule entry |
-| `schedule clear` | Clear schedule entries |
-| `schedule export` | Export schedule to JSON |
-| `schedule import` | Import schedule from JSON |
+| `schedule add` | Add an entry (`add monday 06:00 08:30`) |
+| `schedule remove` | Remove a day's entry |
+| `schedule clear` | Clear every entry |
 
 ### Config Commands
 
 | Command | Description |
 |---------|-------------|
-| `config backup` | Backup pump configuration |
-| `config restore` | Restore from backup |
-| `config list-backups` | List available backups |
+| `config backup` | Backup pump configuration to a file |
+| `config restore` | Restore from a backup file |
 
 ---
 
@@ -870,7 +776,7 @@ For command-specific help, use `--help`:
 alpha-hwr --help
 alpha-hwr monitor --help
 alpha-hwr control set-mode --help
-alpha-hwr schedule set-entry --help
+alpha-hwr schedule add --help
 ```
 
 For issues or questions:

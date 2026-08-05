@@ -27,7 +27,7 @@ The ALPHA HWR pump uses the GENI protocol over Bluetooth Low Energy (BLE). This 
 - BLE (Bluetooth Low Energy) basics
 - Async/concurrent programming in your language
 - Binary data handling (byte arrays, bit manipulation)
-- CRC-16/MODBUS checksums
+- CRC-16/CCITT checksums
 
 ### Hardware/Tools
 
@@ -213,24 +213,24 @@ Here's pseudocode for the simplest possible implementation:
 
 ```python
 # 1. Connect to pump via BLE
-device = connect_ble("ALPHA_XXXX")
-tx_char = device.get_characteristic(TX_UUID)
-rx_char = device.get_characteristic(RX_UUID)
+device = connect_ble("ALPHA_XXXX")           # must be bonded
+char = device.get_characteristic(GENI_CHAR_UUID)   # one characteristic, both ways
+device.subscribe(char)
 
 # 2. Authenticate
 for _ in range(3):
-    tx_char.write(LEGACY_MAGIC)
+    char.write(LEGACY_MAGIC)
 for _ in range(5):
-    tx_char.write(CLASS10_UNLOCK)
-tx_char.write(EXTEND_1)
-tx_char.write(EXTEND_2)
+    char.write(CLASS10_UNLOCK)
+char.write(EXTEND_1)
+char.write(EXTEND_2)
 
 # 3. Request telemetry (motor state)
 packet = build_info_command(class=0x0A, sub=0x0045, obj=0x0057)
-tx_char.write(packet)
+char.write(packet)
 
 # 4. Parse response
-response = rx_char.read()
+response = device.await_notification()
 frame = parse_frame(response)
 grid_voltage = decode_float_be(frame.payload[0:4])
 speed_rpm = decode_float_be(frame.payload[20:24])

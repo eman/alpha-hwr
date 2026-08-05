@@ -1,222 +1,139 @@
-# AutoAdapt Modes - Support Status
+# AutoAdapt Modes — Support Status
 
-This document details the support status for AutoAdapt control modes on the Grundfos ALPHA HWR pump.
+The GENI control-mode table includes four AutoAdapt entries. Only three of
+them can be addressed on the ALPHA HWR's wire, and none of them has a working
+setpoint path in this library.
 
-## Overview
+Earlier revisions of this page had this backwards — mode 5 was described as
+usable with a warning, and modes 13/14/15 as "fully supported" with per-mode
+SubIDs and setpoint registers that were invented. What follows is what the
+code does.
 
-AutoAdapt is an intelligent pump control algorithm that automatically adjusts operation based on system characteristics and demand. The GENI protocol defines several AutoAdapt variants:
-
-| Mode ID | Name | ALPHA HWR Support |
-|---------|------|-------------------|
-| 5 | AUTO_ADAPT (generic) |  **Limited** |
-| 13 | AUTO_ADAPT_RADIATOR |  **Full** |
-| 14 | AUTO_ADAPT_UNDERFLOOR |  **Full** |
-| 15 | AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR |  **Full** |
-| 26 | PROPORTIONAL_DIFF_PRESSURE |  **Not Supported** |
-
----
-
-## Mode 5: AUTO_ADAPT (Generic) - Limited Support
-
-### Discovery Results
-
-**Configuration Data:**
--  SubID 11 found in Object 86 (PumpConfiguration)
--  Setpoint limits available: min=1.48m, max=1.52m, default=1.50m
--  Data format: uint16 (Pascals), not float32 like other modes
--  Very narrow operating range (0.04m spread)
-
-**Mode Switching:**
--  Class 3 fallback command 0x06 exists
--  Mode switch commands succeed but verification shows mode doesn't change reliably
--  May require specific firmware version or system conditions
-
-**Setpoint Writing:**
--  Register IDs unknown - library tries multiple candidates (0x1D, 0x06, 0x05)
--  Success not guaranteed
-
-### Implementation Status
-
-**Library Support:**
-```python
-# Available but with warnings
-await client.set_autoadapt(1.5)  # meters
-```
-
-**CLI Support:**
-```bash
-# Available but displays warning
-alpha-hwr control set-autoadapt --value 1.5
-# Output:
-#   Note: Mode 5 (AUTO_ADAPT) has limited support.
-#     Consider using specific variants (radiator/underfloor/combined) instead.
-```
-
-### Recommendations
-
-**DO NOT USE Mode 5** for production deployments. Instead, use the specific AutoAdapt variants:
-
-| System Type | Recommended Mode | Command |
-|-------------|------------------|---------|
-| Radiator heating | Mode 13 (AUTO_ADAPT_RADIATOR) | `set_autoadapt_radiator()` |
-| Underfloor heating | Mode 14 (AUTO_ADAPT_UNDERFLOOR) | `set_autoadapt_underfloor()` |
-| Combined systems | Mode 15 (AUTO_ADAPT_COMBINED) | `set_autoadapt_combined()` |
-
-### Why Mode 5 Has Limited Support
-
-**Possible Reasons:**
-
-1. **Firmware Evolution:** Mode 5 may be legacy/deprecated in favor of specific variants (13-15)
-2. **Hardware Limitations:** ALPHA HWR may lack sensors/logic for generic AutoAdapt
-3. **Configuration Requirements:** May require additional setup not implemented in library
-4. **Narrow Range:** 0.04m spread suggests it's a placeholder or diagnostic mode
+| Mode | Name | Mode can be set? | Setpoint can be set? |
+| :--- | :--- | :--- | :--- |
+| 5 | AUTO_ADAPT (generic) | **No** — raises `ValueError` | n/a |
+| 13 | AUTO_ADAPT_RADIATOR | Yes | **No** |
+| 14 | AUTO_ADAPT_UNDERFLOOR | Yes | **No** |
+| 15 | AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR | Yes | **No** |
+| 26 | PROPORTIONAL_DIFF_PRESSURE | **No** — raises `ValueError` | n/a |
 
 ---
 
-## Mode 26: PROPORTIONAL_DIFF_PRESSURE - NOT Supported
+## Mode 5: AUTO_ADAPT (generic) — not addressable
 
-### Discovery Results
-
-**Configuration Data:**
--  No SubID found in Object 86 (tested 0-65)
--  No factory configuration available
--  No setpoint limits defined
-
-**Mode Switching:**
--  No Class 3 fallback command
--  Explicitly returns error: "Unsupported Control Mode for Set: 26"
-
-**Conclusion:** Mode 26 is **NOT implemented** in ALPHA HWR firmware.
-
-### Implementation Status
-
-**Library:** Not implemented (no `set_proportional_diff_pressure()` method)
-
-**CLI:** Not available
-
-### Why Mode 26 Is Not Supported
-
-**Analysis:**
-
-1. **Product Line Differentiation:** Proportional Differential Pressure may be exclusive to higher-end models (ALPHA3, MAGNA3)
-2. **Sensor Requirements:** Requires differential pressure sensors not present in ALPHA HWR
-3. **Application Specific:** More relevant for complex hydronic systems than recirculation pumps
-
-**Alternative:** Use Mode 1 (PROPORTIONAL_PRESSURE) which IS fully supported:
+**The pump has no wire byte for generic AutoAdapt.** It is absent from
+`_MODE_BYTE_MAP` in `services/control.py`, and asking for it raises:
 
 ```python
-await client.set_proportional_pressure(3.0)  # meters
+await client.control.set_mode(ControlMode.AUTO_ADAPT)
+# ValueError: Control mode 5 is not supported over this protocol;
+#             supported modes are [0, 1, 2, 8, 13, 14, 15, 25, 27]
+```
+
+### Why raising is the right behaviour
+
+The mode map used to fall through to a default of Constant Speed. A caller
+asking for AutoAdapt got **Constant Speed** and a `True` return value: the
+pump ran in a mode nobody asked for, and nothing reported it. Raising is
+loud; silently running the wrong mode is not.
+
+### If you want adaptive behaviour
+
+Use Mode 1 (`PROPORTIONAL_PRESSURE`), which is genuinely supported:
+
+```python
+await client.control.set_proportional_pressure(3.0)  # meters
 ```
 
 ```bash
-alpha-hwr control set-proportional-pressure --value 3.0
+alpha-hwr control set-proportional 3.0
 ```
 
 ---
 
-## Fully Supported AutoAdapt Modes
+## Mode 26: PROPORTIONAL_DIFF_PRESSURE — not addressable
 
-### Mode 13: AUTO_ADAPT_RADIATOR
+Same reason: no entry in the mode map, so `set_mode()` raises. No SubID for it
+was found anywhere in Object 86 (0–65 were probed), and there is no evidence
+the ALPHA HWR firmware implements it at all. It is plausibly an ALPHA3/MAGNA3
+feature requiring a differential-pressure sensor this pump does not have.
 
-**Best for:** Radiator heating systems with high-temperature operation.
+Use Mode 1 instead, as above.
 
-**Configuration:**
-- SubID: 19
-- Format: uint16 (Pascals)
-- Typical range: 0.5 - 6.0 m
-- Setpoint register: 0x1E
+---
 
-**Usage:**
+## Modes 13, 14, 15 — the mode switches, the setpoint does not
+
+These three have real wire bytes (`0x0D`, `0x0E`, `0x0F`) and switching to
+them works:
+
 ```python
-await client.set_autoadapt_radiator(3.0)  # 3 meters
+await client.control.set_mode(ControlMode.AUTO_ADAPT_RADIATOR)   # works
 ```
+
+What does **not** work is setting their setpoint.
+
+### The deprecated pressure setters
+
+`set_autoadapt_radiator()`, `set_autoadapt_underfloor()` and
+`set_autoadapt_combined()` still exist and emit a deprecation warning. They
+push a pressure setpoint through a Class 3 command, which is not how these
+modes are configured — the library's own docstrings call them "incorrect
+pressure-based setpoints". Do not build on them.
+
+### `set_temperature_control()` switches the mode, then gives up
+
+```python
+ok = await client.control.set_temperature_control(35.0, 39.0, "radiator")
+# ok is False
+```
+
+It sets the mode, logs that temperature setpoints for modes 13/14/15 are not
+implemented, and returns `False`. **The mode change has already happened by
+then** — a `False` return here does not mean nothing changed.
+
+### There are no CLI commands for these modes
+
+`control set-autoadapt`, `set-autoadapt-radiator`, `set-autoadapt-underfloor`
+and `set-autoadapt-combined` do not exist and never did. The real list is
+`alpha-hwr control --help`.
+
+---
+
+## For ALPHA HWR, use Mode 27
+
+The AutoAdapt family targets space-heating circulators. The ALPHA HWR is a hot
+water recirculation pump, and its temperature control is **Mode 27**
+(`TEMPERATURE_RANGE_CONTROL`) — fully implemented and bench-verified:
 
 ```bash
-alpha-hwr control set-autoadapt-radiator --value 3.0
-```
-
-### Mode 14: AUTO_ADAPT_UNDERFLOOR
-
-**Best for:** Underfloor heating systems with low-temperature operation.
-
-**Configuration:**
-- SubID: 21
-- Format: uint16 (Pascals)
-- Typical range: 0.3 - 4.0 m
-- Setpoint register: 0x1F
-
-**Usage:**
-```python
-await client.set_autoadapt_underfloor(2.5)  # 2.5 meters
-```
-
-```bash
-alpha-hwr control set-autoadapt-underfloor --value 2.5
-```
-
-### Mode 15: AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR
-
-**Best for:** Combined radiator and underfloor heating systems.
-
-**Configuration:**
-- SubID: 23
-- Format: uint16 (Pascals)
-- Typical range: 0.4 - 5.0 m
-- Setpoint register: 0x20
-
-**Usage:**
-```python
-await client.set_autoadapt_combined(3.5)  # 3.5 meters
-```
-
-```bash
-alpha-hwr control set-autoadapt-combined --value 3.5
+alpha-hwr control set-temperature --min 35 --max 39
 ```
 
 ---
 
-## Testing Methodology
+## Comparison with the modes that work
 
-### Test Commands
-
-```bash
-# Test mode switching
-python test_mode_support.py <DEVICE_ADDRESS>
-
-# Test Class 3 commands
-python test_mode5_class3.py <DEVICE_ADDRESS>
-```
-
-### Test Results (ALPHA HWR Family 52, Type 7, Version 2)
-
-| Test | Mode 5 | Mode 26 |
-|------|--------|---------|
-| SubID found |  Yes (11) |  No |
-| Limits readable |  Yes |  No |
-| Mode switch |  Partial |  Fails |
-| Setpoint write |  Unknown |  N/A |
-
----
-
-## Comparison with Other Modes
-
-| Mode | Name | Support | Typical Use |
-|------|------|---------|-------------|
-| 0 | CONSTANT_PRESSURE |  Full | Fixed differential pressure |
-| 1 | PROPORTIONAL_PRESSURE |  Full | Flow-dependent pressure |
-| 2 | CONSTANT_SPEED |  Full | Fixed RPM operation |
-| **5** | **AUTO_ADAPT** |  **Limited** | Generic adaptive (use 13-15 instead) |
-| 8 | CONSTANT_FLOW |  Full | Fixed flow rate |
-| **13** | **AUTO_ADAPT_RADIATOR** |  **Full** | Radiator systems (RECOMMENDED) |
-| **14** | **AUTO_ADAPT_UNDERFLOOR** |  **Full** | Underfloor heating (RECOMMENDED) |
-| **15** | **AUTO_ADAPT_COMBINED** |  **Full** | Mixed systems (RECOMMENDED) |
-| **26** | **PROPORTIONAL_DIFF_PRESSURE** |  **None** | Not available on ALPHA HWR |
+| Mode | Name | Support | Typical use |
+| :--- | :--- | :--- | :--- |
+| 0 | CONSTANT_PRESSURE | Full | Fixed differential pressure |
+| 1 | PROPORTIONAL_PRESSURE | Full | Flow-dependent pressure |
+| 2 | CONSTANT_SPEED | Full | Fixed RPM operation |
+| 5 | AUTO_ADAPT | **None** | Raises; no wire byte |
+| 8 | CONSTANT_FLOW | Full | Fixed flow rate |
+| 13 | AUTO_ADAPT_RADIATOR | Mode only | Setpoint not implemented |
+| 14 | AUTO_ADAPT_UNDERFLOOR | Mode only | Setpoint not implemented |
+| 15 | AUTO_ADAPT_RADIATOR_AND_UNDERFLOOR | Mode only | Setpoint not implemented |
+| 25 | DHW_ON_OFF_CONTROL | Full | Cycle-time control |
+| 26 | PROPORTIONAL_DIFF_PRESSURE | **None** | Raises; not in firmware |
+| 27 | TEMPERATURE_RANGE_CONTROL | Full | **The HWR mode** |
 
 ---
 
 ## Related Documentation
 
-- [Control Protocol](control.md) - Control mode switching and setpoint writing
-- [BLE Architecture](ble_architecture.md) - Object mapping and SubID structure
-- [API Client Methods](../api/client.md) - Python API reference
-- [CLI Guide](../guides/cli_guide.md) - Command-line usage
+- [control_modes.md](control_modes.md) — the modes that work, and their units
+- [control.md](control.md) — how a mode change is framed on the wire
+- [units.md](units.md) — setpoint units, per mode
+- [bench_findings.md](bench_findings.md) — what was measured on hardware
+- [CLI Guide](../guides/cli_guide.md) — command-line usage

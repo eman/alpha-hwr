@@ -62,7 +62,7 @@ None (pump acknowledges silently).
 LEGACY_MAGIC = bytes.fromhex("2707e7f80203949596eb47")
 
 for _ in range(3):
-    await tx_char.write_value(LEGACY_MAGIC)
+    await client.write_gatt_char(GENI_CHAR_UUID, LEGACY_MAGIC, response=False)
     await asyncio.sleep(0.05)  # Small delay between packets
 ```
 
@@ -105,7 +105,7 @@ None (pump acknowledges silently).
 CLASS10_UNLOCK = bytes.fromhex("2707e7f80a03560006c55a")
 
 for _ in range(5):
-    await tx_char.write_value(CLASS10_UNLOCK)
+    await client.write_gatt_char(GENI_CHAR_UUID, CLASS10_UNLOCK, response=False)
     await asyncio.sleep(0.05)
 ```
 
@@ -145,7 +145,7 @@ None.
 ```python
 EXTEND_1 = bytes.fromhex("2705e7f805c14bc382")
 
-await tx_char.write_value(EXTEND_1)
+await client.write_gatt_char(GENI_CHAR_UUID, EXTEND_1, response=False)
 await asyncio.sleep(0.05)
 ```
 
@@ -185,7 +185,7 @@ None.
 ```python
 EXTEND_2 = bytes.fromhex("2705e7f80bc10fd0c3")
 
-await tx_char.write_value(EXTEND_2)
+await client.write_gatt_char(GENI_CHAR_UUID, EXTEND_2, response=False)
 await asyncio.sleep(0.1)
 ```
 
@@ -207,39 +207,35 @@ EXTEND_2 = bytes.fromhex("2705e7f80bc10fd0c3")
 
 # BLE UUIDs
 GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
-TX_CHAR_UUID = "0000fdd1-0000-1000-8000-00805f9b34fb"
-RX_CHAR_UUID = "0000fdd2-0000-1000-8000-00805f9b34fb"
+GENI_CHAR_UUID = "859cffd1-036e-432a-aa28-1a0085b87ba9"   # write + notify
 
 
 async def authenticate(client: BleakClient):
     """Perform full authentication sequence."""
 
-    # Get TX characteristic
-    tx_char = client.services.get_characteristic(TX_CHAR_UUID)
-
     # Step 1: Legacy Magic (3x)
     print("Sending Legacy Magic packets...")
     for i in range(3):
-        await tx_char.write_value(LEGACY_MAGIC)
+        await client.write_gatt_char(GENI_CHAR_UUID, LEGACY_MAGIC, response=False)
         print(f"  Sent {i + 1}/3: {LEGACY_MAGIC.hex(' ')}")
         await asyncio.sleep(0.05)
 
     # Step 2: Class 10 Unlock (5x)
     print("Sending Class 10 Unlock packets...")
     for i in range(5):
-        await tx_char.write_value(CLASS10_UNLOCK)
+        await client.write_gatt_char(GENI_CHAR_UUID, CLASS10_UNLOCK, response=False)
         print(f"  Sent {i + 1}/5: {CLASS10_UNLOCK.hex(' ')}")
         await asyncio.sleep(0.05)
 
     # Step 3: Extend 1 (1x)
     print("Sending Extend 1...")
-    await tx_char.write_value(EXTEND_1)
+    await client.write_gatt_char(GENI_CHAR_UUID, EXTEND_1, response=False)
     print(f"  Sent: {EXTEND_1.hex(' ')}")
     await asyncio.sleep(0.05)
 
     # Step 4: Extend 2 (1x)
     print("Sending Extend 2...")
-    await tx_char.write_value(EXTEND_2)
+    await client.write_gatt_char(GENI_CHAR_UUID, EXTEND_2, response=False)
     print(f"  Sent: {EXTEND_2.hex(' ')}")
     await asyncio.sleep(0.1)
 
@@ -329,7 +325,7 @@ Typical authentication takes **~1 second** total.
 ```python
 # After authentication, this should work:
 info_cmd = build_info_command(class_byte=0x0A, sub_id=0x0045, obj_id=0x0057)
-await tx_char.write_value(info_cmd)
+await client.write_gatt_char(GENI_CHAR_UUID, info_cmd, response=False)
 
 # Should receive telemetry response
 ```
@@ -345,7 +341,7 @@ If authentication failed:
 ```python
 # Should be able to set mode after authentication
 set_cmd = build_set_command(sub=0x5600, obj=0x0601, value=...)
-await tx_char.write_value(set_cmd)
+await client.write_gatt_char(GENI_CHAR_UUID, set_cmd, response=False)
 # Should receive ACK
 ```
 

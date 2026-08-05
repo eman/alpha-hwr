@@ -32,42 +32,64 @@ assert encode_float(1.5) == bytes([0x3F, 0xC0, 0x00, 0x00])
 
 ## 2. CRC Calculation
 
-### Problem: Wrong CRC Polynomial or Initial Value
+### Problem: Wrong CRC Polynomial, Range or Final XOR
 
-**Symptom:** All packets rejected with CRC errors.
+**Symptom:** Every packet rejected. Nothing works at all.
 
-**Common Mistakes:**
-1. Using CRC-16/CCITT instead of CRC-16/MODBUS
-2. Wrong initial value (0x0000 vs 0xFFFF)
-3. Wrong polynomial (0x1021 vs 0x8005)
+**The algorithm is CRC-16/CCITT-FALSE:**
 
-**Correct CRC-16/MODBUS:**
-- Polynomial: `0x8005`
-- Initial value: `0xFFFF`
-- Reflect input: No
-- Reflect output: No
-- Final XOR: `0x0000`
+| | |
+| :--- | :--- |
+| Polynomial | `0x1021` |
+| Initial value | `0xFFFF` |
+| Reflect in / out | No / No |
+| Final XOR | `0xFFFF` |
+| Covered bytes | `frame[1:-2]` — everything **after** the start byte, up to but not including the CRC |
 
-**Test:**
+> **Earlier revisions of this guide specified CRC-16/MODBUS (`0x8005`,
+> reflected, no final XOR) and listed "using CRC-16/CCITT" as the number-one
+> mistake. That was exactly backwards.** A port built from those instructions
+> cannot exchange a single valid frame with the pump. If you have such a port,
+> this is the first thing to fix.
+
+**Test — these are captured frames the pump accepted, so they are evidence,
+not self-consistency:**
+
 ```python
-data = bytes([0x27, 0x06, 0xE7, 0xF8, 0x00, 0x67])
-crc = calculate_crc16_modbus(data)
-assert crc == 0xA3E3  # Must match!
+def check(frame_hex, expected):
+    frame = bytes.fromhex(frame_hex)
+    assert calc_crc16(frame[1:-2]) == expected
+    assert frame[-2:] == expected.to_bytes(2, "big")   # CRC is big-endian
+
+check("2705e7f805c14bc382", 0xC382)          # Extend 1
+check("2705e7f80bc10fd0c3", 0xD0C3)          # Extend 2
+check("2707e7f80203949596eb47", 0xEB47)      # Legacy magic
+check("2707e7f80a03560006c55a", 0xC55A)      # Class 10 unlock
+check("2705e7f8038106e587", 0xE587)          # Class 3 START
 ```
 
-**Python Reference:**
+**Reference implementation:**
+
 ```python
-def calculate_crc16_modbus(data: bytes) -> int:
-    crc = 0xFFFF
+def calc_crc16(data: bytes, init: int = 0xFFFF) -> int:
+    """CRC-16/CCITT-FALSE, computed over frame[1:-2]."""
+    crc = init
     for byte in data:
-        crc ^= byte
+        crc ^= byte << 8
         for _ in range(8):
-            if crc & 0x0001:
-                crc = (crc >> 1) ^ 0xA001
-            else:
-                crc >>= 1
-    return crc
+            crc = ((crc << 1) ^ 0x1021) & 0xFFFF if crc & 0x8000 else (crc << 1) & 0xFFFF
+    return crc ^ 0xFFFF
 ```
+
+A table-driven form is in `alpha_hwr/utils.py`; it produces the same values.
+
+### One convention, not two
+
+The Python implementation carries a second helper that omits the final XOR,
+described as "the write convention". **No frame the pump accepts uses it** —
+the five vectors above include both reads and writes, and all five need the
+XOR. The no-XOR helper is reachable from one code path that never talks to a
+pump. Do not reproduce it.
 
 ---
 
@@ -107,33 +129,38 @@ assert response is not None  # Should get telemetry
 
 **Symptom:** Send commands successfully but timeout waiting for response.
 
-**Cause:** Forgot to subscribe to RX characteristic notifications.
+**Cause:** Forgot to subscribe to notifications — or went looking for a
+separate RX characteristic that does not exist.
+
+**There is one characteristic**, `859cffd1-036e-432a-aa28-1a0085b87ba9`, on
+service `0000fdd0-0000-1000-8000-00805f9b34fb`. You write to it and you
+subscribe to it.
 
 **Wrong:**
 ```python
 # No notification subscription!
-await tx_char.write_value(packet)
+await client.write_gatt_char(GENI_CHAR_UUID, packet, response=False)
 response = await asyncio.wait_for(get_response(), timeout=5.0)
 # Timeout!
 ```
 
 **Correct:**
 ```python
-# Subscribe to notifications first
+# Subscribe first, on the same handle you are about to write to
 def notification_handler(sender, data):
     process_response(data)
 
 
-await rx_char.start_notify(notification_handler)
+await client.start_notify(GENI_CHAR_UUID, notification_handler)
 
-# Now commands will get responses
-await tx_char.write_value(packet)
+await client.write_gatt_char(GENI_CHAR_UUID, packet, response=False)
 ```
 
 **Checklist:**
-- [x] RX characteristic: `0000fdd2-...-34fb`
+- [x] One characteristic: `859cffd1-036e-432a-aa28-1a0085b87ba9`
 - [x] Enable notifications before sending commands
-- [x] Keep connection alive during operations
+- [x] Bond with the device — otherwise the connection is dropped at ~1.8 s
+      whether or not you are sending anything
 
 ---
 
@@ -222,24 +249,34 @@ await client.write_gatt_char(GENI_CHAR_UUID, packet, response=False)
 # Pump ignores this! No error, just fails silently.
 ```
 
-**Correct:**
+**Also wrong — and much harder to spot:**
 ```python
-async def write(self, data: bytes, response: bool = False):
-    """Write data, splitting if needed for BLE MTU."""
-    if len(data) > 20:
-        # Split at 20-byte boundary
+# WRONG: two chunks, "first 20 and the rest"
+await self.client.write_gatt_char(GENI_CHAR_UUID, data[:20], response=False)
+await asyncio.sleep(0.01)
+await self.client.write_gatt_char(GENI_CHAR_UUID, data[20:], response=False)
+```
+
+This is correct for every frame up to 40 bytes, which is every control packet
+and every commit — so it passes all the obvious tests. It silently truncates
+the **59-byte schedule-layer write**, whose second "chunk" is 39 bytes. That
+shipped in this library, and the schedule write was the only casualty.
+
+**Correct — N chunks:**
+```python
+BLE_MTU_LIMIT = 20
+SEND_PACING = 0.05
+
+
+async def write(self, data: bytes, response: bool = False) -> None:
+    """Write data in as many MTU-sized chunks as it needs."""
+    for offset in range(0, len(data), BLE_MTU_LIMIT):
         await self.client.write_gatt_char(
-            GENI_CHAR_UUID, data[:20], response=response
+            GENI_CHAR_UUID,
+            data[offset : offset + BLE_MTU_LIMIT],
+            response=response,
         )
-        await asyncio.sleep(0.01)  # 10ms delay between chunks
-        await self.client.write_gatt_char(
-            GENI_CHAR_UUID, data[20:], response=response
-        )
-    else:
-        # Single write for short packets
-        await self.client.write_gatt_char(
-            GENI_CHAR_UUID, data, response=response
-        )
+        await asyncio.sleep(SEND_PACING)
 ```
 
 **Why This Happens:**
@@ -250,7 +287,7 @@ async def write(self, data: bytes, response: bool = False):
 
 **Real Example:**
 
-Schedule enable/disable command is 27 bytes:
+The configuration commit is 27 bytes:
 ```
 Command: 2717e7f80a9354000100da0100000a02050005010100000000b44e
          ├──────────── 20 bytes ──────────┤├───── 7 bytes ─────┤
@@ -260,11 +297,19 @@ Must be written as:
 ```python
 # Chunk 1 (20 bytes)
 await write(bytes.fromhex("2717e7f80a9354000100da0100000a0205000500"))
-await asyncio.sleep(0.01)
+await asyncio.sleep(0.05)
 
 # Chunk 2 (7 bytes)
 await write(bytes.fromhex("0100000000b44e"))
 ```
+
+A schedule-layer write is 59 bytes and takes **three** chunks — 20 + 20 + 19.
+Do not hardcode a chunk count.
+
+> The commit payload above is a real capture, shown to illustrate chunking.
+> Do not copy it as a constant: byte 4 of its 10-byte overview is the
+> schedule's enabled flag, and a fixed value there overwrites whatever the
+> user has configured.
 
 **Detection:**
 ```python
@@ -310,7 +355,7 @@ The 10ms delay between chunks is **critical** - it prevents buffer overflow on t
 **Wrong:**
 ```python
 # Send telemetry query
-await tx_char.write_value(telemetry_request)
+await client.write_gatt_char(GENI_CHAR_UUID, telemetry_request, response=False)
 
 # Wait for response
 response = await wait_for_response(timeout=2.0)
@@ -321,7 +366,7 @@ if response[4] == 0x02:  # Class 2 = error
 **Correct:**
 ```python
 # Send telemetry query
-await tx_char.write_value(telemetry_request)
+await client.write_gatt_char(GENI_CHAR_UUID, telemetry_request, response=False)
 
 
 # Filter function to skip errors and passive notifications
@@ -845,12 +890,12 @@ class MockPump:
 When something doesn't work:
 
 1. [x] **Endianness:** All multi-byte values big-endian?
-2. [x] **CRC:** Using CRC-16/MODBUS (polynomial 0x8005)?
+2. [x] **CRC:** CCITT `0x1021`, init `0xFFFF`, final XOR `0xFFFF`, over `frame[1:-2]`?
 3. [x] **Authentication:** Sent all packets in correct order?
-4. [x] **Notifications:** Subscribed to RX characteristic?
+4. [x] **Notifications:** Subscribed to the characteristic's notifications?
 5. [x] **Packet Fragmentation:** Reassembling fragments before parsing?
 6. [x] **Error Responses:** Filtering out Class 2 errors before data?
-7. [x] **Response Format:** Handling both 0x0E and 0x30/0x2b formats?
+7. [x] **Response Format:** Reading byte 5 of a response as a *length*, not a format code?
 8. [x] **Length:** Frame length field correct?
 9. [x] **Offsets:** Using correct byte offsets for telemetry?
 10. [x] **Units:** Pressure in Pascals, not meters?
@@ -882,7 +927,7 @@ def log_packet(direction, packet):
 
 
 # Log all packets
-await tx_char.write_value(packet)
+await client.write_gatt_char(GENI_CHAR_UUID, packet, response=False)
 log_packet("TX", packet)
 
 
@@ -917,9 +962,9 @@ assert session.is_authenticated()
 
 Most issues stem from:
 1. **Endianness** (big-endian!)
-2. **CRC algorithm** (MODBUS, not CCITT!)
+2. **CRC algorithm** (CCITT/0x1021 with a final XOR — *not* MODBUS)
 3. **Authentication sequence** (exact order and count!)
-4. **Notifications** (must subscribe!)
+4. **Notifications** (must subscribe on the single characteristic!)
 5. **Packet fragmentation** (reassemble before parsing!)
 6. **Error-then-data pattern** (ignore Class 2 errors, wait for data!)
 7. **Response format** (OpSpec 0x30/0x2b uses different structure!)

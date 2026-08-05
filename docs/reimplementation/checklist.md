@@ -7,10 +7,10 @@ Use this checklist to track your implementation progress. Features are organized
 ### BLE Transport
 - [ ] Connect to pump via BLE
 - [ ] Discover GENI service (`0000fdd0-0000-1000-8000-00805f9b34fb`)
-- [ ] Get TX characteristic (`0000fdd1-...`)
-- [ ] Get RX characteristic (`0000fdd2-...`)
-- [ ] Subscribe to notifications on RX
-- [ ] Send packets via TX
+- [ ] Get the GENI characteristic (`859cffd1-036e-432a-aa28-1a0085b87ba9`) — there is only one, for both directions
+- [ ] Subscribe to notifications on it
+- [ ] Send packets on it, split into 20-byte chunks
+- [ ] Bond/pair — an unbonded idle connection is dropped at ~1.8 s
 - [ ] Disconnect gracefully
 
 ### Authentication
@@ -40,7 +40,7 @@ Use this checklist to track your implementation progress. Features are organized
 - [ ] Decode uint16 big-endian
 - [ ] Encode uint32 big-endian
 - [ ] Decode uint32 big-endian
-- [ ] Calculate CRC-16/MODBUS
+- [ ] Calculate CRC-16/CCITT (0x1021, init 0xFFFF, final XOR 0xFFFF)
 - [ ] Validate CRC on received packets
 
 ### Frame Builder

@@ -40,13 +40,13 @@ pip install alpha-hwr
 alpha-hwr device scan
 
 # Monitor telemetry in real-time
-alpha-hwr monitor telemetry AA:BB:CC:DD:EE:FF
+alpha-hwr monitor live --device AA:BB:CC:DD:EE:FF
 
 # Check pump status
-alpha-hwr control status AA:BB:CC:DD:EE:FF
+alpha-hwr control status --device AA:BB:CC:DD:EE:FF
 
 # Set constant pressure mode (1.5 meters)
-alpha-hwr control set-pressure 1.5 AA:BB:CC:DD:EE:FF
+alpha-hwr control set-pressure 1.5 --device AA:BB:CC:DD:EE:FF
 ```
 
 ### Python Library

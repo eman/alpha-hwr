@@ -17,12 +17,14 @@ Due to hardware limitations and firmware logic, sending a control command is not
 
 ### 1. MTU Fragmentation (Split-Writes)
 The ALPHA HWR BLE interface has a hard **Maximum Transmission Unit (MTU) of 20 bytes** for write operations.
-*   Control packets are typically **24 bytes** long.
-*   **Action**: You must split the packet into two writes.
-    1.  Write bytes 0-19.
-    2.  Wait a small duration (e.g., 10ms).
-    3.  Write remaining bytes (20-23).
+*   **Action**: Split the frame into as many 20-byte chunks as it needs, pacing
+    each write. Do not assume two: a 24-byte control packet takes two, but a
+    59-byte schedule-layer write takes **three** (20 + 20 + 19).
 *   *Failure to split causes the device to silently drop the packet or return a CRC error.*
+
+> A two-chunk implementation looks correct on control packets and silently
+> truncates anything over 40 bytes. That shipped here, and the schedule write
+> was the casualty — the second "chunk" still exceeded the MTU.
 
 ### 2. Transaction Locking
 The pump streams telemetry at ~10Hz. If a telemetry read request or notification is interleaved between the two fragments of your control command, the device's buffer will be corrupted.
@@ -32,26 +34,41 @@ The pump streams telemetry at ~10Hz. If a telemetry read request or notification
 Even after successfully writing the control command, the pump may revert to its previous state immediately unless the change is "committed".
 *   **Action**: Send a specific "Configuration Commit" packet immediately after the control command.
 
-## Remote Control Mode
+## Remote Control Mode — not supported, deliberately
 
-The ALPHA HWR can be placed in "Remote Control Mode", which changes how it prioritizes external commands over the physical operating panel.
+The GENI protocol has a Remote Mode, and this library used to expose it. It is
+gone, because on the ALPHA it does the opposite of what its name suggests.
 
-### Overview
-- **Override Local Control**: When active, the pump prioritizes commands from the Bluetooth interface and ignores most button presses on the physical panel.
-- **Persistence**: Once enabled, the pump stays in Remote Mode until it is explicitly returned to "Auto" (local) control.
-- **Command Lock**: This is recommended when an external controller (like a home automation system) is managing the pump's logic to prevent accidental local overrides.
+Measured on hardware:
 
-### Technical Implementation
-Remote mode uses the legacy **Class 3** (Register) protocol:
+- Engaging Remote **stops the pump acting on commands from the BLE link** for
+  roughly 35-45 seconds, until it self-cancels. The pump appears to treat the
+  BLE connection as its *local* control source, so claiming Remote priority
+  deprioritises the only controller present.
+- It does not persist. It reverts on its own after ~35 s unless re-asserted,
+  and ordinary telemetry polling does not hold it.
+- The pump accepts commands perfectly well in Local, and always has.
 
-- **Enable Remote**: Command ID `7` (`0x03 C1 07`)
-- **Disable Remote (Auto)**: Command ID `6` (`0x03 C1 06`)
+So there was demonstrated harm and no demonstrated benefit. `control_source`
+is still readable — from Object 86 Sub 7, see below — and reads `1`
+(Local/Panel) in normal operation.
 
-These commands are sent to the standard GENI Service ID `0xE7` from Source `0xF8`.
+For the record, since older versions of this document had it wrong: the
+commands were Class 3 IDs `7` (Remote) and `8` (Local), sent as **SET**
+(`0x81`). The `0xC1` opcode this document used to specify is INFO, which the
+pump answers with a descriptor rather than executing — so the frames it
+described would not have done anything even if the feature were wanted.
 
 ## Packet Structure
 
 ### Control Command Payload
+
+> **This object writes three things at once.** Object 86 sub-id 6 (wire
+> `Obj 0x0601`) fuses the run state, the control mode and the setpoint into one
+> frame, so anything sent through it necessarily asserts all three. It is used
+> **only for setpoint writes** now — start/stop goes through Class 3 and mode
+> changes through sub-id 10. See the Object 86 table below.
+
 The payload for `Sub 0x5600, Obj 0x0601` follows this structure:
 
 `2F 01 00 00 07 00 [RunState] [Mode] [Suffix...]`
@@ -60,15 +77,38 @@ The payload for `Sub 0x5600, Obj 0x0601` follows this structure:
 | :--- | :--- | :--- | :--- |
 | 0-1 | **Header** | `2F 01` | Fixed header for this object. |
 | 2-5 | **Padding** | `00 00 07 00` | Fixed padding/flags. |
-| 6 | **Run State** | `0x00` or `0x01` | `0x00` = **START / RUN**<br>`0x01` = **STOP** |
+| 6 | **operation_mode** | `0x00`, `0x01`, `0x06` | `0x00` = AUTO, `0x01` = STOP, `0x06` = NoCmd (leave alone) |
 | 7 | **Mode** | `0x00` - `0xFF` | Control Mode ID (see below). |
-| 8-11 | **Suffix** | Variable | Mode-specific parameters (often `45 65 70 00`). |
+| 8-11 | **set_point** | float32 BE | The setpoint, or `7F FF FF FF` (NaN) to keep the stored one. |
+
+> **Never send `45 65 70 00` here.** That decodes to exactly **3671.0**, which
+> is this pump's *maximum speed setpoint* — it appears verbatim in the pump's
+> own limits block at Object 86 Sub 13. It was long treated as an inert
+> placeholder, so every start command wrote "run at full speed" over whatever
+> setpoint the mode had. Where no setpoint is being asserted, send NaN
+> (`7F FF FF FF`), which the pump reads as "keep what you have".
 
 ### Configuration Commit Packet
 This packet confirms the changes.
-*   **Target**: `Sub 0x5400`, `Obj 0xDA01`
+*   **Target**: Object 84 Sub 1 (`ClockProgramOverview`), type 218 (`0xDA01`)
 *   **OpSpec**: `0x93`
-*   **Full Packet Hex**: `27 17 E7 F8 0A 93 54 00 01 00 DA 01 00 00 0A 02 05 00 05 00 01 00 00 00 00 F1 EE`
+*   **Payload**: the pump's current 10-byte overview, read back and rewritten.
+
+> **Do not send a constant here.** The commit carries the *whole*
+> ClockProgramOverview, and byte 4 of that structure is the schedule's enabled
+> flag. Earlier versions of this document published a fixed packet whose byte 4
+> was `0x00` — and because a commit follows every setpoint write, sending it
+> switched the user's weekly schedule off every time they changed a setpoint.
+>
+> Read Object 84 Sub 1, modify only what you mean to change, and write it back.
+> If the overview cannot be read, send no commit at all: skipping a flush is
+> recoverable, overwriting the schedule state is not.
+
+Frame shape, with `[overview]` being those 10 bytes:
+
+```
+27 17 E7 F8 0A 93 54 00 01 00 DA 01 00 00 0A [overview x10] [CRC]
+```
 
 ## Supported Control Modes
 
@@ -96,25 +136,45 @@ The three AutoAdapt variants (IDs 13, 14, 15) are system-specific optimizations:
 
 Each AutoAdapt mode has dedicated factory configuration Sub-IDs for reading setpoint limits and defaults.
 
-## Example: Start Pump in Constant Speed
+## Example: Run at 1650 RPM in Constant Speed
 
-To start the pump in Constant Speed mode (Mode `0x02`):
+Three separate frames, because the three things being asked for are separate
+concerns and the fused object cannot express one without asserting the others.
+Each is shown whole; each is sent in 20-byte chunks.
 
-1.  **Construct Payload**:
-    *   Run State: `0x00` (Start)
-    *   Mode: `0x02`
-    *   Payload: `2F 01 00 00 07 00 00 02 45 65 70 00`
+1.  **Set the mode** — Object 86 Sub 10, `operation_mode = NoCmd (0x06)`,
+    setpoint `7F FF FF FF` (keep):
 
-2.  **Wrap in GENI Frame**:
-    *   Class 10, OpSpec 0x90, Sub 5600, Obj 0601.
-    *   Full Packet: `27 14 E7 F8 0A 90 56 00 06 01 2F 01 00 00 07 00 00 02 45 65 70 00 [CRC]`
+    ```
+    27 14 E7 F8 0A 90 56 00 0A 01 2F 01 00 00 07 00 06 02 7F FF FF FF 0C EC
+    ```
 
-3.  **Split & Send**:
-    *   Write `27 14 ... 00` (20 bytes).
-    *   Write `02 45 65 70 00 [CRC]` (Remaining bytes).
+    No commit follows. A mode change persists by itself, and the commit
+    writes the *schedule*, which has nothing to do with the control mode.
 
-4.  **Send Commit**:
-    *   Write `27 17 E7 ... F1 EE` (Commit packet).
+2.  **Set the setpoint** — Object 86 Sub 6 (fused), `operation_mode = AUTO
+    (0x00)`, mode `0x02`, setpoint `44 CE 40 00` = 1650.0:
+
+    ```
+    27 14 E7 F8 0A 90 56 00 06 01 2F 01 00 00 07 00 00 02 44 CE 40 00 47 63
+    ```
+
+    Then send the configuration commit, built from the pump's current
+    ClockProgramOverview as described above.
+
+3.  **Start the pump** — Class 3, and nothing else:
+
+    ```
+    27 05 E7 F8 03 81 06 E5 87
+    ```
+
+    `0x06` = START, `0x05` = STOP. Nine bytes, with no room for a mode or a
+    setpoint — which is the point.
+
+**Then read back.** The acknowledgement means the frame was accepted, not
+that the value was stored. Request 600 RPM and the pump acknowledges, then
+stores 1650: its minimum. Read Object 86 Sub 7 to find out what actually
+happened.
 
 ## Setpoint Configuration
 

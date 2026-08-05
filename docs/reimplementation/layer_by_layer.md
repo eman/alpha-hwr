@@ -24,7 +24,7 @@ Before starting implementation, ensure you have:
 - **BLE Basics**: GATT services, characteristics, notifications
 - **Binary Data**: Byte arrays, endianness, bit manipulation
 - **Async Programming**: Your language's async/await or callback patterns
-- **CRC Checksums**: CRC-16/MODBUS calculation
+- **CRC Checksums**: CRC-16/CCITT calculation
 
 ### Development Tools
 - BLE debugging tool (nRF Connect, LightBlue, etc.)
@@ -84,45 +84,45 @@ async def discover_pump(serial_number=None):
 
 ### 1.2 Connect to Pump
 
-Connect via BLE and discover GENI service.
+Connect via BLE and discover the GENI service.
 
-**GENI Service UUIDs**:
+**GENI GATT layout** — one service, **one characteristic**, used for both
+directions:
+
 ```python
 GENI_SERVICE_UUID = "0000fdd0-0000-1000-8000-00805f9b34fb"
-TX_CHAR_UUID = "0000fdd1-0000-1000-8000-00805f9b34fb"  # Write to pump
-RX_CHAR_UUID = "0000fdd2-0000-1000-8000-00805f9b34fb"  # Notifications from pump
+GENI_CHAR_UUID    = "859cffd1-036e-432a-aa28-1a0085b87ba9"
 ```
+
+> Earlier revisions of this guide described a two-characteristic topology
+> (`0000fdd1` for writes, `0000fdd2` for notifications). **Neither
+> characteristic exists on this device.** You write to `859cffd1…` and you
+> subscribe to notifications on the same handle. A port looking for a
+> separate RX characteristic fails at service discovery.
 
 **Implementation**:
 ```python
 async def connect_to_pump(device_address):
-    """
-    Connect to pump and setup characteristics.
-    
-    Returns (client, tx_char, rx_char)
-    """
-    # Connect
+    """Connect to the pump and resolve the single GENI characteristic."""
     client = await ble_library.connect(device_address)
-    
-    # Discover services
     await client.discover_services()
-    
-    # Get GENI service
+
     service = client.get_service(GENI_SERVICE_UUID)
-    
-    # Get characteristics
-    tx_char = service.get_characteristic(TX_CHAR_UUID)
-    rx_char = service.get_characteristic(RX_CHAR_UUID)
-    
-    return (client, tx_char, rx_char)
+    char = service.get_characteristic(GENI_CHAR_UUID)
+
+    return (client, char)
 ```
+
+Note also that **the pump drops an idle connection at about 1.8 seconds**
+unless it is bonded. If your connection dies almost immediately and always at
+the same moment, the problem is pairing, not your frames.
 
 
 ---
 
 ### 1.3 Setup Notifications
 
-Enable notifications on RX characteristic to receive pump responses.
+Subscribe on the same characteristic you write to.
 
 **Implementation**:
 ```python
@@ -134,9 +134,9 @@ def notification_handler(sender, data):
     response_queue.append(data)
 
 
-async def enable_notifications(client, rx_char):
-    """Enable BLE notifications."""
-    await client.start_notify(rx_char, notification_handler)
+async def enable_notifications(client):
+    """Enable BLE notifications on the GENI characteristic."""
+    await client.start_notify(GENI_CHAR_UUID, notification_handler)
 ```
 
 
@@ -148,9 +148,13 @@ Implement basic send/receive functions.
 
 **Implementation**:
 ```python
-async def send_packet(tx_char, data: bytes):
-    """Send bytes to pump."""
-    await tx_char.write_value(data, response=False)
+async def send_packet(client, data: bytes):
+    """Send bytes to the pump, in 20-byte chunks."""
+    for i in range(0, len(data), 20):
+        await client.write_gatt_char(
+            GENI_CHAR_UUID, data[i:i + 20], response=False
+        )
+        await asyncio.sleep(0.05)   # the pump needs the pacing
 
 
 async def receive_packet(timeout=5.0):
@@ -172,39 +176,47 @@ async def receive_packet(timeout=5.0):
 
 **Goal**: Encode and decode primitive data types (floats, integers).
 
-### 2.1 CRC-16/MODBUS
+### 2.1 CRC-16/CCITT
 
 Implement CRC calculation for packet integrity.
 
 **Algorithm**:
 ```python
-def calc_crc16_modbus(data: bytes) -> int:
+def calc_crc16(data: bytes) -> int:
     """
-    Calculate CRC-16/MODBUS checksum.
-    
-    Polynomial: 0x8005
+    CRC-16/CCITT-FALSE.
+
+    Polynomial: 0x1021
     Initial value: 0xFFFF
-    Final XOR: 0x0000
-    Reflect input: True
-    Reflect output: True
+    Final XOR: 0xFFFF
+    Reflect input/output: False
+
+    Computed over frame[1:-2] - everything after the start byte, up to
+    but not including the two CRC bytes. The CRC itself is big-endian.
     """
     crc = 0xFFFF
-    
+
     for byte in data:
-        crc ^= byte
+        crc ^= byte << 8
         for _ in range(8):
-            if crc & 0x0001:
-                crc = (crc >> 1) ^ 0xA001  # Reflected polynomial
+            if crc & 0x8000:
+                crc = ((crc << 1) ^ 0x1021) & 0xFFFF
             else:
-                crc >>= 1
-    
-    return crc
+                crc = (crc << 1) & 0xFFFF
+
+    return crc ^ 0xFFFF
 ```
 
-**Test Vectors** (from [test_vectors.md](test_vectors.md)):
+> Earlier revisions of this guide specified CRC-16/MODBUS here. That was
+> wrong, and it is the single most expensive error a port can inherit - no
+> frame is accepted and no response arrives, so there is nothing to debug
+> against. See [common_pitfalls.md](common_pitfalls.md#2-crc-calculation).
+
+**Test Vectors** - captured frames the pump accepted:
 ```python
-assert calc_crc16_modbus(b"\x07\xe7\xf8\x0a\x04\x00\x85") == 0x1202
-assert calc_crc16_modbus(b"\x06\xe7\xf8\x00\x67") == 0xE3A3
+assert calc_crc16(bytes.fromhex("05e7f805c14b")) == 0xC382        # Extend 1
+assert calc_crc16(bytes.fromhex("07e7f80203949596")) == 0xEB47    # Legacy magic
+assert calc_crc16(bytes.fromhex("05e7f8038106")) == 0xE587        # Class 3 START
 ```
 
 
@@ -349,7 +361,7 @@ def build_info_command(class_byte, sub_id, obj_id):
 
     # Calculate CRC over bytes from Length to end of APDU
     crc_data = bytes(frame[1:])  # Exclude start byte
-    crc = calc_crc16_modbus(crc_data)
+    crc = calc_crc16(crc_data)
 
     # Append CRC (big-endian)
     frame.append((crc >> 8) & 0xFF)  # CRC high
@@ -412,7 +424,7 @@ def build_set_command(sub_id, obj_id, data: bytes):
     
     # Calculate CRC
     crc_data = bytes(frame[1:])
-    crc = calc_crc16_modbus(crc_data)
+    crc = calc_crc16(crc_data)
     frame.append((crc >> 8) & 0xFF)
     frame.append(crc & 0xFF)
     
@@ -465,7 +477,7 @@ def parse_frame(data: bytes):
 
     # Verify CRC
     crc_received = (data[-2] << 8) | data[-1]
-    crc_calculated = calc_crc16_modbus(data[1:-2])
+    crc_calculated = calc_crc16(data[1:-2])
     if crc_received != crc_calculated:
         raise ValueError("CRC mismatch")
 
@@ -551,7 +563,7 @@ EXTEND_2 = bytes([0x27, 0x06, 0xE7, 0xF8, 0x1A, 0x54, 0xD2, 0x55])
 
 **Implementation**:
 ```python
-async def authenticate(tx_char):
+async def authenticate(client):
     """
     Perform authentication sequence.
     
@@ -559,20 +571,20 @@ async def authenticate(tx_char):
     """
     # Step 1: Legacy Magic (3x)
     for _ in range(3):
-        await send_packet(tx_char, LEGACY_MAGIC)
+        await send_packet(client, LEGACY_MAGIC)
         await asyncio.sleep(0.05)  # 50ms delay
     
     # Step 2: Class 10 Unlock (5x)
     for _ in range(5):
-        await send_packet(tx_char, CLASS10_UNLOCK)
+        await send_packet(client, CLASS10_UNLOCK)
         await asyncio.sleep(0.05)
     
     # Step 3: Extend 1
-    await send_packet(tx_char, EXTEND_1)
+    await send_packet(client, EXTEND_1)
     await asyncio.sleep(0.05)
     
     # Step 4: Extend 2
-    await send_packet(tx_char, EXTEND_2)
+    await send_packet(client, EXTEND_2)
     await asyncio.sleep(0.1)  # Longer delay after final packet
 ```
 
@@ -608,18 +620,17 @@ class Session:
     def __init__(self):
         self.state = SessionState.DISCONNECTED
         self.client = None
-        self.tx_char = None
-        self.rx_char = None
+        self.char = None
 
     async def connect(self, device_address):
         """Connect to pump."""
         if self.state != SessionState.DISCONNECTED:
             raise Exception(f"Cannot connect from state: {self.state}")
 
-        self.client, self.tx_char, self.rx_char = await connect_to_pump(
+        self.client, self.char = await connect_to_pump(
             device_address
         )
-        await enable_notifications(self.client, self.rx_char)
+        await enable_notifications(self.client)
         self.state = SessionState.CONNECTED
 
     async def authenticate(self):
@@ -629,7 +640,7 @@ class Session:
 
         self.state = SessionState.AUTHENTICATING
         try:
-            await authenticate(self.tx_char)
+            await authenticate(self.client)
             self.state = SessionState.AUTHENTICATED
         except Exception as e:
             self.state = SessionState.ERROR
@@ -676,7 +687,7 @@ class TelemetryService:
 
         # Request motor state (Sub 0x0045, Obj 0x0057)
         packet = build_info_command(0x0A, 0x0045, 0x0057)
-        await send_packet(self.session.tx_char, packet)
+        await send_packet(self.session.client, packet)
 
         # Wait for response
         response = await receive_packet(timeout=2.0)
@@ -699,7 +710,7 @@ class TelemetryService:
 
         # Request flow/pressure (Sub 0x0122, Obj 0x005D)
         packet = build_info_command(0x0A, 0x0122, 0x005D)
-        await send_packet(self.session.tx_char, packet)
+        await send_packet(self.session.client, packet)
 
         response = await receive_packet(timeout=2.0)
         frame = parse_frame(response)
@@ -741,7 +752,7 @@ class ControlService:
         
         # Send SET command (Sub 0x5600, Obj 0x0601)
         packet = build_set_command(0x5600, 0x0601, setpoint_data)
-        await send_packet(self.session.tx_char, packet)
+        await send_packet(self.session.client, packet)
         
         # Wait for ACK
         response = await receive_packet(timeout=2.0)
@@ -758,7 +769,7 @@ class ControlService:
         # Send stop command (Sub 0x5600, Obj 0x0600, value=0)
         stop_data = encode_float_be(0.0)
         packet = build_set_command(0x5600, 0x0600, stop_data)
-        await send_packet(self.session.tx_char, packet)
+        await send_packet(self.session.client, packet)
         
         response = await receive_packet(timeout=2.0)
         frame = parse_frame(response)

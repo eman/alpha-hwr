@@ -134,7 +134,6 @@ class CommandProcessor:
             ):
                 logger.info("Client not connected, attempting connection...")
                 await self.client.connect()
-                # Re-enable remote mode if needed
                 await self.client.authenticate()
 
             # Send via transport layer

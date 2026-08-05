@@ -1,5 +1,19 @@
 # Test Vectors
 
+!!! danger "Do not use this page yet"
+
+    These vectors were hand-written and most of them are wrong. The CRC
+    section specifies **CRC-16/MODBUS**, which is not the algorithm the pump
+    uses (it is CCITT/`0x1021` with a final XOR of `0xFFFF` — see
+    [common_pitfalls.md](common_pitfalls.md#2-crc-calculation)), and the CRC
+    vectors below do not reproduce any captured frame under either algorithm.
+    Several float vectors decode to the wrong number: `0x46E5B000` is
+    documented as 14710.0 and is actually 29400.0.
+
+    This page is being regenerated from executed code so that it cannot drift
+    again. Until then, take nothing from it.
+
+
 This document provides test vectors for validating your implementation. Each section includes inputs, expected outputs, and explanations.
 
 ## 1. CRC-16/MODBUS Calculation
