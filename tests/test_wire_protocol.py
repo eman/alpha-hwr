@@ -27,12 +27,6 @@ class TestWireProtocol:
 
     def test_register_encoding_1_byte(self):
         """Verify encoding of 1nd-tier registers (Legacy Commands)."""
-        # Register.STOP (0x0305) in FrameBuilder.build_write_request
-        # actually treats it as 0x0305 (2 bytes) because it's <= 0xFFFF.
-        # Let's test a hypothetical 1-byte register if the logic supports it.
-        # Looking at build_write_request: it always does 2 or 3 bytes.
-        # But wait, build_command_info uses 1 byte ID.
-
         cmd = FrameBuilder.build_command_info(0x03, 0x05, source=0x0A)
         # APDU: [Class=03][OpLen=01][ID=05] (new implementation: OpLen = (0<<6)|1 = 0x01)
         assert cmd[4] == 0x03
@@ -74,26 +68,22 @@ class TestWireProtocol:
             len(cmd) == cmd[1] + 4
         )  # START(1) + LEN(1) + CRC(2) = 4 overhead bytes outside LEN count?
 
-    def test_build_write_request_encoding(self):
-        """Verify construction of Write Request with varying register lengths."""
-        # 2nd-tier register (2 bytes)
-        cmd2 = FrameBuilder.build_write_request(0x1234, 0x05)
-        # 27 [LEN=7] E7 0A 0A 20 12 34 05 [CRC]
-        # Wait, build_write_request implementation:
-        # [START][LEN][E7][SRC][0A][WRITE_OP=C1][REG1][REG2][VAL]
-        assert cmd2[0] == FRAME_START
-        assert cmd2[5] == CommandOpcode.WRITE  # 0xC1
-        assert cmd2[6] == 0x12
-        assert cmd2[7] == 0x34
-        assert cmd2[8] == 0x05
+    def test_one_crc_convention_for_reads_and_writes(self):
+        """
+        Every frame the pump accepts uses the final XOR - writes included.
 
-        # 3rd-tier register (3 bytes)
-        cmd3 = FrameBuilder.build_write_request(0x570045, bytes([0xAA, 0xBB]))
-        assert cmd3[6] == 0x57
-        assert cmd3[7] == 0x00
-        assert cmd3[8] == 0x45
-        assert cmd3[9] == 0xAA
-        assert cmd3[10] == 0xBB
+        A second helper without it was once described as "the write
+        convention", on the strength of a code path that never reached a
+        pump. These are captured frames; both a read and a write are here.
+        """
+        for hexs, label in [
+            ("2707e7f80203949596eb47", "legacy magic"),
+            ("2705e7f8038106e587", "class 3 START"),
+            ("2714e7f80a9056000a012f010000070006027fffffff0cec", "mode write"),
+        ]:
+            frame = bytes.fromhex(hexs)
+            expected = int.from_bytes(frame[-2:], "big")
+            assert calc_crc16_read(frame[1:-2]) == expected, label
 
     def test_client_payload_extraction_offsets(self):
         """

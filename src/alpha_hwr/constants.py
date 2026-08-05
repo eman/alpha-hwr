@@ -1,3 +1,11 @@
+"""
+Protocol constants: BLE UUIDs, control modes, error codes, the CRC table.
+
+Values here are measured or captured, not chosen. Where one looks arbitrary
+it usually is not - the CRC table is CCITT 0x1021, and the control-mode
+numbers are the pump's own.
+"""
+
 from __future__ import annotations
 
 from enum import IntEnum

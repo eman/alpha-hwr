@@ -11,8 +11,6 @@ The service coordinates between the transport layer (BLE communication)
 and the protocol layer (frame parsing/telemetry decoding) to provide
 a clean API for telemetry access.
 
-Implementation Notes for Other Languages
-----------------------------------------
 This service demonstrates the separation of concerns:
 
 1. **Transport Layer**: Handles BLE communication and raw packets
@@ -24,51 +22,6 @@ The service maintains current telemetry state and updates it from:
 - Active polling of registers (Class 2/3)
 - Passive notifications from telemetry streams (Class 10)
 
-Example in other languages:
-
-TypeScript:
-```typescript
-class TelemetryService {
-    private transport: Transport;
-    private telemetry: TelemetryData;
-    private advancedTelemetry: AdvancedTelemetry;
-
-    async readOnce(): Promise<TelemetryData> {
-        // Poll all registers and return combined data
-    }
-
-    async *stream(): AsyncIterable<TelemetryData> {
-        // Yield telemetry updates as they arrive
-    }
-
-    updateFromNotification(frame: ParsedFrame): void {
-        // Update state from Class 10 notification
-    }
-}
-```
-
-Rust:
-```rust
-pub struct TelemetryService {
-    transport: Arc<Transport>,
-    telemetry: Arc<RwLock<TelemetryData>>,
-    advanced_telemetry: Arc<RwLock<AdvancedTelemetry>>,
-}
-
-impl TelemetryService {
-    pub async fn read_once(&self) -> Result<TelemetryData, Error> {
-        // Poll all registers and return combined data
-    }
-
-    pub async fn stream(&self) -> impl Stream<Item = TelemetryData> {
-        // Stream telemetry updates
-    }
-
-    pub fn update_from_notification(&self, frame: &ParsedFrame) {
-        // Update state from Class 10 notification
-    }
-}
-```
 """
 
 from __future__ import annotations

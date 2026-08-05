@@ -20,22 +20,6 @@ Protocol Details:
   - Writes to Object 1016 at discovered SubID
   - Value: 0x01=enable, 0x00=disable
 
-Cross-Language Implementation Notes:
-------------------------------------
-TypeScript:
-  - Use Map<string, ScheduleEntry[]> to group entries by day
-  - Validate with zod schema for ScheduleEntry
-  - Implement overlap detection with time arithmetic
-
-Rust:
-  - Use HashMap<String, Vec<ScheduleEntry>> for grouping
-  - chrono::NaiveTime for time validation
-  - Iterator chains for overlap detection
-
-C:
-  - typedef struct for ScheduleEntry (day_index, times as uint8_t)
-  - Array[7][5] for per-day, per-layer entries
-  - Manual validation loops with minute arithmetic
 """
 
 from __future__ import annotations

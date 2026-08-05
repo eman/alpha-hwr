@@ -45,12 +45,18 @@
    - Manages service lifecycle
 
 ### Dependency Rules
-- Core depends on: nothing (only stdlib and bleak)
-- Protocol depends on: Core only
-- Services depend on: Core and Protocol only
-- Client depends on: All layers
+- Protocol depends on: nothing outside itself (stdlib only)
+- Core depends on: Protocol (`transport.py` imports `protocol.matcher` to
+  decide which reply answers which command)
+- Services depend on: Core and Protocol, and on other services where the
+  composition is deliberate — `WriteOperationService` takes a
+  `ControlService`, and `ControlService` takes a `ScheduleService`
+- Client depends on: all layers
 
-**Never violate these dependencies**. Services should NOT depend on other services.
+Services composing other services is the design, not a violation: a verified
+write has to read state back through the service that owns it. What is
+forbidden is a *cycle*, and an import that reaches back up a layer (Protocol
+importing from Services, Core importing from Client).
 
 ## Code Style and Standards
 

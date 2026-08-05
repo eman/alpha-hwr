@@ -9,24 +9,6 @@ Backup includes:
 - Control mode and setpoint
 - Schedule enabled status and all entries (all 5 layers)
 
-Cross-Language Implementation Notes:
-------------------------------------
-TypeScript:
-  - Use JSON.stringify/parse with custom replacers for dates
-  - Validate backup structure with zod schema
-  - async/await for file I/O with fs.promises
-
-Rust:
-  - Use serde_json for serialization
-  - Define backup structs with serde derives
-  - tokio::fs for async file operations
-  - Validate with custom deserializer
-
-C:
-  - Use cJSON or jansson for JSON parsing
-  - Manual struct marshaling
-  - fopen/fwrite for file I/O
-  - Consider binary backup format for embedded systems
 """
 
 from __future__ import annotations

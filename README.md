@@ -8,6 +8,11 @@
 
 Python library and CLI for controlling Grundfos ALPHA HWR pumps via Bluetooth Low Energy.
 
+> **Not affiliated with, endorsed by, or associated with Grundfos.** This is an
+> independent client, built by reverse-engineering the pump's BLE interface.
+> Incorrect use of motor control commands could in principle damage hardware,
+> though the pump's own firmware limits generally prevent it.
+
 ## Features
 
 - Automatic discovery and guidance for pairing/bonding ALPHA HWR pumps

@@ -22,7 +22,7 @@ dynamic = ["version"]
 description = "Modern Python library and CLI for Grundfos ALPHA HWR pumps via Bluetooth Low Energy"
 readme = "README.md"
 authors = [
-    { name = "Grundfos Firmware Team", email = "firmware@grundfos.com" }
+    { name = "Emmanuel Levijarvi", email = "emansl@gmail.com" }
 ]
 license = { text = "MIT" }
 requires-python = ">=3.13"
@@ -94,6 +94,9 @@ alpha-hwr = "alpha_hwr.cli.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+alpha_hwr = ["py.typed"]
 
 [tool.ruff]
 line-length = 80

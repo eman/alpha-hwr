@@ -1,3 +1,18 @@
+"""
+Data models for the ALPHA HWR client.
+
+Two families live here. The Pydantic models are decoded pump state -
+telemetry, setpoints, schedule entries, event log entries - validated on
+construction so a short or malformed payload fails at the boundary rather
+than three layers up.
+
+The write types (:class:`WriteCommand`, :class:`WriteStatus`,
+:class:`WriteResult`) describe the other direction: what was asked for and
+what the pump did about it. They exist because an acknowledgement is not a
+verdict - the pump acks a setpoint it is about to clamp - so a write has to
+report the value that was actually stored.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

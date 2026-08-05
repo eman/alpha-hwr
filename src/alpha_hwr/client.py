@@ -11,8 +11,9 @@ The client is a thin facade over specialized service modules:
 - Services: Telemetry, Control, Schedule, DeviceInfo, Configuration
 - Protocol: Frame building/parsing, telemetry decoding (used by services)
 
-This design separates concerns and makes the codebase easily portable to
-other languages (TypeScript, Rust, C, etc.).
+This design separates concerns; see docs/reimplementation/ for porting
+guidance, which lives there rather than in these docstrings so that it is
+not mistaken for something the tests check.
 
 Example Usage:
 --------------
@@ -41,45 +42,6 @@ async def main():
 asyncio.run(main())
 ```
 
-Cross-Language Implementation Notes:
-------------------------------------
-TypeScript:
-  class AlphaHWRClient {
-    public telemetry: TelemetryService;
-    public control: ControlService;
-    public schedule: ScheduleService;
-    public deviceInfo: DeviceInfoService;
-    public config: ConfigurationService;
-
-    async connect(): Promise<void> { }
-    async disconnect(): Promise<void> { }
-  }
-
-Rust:
-  pub struct AlphaHWRClient {
-    telemetry: TelemetryService,
-    control: ControlService,
-    schedule: ScheduleService,
-    device_info: DeviceInfoService,
-    config: ConfigurationService,
-  }
-
-  impl AlphaHWRClient {
-    pub async fn connect(&self) -> Result<()> { }
-    pub async fn disconnect(&self) -> Result<()> { }
-  }
-
-C:
-  typedef struct {
-    TelemetryService* telemetry;
-    ControlService* control;
-    ScheduleService* schedule;
-    DeviceInfoService* device_info;
-    ConfigurationService* config;
-  } AlphaHWRClient;
-
-  int alpha_hwr_connect(AlphaHWRClient* client);
-  int alpha_hwr_disconnect(AlphaHWRClient* client);
 """
 
 from __future__ import annotations

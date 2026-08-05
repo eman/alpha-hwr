@@ -44,7 +44,7 @@ from ..constants import (
     RESERVED_BYTE,
     SERVICE_ID_HIGH,
 )
-from ..utils import calc_crc16, calc_crc16_read
+from ..utils import calc_crc16_read
 
 
 class FrameBuilder:
@@ -76,9 +76,10 @@ class FrameBuilder:
     4. Append CRC (big-endian, 2 bytes)
 
     Key points:
-    - CRC includes everything AFTER start byte
-    - Use calc_crc16_read for INFO/READ/EXECUTE
-    - Use calc_crc16 for WRITE operations
+    - CRC includes everything AFTER the start byte, up to the CRC itself
+    - One CRC convention: CCITT 0x1021, init 0xFFFF, final XOR 0xFFFF
+      (``calc_crc16_read``). Reads and writes alike - every captured frame
+      the pump accepted needs the final XOR.
     - Length field does NOT include CRC bytes
     - OpSpec encodes both operation and data length
     """
@@ -567,66 +568,6 @@ class FrameBuilder:
         packet = bytearray(header + reg_bytes)
 
         crc = calc_crc16_read(bytes(packet[1:]))
-        packet.extend([(crc >> 8) & 0xFF, crc & 0xFF])
-
-        return bytes(packet)
-
-    @staticmethod
-    def build_write_request(
-        register: int, value: int | bytes = 1, source: int = 0x0A
-    ) -> bytes:
-        """
-        Build WRITE request for register.
-
-        Parameters
-        ----------
-        register : int
-            Register address to write
-        value : int | bytes, default=1
-            Value to write
-        source : int, default=0x0A
-            Source address (0x0A commonly used for writes)
-
-        Returns
-        -------
-        bytes
-            Complete frame ready to send
-
-        Notes
-        -----
-        WRITE operations use calc_crc16 (no final XOR), unlike
-        READ operations which use calc_crc16_read (with final XOR).
-        """
-        # Encode register
-        reg_bytes = []
-        if register > 0xFFFF:
-            reg_bytes = [
-                (register >> 16) & 0xFF,
-                (register >> 8) & 0xFF,
-                register & 0xFF,
-            ]
-        else:
-            reg_bytes = [(register >> 8) & 0xFF, register & 0xFF]
-
-        # Encode value
-        val_bytes = [value & 0xFF] if isinstance(value, int) else list(value)
-        payload = reg_bytes + val_bytes
-
-        # Command opcode for WRITE
-        from ..constants import CommandOpcode
-
-        header = [
-            FRAME_START,
-            4 + len(payload),
-            SERVICE_ID_HIGH,
-            source,
-            RESERVED_BYTE,
-            CommandOpcode.WRITE,
-        ]
-        packet = bytearray(header + payload)
-
-        # Note: WRITE uses calc_crc16 (no XOR), CRC excludes start byte
-        crc = calc_crc16(bytes(packet[1:]))
         packet.extend([(crc >> 8) & 0xFF, crc & 0xFF])
 
         return bytes(packet)

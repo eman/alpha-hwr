@@ -120,34 +120,27 @@ async def test_start_stop_pump():
     assert not pump.state.running
 ```
 
-### 3. End-to-End Tests with Real Hardware
+### 3. Bench Testing Against a Real Pump
 
-**Purpose**: Validate actual hardware communication and catch real-world issues.
+**Purpose**: Validate what the pump actually does — the questions no mock can
+answer, because the mock only knows what we already believed.
 
-**Location**: `tests/e2e/` (optional, requires hardware)
+**There is no `tests/e2e/` directory.** Hardware work is done with throwaway
+scripts against a real pump, and what it establishes is written down in
+[protocol/bench_findings.md](protocol/bench_findings.md) and
+[protocol/units.md](protocol/units.md), which are the source of truth for the
+rest of the docs. Findings that need to stay true are then pinned as unit
+tests with the measured frames baked in — see
+`tests/unit/protocol/test_matcher.py`, whose `MEASURED` table is eleven real
+replies captured from a pump.
 
-**Characteristics**:
-- Requires physical pump
-- Requires BLE adapter
-- Slow execution (5-30s per test)
-- Run manually or in CI with hardware
+That pattern is deliberate: a hardware test that only runs on one person's
+bench protects nothing, but the bytes it captured, asserted in a unit test,
+protect everyone.
 
-**Examples**:
-```python
-# tests/e2e/test_real_pump.py
-@pytest.mark.hardware
-@pytest.mark.asyncio
-async def test_real_pump_connection():
-    """Test connecting to real pump."""
-    # Only runs when --hardware flag passed
-    address = os.getenv("PUMP_ADDRESS")
-    if not address:
-        pytest.skip("PUMP_ADDRESS not set")
-    
-    client = AlphaHWRClient(address)
-    await client.connect()
-    assert client.session.is_connected()
-```
+**When bench testing, snapshot and restore pump state.** Reads are free;
+writes are not. Record the existing schedule, single events and setpoints
+before touching them, and put them back byte-identically afterwards.
 
 ## Mock Pump Architecture
 
@@ -172,16 +165,21 @@ async def test_real_pump_connection():
 - [x] Timestamp maps
 - [x] Trend data
 
-#### Enhanced Features (To Add)
-- [ ] Schedule read/write operations
-- [ ] Configuration backup/restore
-- [ ] Clock sync operations
-- [ ] Event log simulation
+#### Also Implemented
+- [x] Schedule read/write operations, including the layer write
+- [x] Schedule overview and the configuration commit
+- [x] Clock read and sync
+- [x] Event log metadata and entries
+- [x] Single events (Object 84 Sub 900+)
+
+#### Still Missing
 - [ ] Alarm/warning generation
 - [ ] Realistic state transitions (startup delay, ramp-up)
-- [ ] CRC validation (reject bad frames)
+- [ ] CRC validation (the mock accepts frames with a bad CRC)
 - [ ] Latency simulation
 - [ ] Error injection modes
+- [ ] Clamping — the mock stores what you send it, so a test against the
+      mock cannot exercise the clamped-write path that real hardware takes
 
 ### Mock Pump Usage Patterns
 
@@ -213,63 +211,75 @@ client = AlphaHWRClient("MOCK")
 client.transport = MockTransport(pump)
 ```
 
-#### Pattern 3: BLE Mock (Full Bleak Simulation)
+#### Pattern 3: The `mock_client_with_pump` fixture
+
+The usual way. `tests/conftest.py` wires a `MockPump` behind a client that is
+already connected and authenticated:
+
 ```python
-class MockBleakClient:
-    """Complete BLE stack simulation."""
-
-    def __init__(self, address: str):
-        self.pump = MockPump()
-        self.address = address
-
-    async def connect(self):
-        await self.pump.connect()
-
-    async def write_gatt_char(self, uuid, data):
-        return await self.pump.send_command(data)
+@pytest.mark.asyncio
+async def test_something(mock_client_with_pump):
+    info = await mock_client_with_pump.control.get_mode()
+    assert info is not None
 ```
+
+Use `mock_client_simple` when the test does not need pump state — it patches
+out the cache sync so the client is ready immediately.
 
 ## Test Organization
 
 ### Directory Structure
+
 ```
 tests/
-├── unit/                          # Unit tests (fast, no I/O)
+├── conftest.py                  # Shared fixtures, incl. mock_client_simple
+│                                #   and mock_client_with_pump
+│
+├── unit/                        # Isolated, no BLE
 │   ├── protocol/
 │   │   ├── test_codec.py
+│   │   ├── test_frame_assembly.py
 │   │   ├── test_frame_builder.py
 │   │   ├── test_frame_parser.py
+│   │   ├── test_frame_properties.py
+│   │   ├── test_matcher.py      # Response matching, vs. measured replies
 │   │   └── test_telemetry_decoder.py
 │   ├── core/
 │   │   ├── test_authentication.py
-│   │   ├── test_session.py
-│   │   └── test_transport.py
+│   │   ├── test_base_service.py
+│   │   ├── test_control_service.py
+│   │   ├── test_device_info_service.py
+│   │   ├── test_event_log_service.py
+│   │   ├── test_read_disconnect_errors.py
+│   │   ├── test_telemetry_disconnect_guard.py
+│   │   ├── test_telemetry_query_retry.py
+│   │   ├── test_time_service.py
+│   │   └── test_transport_write.py
 │   └── services/
-│       ├── test_telemetry.py
-│       ├── test_control.py
-│       └── test_schedule.py
+│       ├── test_cache_sync.py       # Readiness gate, per-mode setpoints
+│       ├── test_run_state.py        # The four run/schedule combinations
+│       ├── test_set_run_state.py
+│       └── test_write_operation.py  # Verified writes, clamping, statuses
 │
-├── integration/                   # Integration tests (mock pump)
-│   ├── test_client_workflows.py
-│   ├── test_control_operations.py
-│   ├── test_schedule_management.py
-│   ├── test_configuration.py
-│   └── test_error_handling.py
-│
-├── e2e/                          # End-to-end (real hardware)
-│   ├── test_real_pump.py
-│   └── README.md                # Instructions for hardware testing
+├── integration/
+│   └── test_client_workflows.py
 │
 ├── mocks/
-│   ├── mock_pump.py             # Mock pump implementation
-│   ├── mock_transport.py        # Mock BLE transport
-│   └── mock_bleak.py            # Mock Bleak client
+│   ├── mock_pump.py             # Stateful pump simulation
+│   └── mock_transport.py        # Adapter making MockPump look like BLE
 │
-└── fixtures/
-    ├── conftest.py              # Pytest fixtures
-    ├── sample_packets.py        # Protocol sample data
-    └── test_vectors.py          # Protocol test vectors
+├── reference/
+│   └── test_protocol_vectors.py # Executes the TEST_VECTORS data in src/
+│
+├── benchmarks/
+│   └── test_performance.py
+│
+└── test_*.py                    # ~40 older top-level suites, by feature
 ```
+
+There is no `tests/e2e/`, no `tests/fixtures/` and no `mock_bleak.py`. Mock
+transport lives in `tests/mocks/mock_transport.py`; shared fixtures live in
+`tests/conftest.py`.
 
 ## Test Coverage Goals
 
@@ -290,51 +300,37 @@ tests/
 
 ## Test Data & Fixtures
 
-### Protocol Sample Data
-Store known-good protocol frames for validation:
+### Measured protocol frames
+
+The frames worth keeping are the ones a real pump actually sent. They live in
+the test that asserts against them, not in a separate data module, so the
+evidence and the claim stay together.
+
+`tests/unit/protocol/test_matcher.py` holds a `MEASURED` table of eleven real
+replies — captured from an ALPHA HWR, identical across two runs — with the
+object each answers:
 
 ```python
-# tests/fixtures/sample_packets.py
-MOTOR_STATE_RESPONSE = bytes.fromhex("2417f8e70a90004557...")
-
-CONTROL_START_REQUEST = bytes.fromhex("2710e7f80a9056000601...")
-
-
-# Usage in tests
-def test_parse_motor_state():
-    frame = FrameParser.parse_frame(MOTOR_STATE_RESPONSE)
-    assert frame.valid
-    data = TelemetryDecoder.decode_motor_state(frame.payload)
-    assert data["voltage_ac_v"] == 230.0
+MEASURED = [
+    (86, 6, "2412f8e70a0e00012f0100000700001b39678ac34fbc", "operation status"),
+    (86, 7, "2412f8e70a0e00012f0100000701001b39678ac3f7dd", "prioritized state"),
+    ...
+]
 ```
+
+Every reply is then checked against every read it does **not** belong to, so
+that matching by type code buys something over a wildcard.
 
 ### Test Vectors for Cross-Language Validation
 
-```python
-# tests/fixtures/test_vectors.py
-CODEC_TEST_VECTORS = [
-    {
-        "description": "Encode 1.5 as big-endian float",
-        "function": "encode_float_be",
-        "input": 1.5,
-        "expected": "3FC00000",
-    },
-    {
-        "description": "Decode temperature from telemetry",
-        "function": "decode_float_be",
-        "input": "42280000",
-        "expected": 42.0,
-    },
-]
+`TEST_VECTORS` dictionaries live next to the code they describe —
+`protocol/frame_parser.py` and `protocol/telemetry_decoder.py` — and are
+executed by `tests/reference/test_protocol_vectors.py`. Because they run in
+CI, they cannot drift from the implementation.
 
-
-def test_codec_vectors():
-    """Run all codec test vectors."""
-    for vec in CODEC_TEST_VECTORS:
-        if vec["function"] == "encode_float_be":
-            result = encode_float_be(vec["input"])
-            assert result.hex().upper() == vec["expected"]
-```
+Anything a port needs to reproduce belongs there rather than in prose. The
+guidance in [reimplementation/](reimplementation/) has repeatedly gone stale;
+data that is executed does not.
 
 ## Pytest Configuration
 
@@ -401,9 +397,9 @@ pytest tests/integration/ -v
 pytest --cov=src/alpha_hwr --cov-report=html
 ```
 
-### Run hardware tests (requires pump)
+### Hardware
 ```bash
-PUMP_ADDRESS=XX:XX:XX:XX:XX:XX pytest tests/e2e/ -m hardware
+# No hardware suite - see "Bench Testing Against a Real Pump" above
 ```
 
 ### Run tests in parallel

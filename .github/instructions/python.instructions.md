@@ -196,19 +196,35 @@ except ValueError as e:
 # BAD: Protocol importing from Services
 from alpha_hwr.services.telemetry import TelemetryService  # WRONG!
 
-# BAD: Services importing from other Services
-from alpha_hwr.services.control import ControlService  # WRONG!
+# BAD: Core importing from Client
+from alpha_hwr.client import AlphaHWRClient  # WRONG!
 ```
+
+Imports must not reach back up a layer, and there must be no cycles.
 
 ### Correct Dependencies
 ```python
-# GOOD: Services can import from Protocol and Core
+# GOOD: Services import from Protocol and Core
 from alpha_hwr.core.transport import Transport
-from alpha_hwr.protocol.frame import Frame
+from alpha_hwr.protocol.matcher import Command
 
-# GOOD: Client can import from Services
+# GOOD: Core imports from Protocol
+from alpha_hwr.protocol.matcher import matches
+
+# GOOD: Client imports from Services
 from alpha_hwr.services.telemetry import TelemetryService
+
+# GOOD: a service composing another service, injected at construction
+class WriteOperationService:
+    def __init__(self, control: ControlService, ...) -> None:
+        ...
 ```
+
+Service-to-service composition is deliberate here, not a violation. A
+verified write has to read state back through the service that owns it:
+`WriteOperationService` takes a `ControlService`, and `ControlService` takes
+a `ScheduleService`. Inject the dependency at construction rather than
+importing and instantiating one service inside another.
 
 ## Performance
 

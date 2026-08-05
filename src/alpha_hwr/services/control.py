@@ -11,8 +11,6 @@ This service handles all pump control operations including:
 The service provides a clean API that abstracts the complexity of
 Class 10 and Class 3 protocol operations.
 
-Implementation Notes for Other Languages
-----------------------------------------
 This service demonstrates mode control patterns:
 
 1. **Class 10 Control**: Modern method using DataObjects
@@ -154,6 +152,16 @@ class ControlService(BaseService):
 
     #: ``operation_mode`` value meaning "leave the run state alone".
     OPERATION_MODE_NO_CMD = 0x06
+
+    #: Bounds accepted for a temperature-range setpoint, in degrees C.
+    #: These are a client-side guard rather than a measured pump limit -
+    #: the pump has not been probed past 60 C - but they are the *only*
+    #: bounds, so the legacy setter and the write layer must agree. They
+    #: used to differ (20-60 here, 20-70 in the write layer), which meant
+    #: the same request was valid or invalid depending on which entry
+    #: point the caller happened to use.
+    TEMP_RANGE_MIN_C = 20.0
+    TEMP_RANGE_MAX_C = 70.0
 
     #: Flow setpoints are stored in SI m3/s while the API speaks m3/h.
     #: Writing m3/h straight through put a commanded 2.5 on the wire as
@@ -828,15 +836,18 @@ class ControlService(BaseService):
         )
 
         # Validate temperature range
-        if not (20.0 <= on_temp_c <= 60.0):
+        lo, hi = self.TEMP_RANGE_MIN_C, self.TEMP_RANGE_MAX_C
+        if not (lo <= on_temp_c <= hi):
             logger.error(
-                f"On temperature {on_temp_c}°C is outside valid range (20-60°C)"
+                f"On temperature {on_temp_c}°C is outside valid range "
+                f"({lo:g}-{hi:g}°C)"
             )
             return False
 
-        if not (20.0 <= off_temp_c <= 60.0):
+        if not (lo <= off_temp_c <= hi):
             logger.error(
-                f"Off temperature {off_temp_c}°C is outside valid range (20-60°C)"
+                f"Off temperature {off_temp_c}°C is outside valid range "
+                f"({lo:g}-{hi:g}°C)"
             )
             return False
 
