@@ -62,7 +62,7 @@ from alpha_hwr import AlphaHWRClient
 async with AlphaHWRClient(address) as client:
     await client.authenticate(fast_mode=True)
     
-    clock = await client.clock.get_clock()
+    clock = await client.time.get_clock()
     if clock:
         print(f"Pump time: {clock}")
     else:
@@ -74,11 +74,11 @@ async with AlphaHWRClient(address) as client:
 ### Sync via API
 
 ```python
-await client.clock.set_clock()  # Synchronizes with current LOCAL system time
+await client.time.set_clock()  # Synchronizes with current LOCAL system time
 # OR
 from datetime import datetime
 
-await client.clock.set_clock(datetime(2026, 12, 25, 10, 0, 0))
+await client.time.set_clock(datetime(2026, 12, 25, 10, 0, 0))
 ```
 
 ## Protocol Details

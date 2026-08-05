@@ -65,7 +65,7 @@ The ALPHA HWR is a **domestic hot water recirculation pump** designed for reside
 
 **Implementation:**
 ```python
-await client.set_constant_pressure(1.5)  # 1.5 meters
+await client.control.set_constant_pressure(1.5)  # 1.5 meters
 ```
 
 **CLI:**
@@ -89,7 +89,7 @@ alpha-hwr control set-pressure 1.5
 
 **Implementation:**
 ```python
-await client.set_proportional_pressure(1.2)  # 1.2 meters max
+await client.control.set_proportional_pressure(1.2)  # 1.2 meters max
 ```
 
 **CLI:**
@@ -113,7 +113,7 @@ alpha-hwr control set-proportional 1.2
 
 **Implementation:**
 ```python
-await client.set_constant_speed(2500)  # 2500 RPM
+await client.control.set_constant_speed(2500)  # 2500 RPM
 ```
 
 **CLI:**
@@ -137,7 +137,7 @@ alpha-hwr control set-speed 2500
 
 **Implementation:**
 ```python
-await client.set_constant_flow(0.5)  # 0.5 m³/h
+await client.control.set_constant_flow(0.5)  # 0.5 m³/h
 ```
 
 **CLI:**
@@ -163,7 +163,7 @@ alpha-hwr control set-flow 0.5
 **Implementation:**
 ```python
 # Set temperature range: 35°C min, 39°C max
-await client.set_temperature_range_control(35.0, 39.0)
+await client.control.set_temperature_range_control(35.0, 39.0)
 ```
 
 **CLI:**

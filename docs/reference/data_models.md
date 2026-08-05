@@ -131,7 +131,7 @@ The `Statistics` class represents cumulative pump operational data.
 
 **Example Usage:**
 ```python
-stats = await client.read_statistics()
+stats = await client.device_info.read_statistics()
 print(f"Pump has run for {stats.operating_hours:.1f} hours")
 print(f"Pump has been started {stats.start_count} times")
 
@@ -156,7 +156,7 @@ The `AlarmInfo` class represents the current alarm and warning status with human
 
 **Example:**
 ```python
-alarms = await client.read_alarms()
+alarms = await client.device_info.read_alarms()
 if alarms:
     if alarms.alarm_code and alarms.alarm_code != 0:
         print(f"ALARM {alarms.alarm_code}: {alarms.alarm_description}")

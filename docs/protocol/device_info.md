@@ -65,7 +65,7 @@ Detailed information, including serial numbers and firmware versions, is availab
 
 ```python
 # Full device info - connects and reads Class 7 strings
-device_info = await client.read_device_info(connect=True)
+device_info = await client.device_info.read_info(connect=True)
 if device_info:
     print(f"Serial Number: {device_info.serial_number}")
     print(f"SW Version: {device_info.software_version}")
@@ -82,7 +82,7 @@ from alpha_hwr import AlphaHWRClient
 
 async with AlphaHWRClient(address) as client:
     # Get full device info (connects if necessary)
-    device_info = await client.read_device_info(connect=True)
+    device_info = await client.device_info.read_info(connect=True)
     
     if device_info:
         print(f"Serial: {device_info.serial_number}")
