@@ -43,8 +43,12 @@ Layer 4: Special events      (holiday adjustments)
 To successfully read the schedule, the client must follow a strict sequence:
 
 1.  **Authentication**: The device must be unlocked via the [Connection Handshake](connection.md).
-2.  **Keep-Alive Burst**: Before requesting large data structures, the client must send a burst of "Keep-Alive" packets to wake up the GENI controller fully.
-3.  **Timing**: A delay of ~200-500ms is required after the burst before sending the Read Request.
+2.  **Bonding**: An unbonded connection is dropped at about 1.8 seconds,
+    whether or not anything is being sent. A schedule read will not complete
+    on one.
+3.  **Keep-Alive Burst**: Before requesting large data structures, send a
+    burst of keep-alive packets to wake the GENI controller fully.
+4.  **Timing**: Allow ~200-500 ms after the burst before the read request.
 
 ## Data Structure
 
@@ -76,46 +80,99 @@ The device responds with a Class 10 packet containing the full week's schedule.
 
 **Day Order**: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.
 
-## One-Time Schedule (Vacation Mode)
+## Single Events (One-Time Schedules and Vacations)
 
-The pump supports a dedicated "One-Time" schedule slot, often used for "Vacation Mode" or temporary overrides.
+A single event is a one-time window layered over the weekly schedule. `Auto`
+makes the pump run for it; `Stop` holds it off, which is how a vacation is
+expressed.
 
-*   **Object ID**: `0x6702` (26370)
-*   **SubID**: `0x5E00` (24064)
-*   **OpSpec**: `0x8B` (Set)
+> Earlier revisions of this page described an object at `0x6702` / SubID
+> `0x5E00` with a `4D`-prefixed payload, and a `client.set_one_time_schedule()`
+> API. **None of it exists.** Single events live in Object 84 alongside the
+> weekly schedule.
 
-### Packet Structure
-The payload controls whether the one-time schedule is enabled or disabled (deleted).
+*   **Object**: 84 (`0x54`)
+*   **Sub-IDs**: 900 upward, one per slot
+*   **Type**: 220 (`0xDC01`, `ClockProgramSingleEvent`)
+*   **OpSpec**: `0xB3` (long SET)
+*   **Structure**: 10 bytes
 
-**Enable One-Time Schedule:**
-```text
-4D 01 [StartTimestamp] [EndTimestamp] [Mode] ...
+### Structure
+
 ```
-*   `4D`: Command marker
-*   `01`: Enable flag
-*   ... followed by start/end times and mode configuration.
-
-**Disable/Delete One-Time Schedule:**
-```text
-4D 00 ...
+[enabled(1)][action(1)][begin u32 BE][end u32 BE]
 ```
-*   `4D`: Command marker
-*   `00`: Disable flag
-*   ... rest of payload is ignored or zeroed.
 
-### Python Implementation
+| Field | Values |
+| :--- | :--- |
+| `enabled` | `0x01` set, `0x00` cleared |
+| `action` | `0x01` **Stop**, `0x02` **Run** |
+| `begin`, `end` | Local Unix timestamps, big-endian |
+
+!!! warning "The action byte's sense is inverted relative to the weekly schedule"
+
+    In the weekly schedule's `default_action`, `0x01` means Stop. In a single
+    event, `0x01` is also Stop but `0x02` is Run — there is no `0x00`. This is
+    the pump's encoding, not a documentation slip.
+
+### Full write frame
+
+```
+27 [len] E7 F8 0A B3 54 [SubH] [SubL] 00 DC 01 00 00 0A
+[enabled] [action] [begin×4] [end×4] [CRC]
+```
+
+### Slot capacity comes from the pump
+
+The sub-id range suggests 35 slots. The unit this was measured against
+exposes **5**, and reading past them simply goes unanswered. Read the count
+from the `ClockProgramOverview` (Object 84 Sub 1) rather than assuming.
+
+### Timestamps are local Unix time
+
+!!! danger "The failure mode verification cannot catch"
+
+    The wire value is the **wall clock stamped as though it were UTC** —
+    `timegm(local_fields)` — matching the pump's own RTC, which reports bare
+    wall-clock fields with no offset.
+
+    Encoding these as real UTC round-trips **byte-identically**. The write is
+    acknowledged, a readback agrees with itself, and the event opens hours
+    from where it was meant to. Nothing detects it except a clock and a
+    running motor.
+
+    Established by writing an event under this encoding and watching the
+    motor start four seconds from the intended wall clock.
+
+### The clock program must be running
+
+Both confirmed on hardware, by watching a window open with the motor at
+0 RPM:
+
+1.  **A stopped pump ignores single events entirely** — the run state gates
+    the whole clock program, weekly schedule included.
+2.  **Disabling the weekly schedule disables single events too.** They are
+    the same program; there is no separate switch.
+
+### Python
 
 ```python
-# Set a one-time schedule (e.g., Vacation Mode)
-start_time = datetime.now() + timedelta(days=1)
-end_time = start_time + timedelta(weeks=1)
-await client.set_one_time_schedule(
-    start_time, end_time, ControlMode.CONSTANT_SPEED
+from datetime import datetime
+
+# A one-off run window
+slot = await client.single_events.find_free_slot()
+await client.single_events.write(
+    slot, datetime(2026, 8, 10, 6, 0), datetime(2026, 8, 10, 8, 0)
 )
 
-# Delete/Cancel one-time schedule
-await client.delete_schedule()
+# A vacation - a Stop event
+await client.single_events.set_vacation(
+    datetime(2026, 8, 10), datetime(2026, 8, 17)
+)
+await client.single_events.clear_vacation()
 ```
+
+See [Run State and Schedules](../guides/run_state_and_schedules.md).
 
 ## Unsupported Features
 

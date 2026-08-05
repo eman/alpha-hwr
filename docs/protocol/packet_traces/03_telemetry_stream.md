@@ -116,7 +116,7 @@ If notifications stop, you can poll for updates using an INFO command.
 
 ### Response
 
-The response to a poll might be a **Class 10 Notification** (OpSpec 0x0E) OR a **Register Read Response** (OpSpec 0x30/0x2B), depending on firmware. For the specific header layouts of these responses, see [Wire Format](../wire_format.md).
+A poll may be answered by the unsolicited notification stream (byte 5 = `0x0E`) or by a direct read response, whose byte 5 is the **payload length** rather than a type code. Match the reply by its identifier pair — see [Wire Format](../wire_format.md#matching-a-reply-to-a-request).
 
 ## 6. Implementation Notes
 

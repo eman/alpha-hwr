@@ -17,7 +17,7 @@ Telemetry arrives as **GENI Response** frames on the main characteristic.
 The payload of a telemetry packet identifies *what* data it contains using a **SubID** and **ObjID**.
 
 ```text
-[Header...] [Class=0x0A] [OpSpec] [SubID (2B)] [ObjID (2B)] [Data Payload...] [CRC]
+[Header...] [Class=0x0A] [Byte5] [ID-A (2B)] [ID-B (2B)] [Data Payload...] [CRC]
 ```
 
 ## Telemetry Objects
@@ -48,7 +48,7 @@ Contains hydraulic performance data.
 
 **Data Offsets:**
 
-| Field | Passive Stream (+0x0E) | Active Query (+0x2B) | Type | Unit |
+| Field | Passive stream, offset | Active query, offset | Type | Unit |
 | :--- | :--- | :--- | :--- | :--- |
 | **Flow Rate** | +0 | +24 | Float32 | $m^3/h$ |
 | **Head Pressure** | +4 | +28 | Float32 | Meters |
@@ -68,7 +68,7 @@ Contains thermal sensor readings from various points in the system.
 
 **Data Offsets:**
 
-| Field | Passive Stream (+0x0E) | Active Query (+0x14) | Type | Unit |
+| Field | Passive stream, offset | Active query, offset | Type | Unit |
 | :--- | :--- | :--- | :--- | :--- |
 | **Media Temp** | +0 | +0 | Float32 | °C |
 | **PCB Temp** | +4 | +4 | Float32 | °C |
@@ -90,7 +90,7 @@ Unlike other telemetry that streams automatically, alarms and warnings must be q
 
 **Response Format:**
 
-The pump responds with **OpSpec 0x09** (Active Query Response), containing an array of uint16 alarm/warning codes:
+The reply carries an array of uint16 alarm/warning codes rather than floats. Its byte 5 reads `0x09` — that is the **payload length**, not an operation specifier; see [wire_format.md](wire_format.md#byte-5-of-a-response-is-a-length-field).
 
 | Offset | Type | Description |
 | :--- | :--- | :--- |

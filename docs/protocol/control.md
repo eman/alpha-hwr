@@ -2,14 +2,23 @@
 
 Controlling the ALPHA HWR (Start, Stop, Change Mode) involves sending specific Class 10 DataObject commands. Unlike simple registers, these commands require a strict sequence of operations, including packet fragmentation and a "Configuration Commit" step.
 
-## Control Object
+## Three objects, not one
 
-All primary control operations target the following GENI object:
+Control is not one object. Which one you address decides what actually
+changes, and getting it wrong is quiet rather than loud.
 
-*   **Class**: 10 (`0x0A`)
-*   **SubID**: `0x5600` (Operation/Control)
-*   **ObjID**: `0x0601` (Mode Configuration)
-*   **Operation**: SET (`OpSpec` typically `0x90`)
+| What you want | Class | Sub | Obj | OpSpec |
+| :--- | :--- | :--- | :--- | :--- |
+| Start / stop | 3 | — | `0x06` START, `0x05` STOP | `0x81` |
+| Control mode only | 10 | `0x5600` | `0x0A01` (Object 86 Sub 10) | `0x90` |
+| Setpoint | 10 | `0x5600` | `0x0601` (Object 86 Sub 6) | `0x90` |
+| Read state back | 10 | `0x5600` | Object 86 **Sub 7** | `0x03` |
+
+`0x0601` is **fused**: run state, control mode and setpoint travel in one
+frame, so a write through it necessarily asserts all three. Routing
+everything through it is why starting the pump used to also force a mode and
+overwrite that mode's setpoint. Start and stop go through Class 3, which has
+no room for either.
 
 ## The Control Sequence (Critical)
 
@@ -27,12 +36,26 @@ The ALPHA HWR BLE interface has a hard **Maximum Transmission Unit (MTU) of 20 b
 > was the casualty — the second "chunk" still exceeded the MTU.
 
 ### 2. Transaction Locking
-The pump streams telemetry at ~10Hz. If a telemetry read request or notification is interleaved between the two fragments of your control command, the device's buffer will be corrupted.
-*   **Action**: Ensure exclusive access to the BLE characteristic during the split-write sequence.
+The pump streams telemetry at ~10 Hz, and its replies carry no reference to
+the request that caused them. If another write is interleaved between your
+fragments, the device's buffer is corrupted; if another *read* is in flight,
+its reply may be attributed to your command.
+*   **Action**: Serialise writes, and match each reply against the command
+    waiting for it rather than taking the next frame that arrives. See
+    [wire_format.md](wire_format.md#matching-a-reply-to-a-request).
 
 ### 3. Configuration Commit
-Even after successfully writing the control command, the pump may revert to its previous state immediately unless the change is "committed".
-*   **Action**: Send a specific "Configuration Commit" packet immediately after the control command.
+A setpoint write does not persist until it is committed.
+*   **Action**: Send a Configuration Commit immediately after a *setpoint*
+    write — **built from the pump's current overview**, never from a
+    constant. See below.
+*   A **mode** change needs no commit: it persists on its own, and the commit
+    writes the schedule, which has nothing to do with the control mode.
+
+### 4. The acknowledgement is not the verdict
+The pump acks frames it is about to clamp. Requesting 600 RPM stores 1650 and
+requesting 4400 stores 3671 — the ends of its own limits block. Read Object 86
+Sub 7 back to find out what happened.
 
 ## Remote Control Mode — not supported, deliberately
 
@@ -246,55 +269,89 @@ Setpoint limits are stored in:
 
 ### Setpoint Limit Sub-IDs
 
-Each control mode maps to a specific Sub-ID in Object 86 for reading its setpoint configuration:
+Each control mode maps to a Sub-ID in Object 86 holding its limits.
 
-| Control Mode | Sub-ID | Data Format |
-| :--- | :--- | :--- |
-| **Constant Speed** | 13 | 3x uint16 (min, max, default) in RPM |
-| **Constant Pressure** | 15 | 3x uint16 (min, max, default) in Pascals |
-| **Proportional Pressure** | 17 | 3x uint16 (min, max, default) in Pascals |
-| **AutoAdapt Radiator** | 19 | 3x uint16 (min, max, default) in Pascals |
-| **AutoAdapt Underfloor** | 21 | 3x uint16 (min, max, default) in Pascals |
-| **AutoAdapt Combined** | 23 | 3x uint16 (min, max, default) in Pascals |
-| **Constant Flow** | 39 | 3x uint16 (min, max, default) in m³/h |
+| Control Mode | Sub-ID |
+| :--- | :--- |
+| **Constant Speed** | 13 |
+| **Constant Pressure** | 15 |
+| **Proportional Pressure** | 17 |
+| **AutoAdapt Radiator** | 19 |
+| **AutoAdapt Underfloor** | 21 |
+| **AutoAdapt Combined** | 23 |
+| **Constant Flow** | 39 |
+
+All of them answer with the same identifier pair, `0x0001, 0x2D01` — the
+identifiers name the object's *type*, not which sub-id you asked for.
 
 ### Reading Setpoint Limits
 
-To read limits for Constant Pressure (Sub-ID 15):
+**The payload is float32, not uint16.** Earlier revisions of this page said
+"3× uint16 (min, max, default)", which decodes real captures into nonsense.
 
-1.  **Send Read Request**:
-    *   Class 10, OpSpec 0x90, Object 86, Sub-ID 15
-    *   Full Packet: `27 0C E7 F8 0A 90 56 00 00 86 00 0F [CRC]`
+Read request for Constant Speed (Sub-ID 13):
 
-2.  **Parse Response**:
-    *   Response payload contains 6 bytes after header
-    *   Bytes 0-1: Minimum setpoint (uint16, big-endian)
-    *   Bytes 2-3: Maximum setpoint (uint16, big-endian)
-    *   Bytes 4-5: Default setpoint (uint16, big-endian)
+```
+27 07 E7 F8 0A 03 56 00 0D [CRC]
+```
 
-3.  **Unit Conversion**:
-    *   Pressure modes: Pascals ÷ 9806.65 = meters
-    *   Speed modes: RPM (no conversion)
-    *   Flow modes: m³/h (no conversion)
+Measured reply, from an ALPHA HWR:
 
-**Example:** Response `03 CE 09 8F 06 0A` decodes to:
-*   Min: 974 Pa = 0.99 m
-*   Max: 2447 Pa = 2.50 m
-*   Default: 1546 Pa = 1.58 m
+```
+24 27 F8 E7 0A 23 00 01 2D 01 00 00 1C
+45 2F 00 00  44 CE 40 00  45 65 70 00  C5 65 70 00
+3F 80 00 00  3F 80 00 00  3F 80 00 00  [CRC]
+```
 
-### Validation Workflow
+After the 3-byte structure header (`00 00 1C`, the last byte being the
+28-byte length that follows), seven big-endian float32:
 
-Before setting a new setpoint value:
+| # | Bytes | Value | What it is |
+| :--- | :--- | :--- | :--- |
+| 0 | `45 2F 00 00` | 2800.0 | Nominal / default |
+| 1 | `44 CE 40 00` | **1650.0** | Minimum |
+| 2 | `45 65 70 00` | **3671.0** | Maximum |
+| 3 | `C5 65 70 00` | −3671.0 | Maximum, negated |
+| 4–6 | `3F 80 00 00` | 1.0 | Scaling factors |
 
-1.  Read the appropriate factory limits using `read_setpoint_limits(control_mode)`
-2.  Validate the desired value is within `[min, max]` range
-3.  If valid, proceed with the control command
-4.  If invalid, reject and inform the user
+Fields 1 and 2 are not inferred from position — they are confirmed by the
+pump's own behaviour. **Ask for 600 RPM and it stores 1650; ask for 4400 and
+it stores 3671.** The limits block and the clamp agree exactly.
 
-The `AlphaHWRClient.validate_setpoint()` method automates this process with two modes:
+This is also where `45 65 70 00` comes from. It appeared for years as an
+inert-looking "suffix" in control payloads, and it is the pump's maximum
+speed: sending it wrote *run at full speed* over whatever setpoint the mode
+actually held.
 
-*   **Non-strict** (default): Logs warning if limits unavailable, allows setpoint anyway
-*   **Strict**: Fails validation if limits cannot be read
+Only Sub-ID 13 has been captured. The others are assumed to share the layout
+because they share the type code, but that is an inference, not a
+measurement — treat their field meanings as unverified.
+
+### Units
+
+Fields carry the mode's native wire unit:
+
+*   **Pressure modes**: Pascals. Divide by 9806.65 for metres.
+*   **Speed**: RPM, no conversion.
+*   **Flow**: **SI m³/s** for setpoints. Telemetry flow is m³/h — both are
+    correct and they differ. See [units.md](units.md).
+
+### There is no client-side validation API
+
+`read_setpoint_limits()` and `validate_setpoint()` do not exist, and never
+did. The library validates against its own per-mode ranges before sending,
+and otherwise lets the pump decide — which is the honest arrangement, because
+the pump *clamps* rather than refusing, so no amount of pre-validation
+guarantees that what you asked for is what you get.
+
+Use the [verified write path](../guides/verified_writes.md), which reads the
+value back and reports it:
+
+```python
+result = await client.control.set_setpoint(ControlMode.CONSTANT_SPEED, 600.0)
+result.status   # CLAMPED
+result.value    # 1650.0
+```
 
 ## Cumulative Statistics
 
@@ -306,26 +363,34 @@ The pump stores cumulative operational statistics in non-volatile memory:
 
 ### Statistics Data Format
 
-The response payload is 31 bytes total (including 3-byte header):
+The reply carries a 3-byte structure header, then the data. Offsets below are
+**from the start of the payload**, i.e. after that header:
 
 | Offset | Field | Type | Description |
 | :--- | :--- | :--- | :--- |
-| 0-2 | Header | `00 00 XX` | Fixed header bytes |
-| 11-14 | Operating Time | uint32 | Total seconds of operation |
-| 15-18 | Start Count | uint32 | Number of motor starts |
+| 0-3 | Start Count | uint32 | Number of motor starts |
+| 4-5 | Starts, last 1 h | uint16 | |
+| 6-7 | Starts, last 24 h | uint16 | |
+| 8-11 | Operating Time | uint32 | Total seconds of operation |
 
-Both values are **big-endian** (network byte order).
+All big-endian.
 
-**Example:** To read statistics:
+**Read request** — Class 10, OpSpec `0x03` (INFO), Object 93, Sub 1:
 
-1.  **Send Read Request**:
-    *   Full Packet: `27 0C E7 F8 0A 90 5D 00 00 93 00 01 [CRC]`
+```
+27 07 E7 F8 0A 03 5D 00 01 45 4C
+```
 
-2.  **Parse Response**:
-    *   Extract bytes 11-14: Operating time in seconds
-    *   Extract bytes 15-18: Start count
-    *   Convert seconds to hours: `hours = seconds / 3600`
+Note this is a **read**: nine bytes, opspec `0x03`, and the object addressed
+once as a single byte followed by a 16-bit sub-id. Earlier revisions of this
+page showed `27 0C E7 F8 0A 90 5D 00 00 93 00 01`, which uses the *write*
+opspec `0x90` and encodes the object twice. It is not a frame the pump
+answers.
 
-**Example Response:**
-*   Bytes 11-14: `00 05 CD E8` = 380,392 seconds = 105.7 hours
-*   Bytes 15-18: `00 00 02 70` = 624 starts
+**Parsing:**
+
+```python
+start_count      = int.from_bytes(payload[0:4],  "big")
+operating_seconds = int.from_bytes(payload[8:12], "big")
+operating_hours   = operating_seconds / 3600
+```

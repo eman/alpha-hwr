@@ -46,10 +46,10 @@ Register address: `0x58000B`
 
 ## Response Format
 
-The pump responds with **OpSpec 0x09** (Active Query Response), using the same format as other register-read responses (0x30, 0x2B, 0x14):
+The reply uses the standard response layout. Its byte 5 reads `0x09`, which is the **payload length** — see [below](#byte-5-is-a-length-not-an-opspec):
 
 ```
-[Start] [Length] [Dest] [Src] [Class] [OpSpec] [Seq-H] [Seq-L] [ID-H] [ID-L] [Res-H] [Res-L] [DataLen] [Data...] [CRC]
+[Start] [Length] [Dest] [Src] [Class] [Byte5=len] [ID-A (2B)] [ID-B (2B)] [Data...] [CRC]
 ```
 
 ### No Active Alarms Response
@@ -66,7 +66,7 @@ The pump responds with **OpSpec 0x09** (Active Query Response), using the same f
 - `F8`: Destination (Client)
 - `E7`: Source (Pump)
 - `0A`: Class 10
-- `09`: OpSpec (Active Query Response)
+- `09`: payload length (9 bytes)
 - `00 02`: Sequence number
 - `3A 01`: ID field (depends on register queried)
 - `00 00`: Reserved
@@ -90,7 +90,7 @@ The pump responds with **OpSpec 0x09** (Active Query Response), using the same f
 - `F8`: Destination (Client)
 - `E7`: Source (Pump)
 - `0A`: Class 10
-- `09`: OpSpec (Active Query Response)
+- `09`: payload length (9 bytes)
 - `00 03`: Sequence number
 - `58 00`: ID field (Obj=88, Sub=0 for alarms)
 - `00 00`: Reserved
@@ -140,7 +140,7 @@ import struct
 
 
 def parse_alarm_response(packet: bytes) -> list[int]:
-    """Parse alarm/warning codes from OpSpec 0x09 response."""
+    """Parse alarm/warning codes from the alarm response."""
     if len(packet) < 13:
         return []
 
@@ -171,36 +171,43 @@ packet = bytes.fromhex(
 print(parse_alarm_response(packet))  # Output: [42, 7]
 ```
 
-## OpSpec 0x09 Details
+## Byte 5 is a length, not an OpSpec
 
-### OpSpec Byte Structure
+Earlier revisions of this page called `0x09` the "alarm/warning OpSpec" and
+listed `0x30`, `0x2B` and `0x14` alongside it as the motor-state, flow and
+temperature OpSpecs. **Those are payload lengths** — 9, 48, 43 and 20 bytes.
 
-The OpSpec byte `0x09` can be decoded as follows:
+In a *response*, byte 5 is a length field. Measured across 13 objects and 10
+distinct values:
 
 ```
 0x09 = 0b00001001
-       │││    └─┴─ Bits 0-4: Data length indicator (9)
-       ││└──────── Bit 5: Reserved
-       │└───────── Bit 6: Error flag (0 = success)
-       └────────── Bit 7: Reserved
+       ││└─────┴─ Bits 0-5: payload length (9)
+       └┴──────── Bits 6-7: operation code, always 00 in a response
 ```
 
-### Active Query Response Format
-
-OpSpec 0x09 uses the **Active Query Response** layout, which is shared with other register-read responses:
-
-- **OpSpec 0x30**: Motor state response
-- **OpSpec 0x2B**: Flow/pressure response
-- **OpSpec 0x14**: Temperature response
-- **OpSpec 0x09**: Alarm/warning response
-
-All these OpSpecs use the 7-byte header before data:
+and both of these hold without exception:
 
 ```
-[OpSpec] [Seq-H] [Seq-L] [ID-H] [ID-L] [Res-H] [Res-L] [DataLen] [Data...]
+len(frame) == (frame[5] & 0x3F) + 8
+frame[1]   == (frame[5] & 0x3F) + 4
 ```
 
-The main difference is that OpSpec 0x09 contains **uint16 codes** rather than **IEEE 754 floats**.
+This is not a naming quibble. Treating `{0x30, 0x2B, 0x14, 0x2E, 0x2D, 0x09}`
+as "the register-read operation specifiers" and filtering replies against it
+filtered by *length* — which is why the event log, whose entries carry a
+20-byte payload, had to be exempted from the filter by hand.
+
+### Matching the reply
+
+A reply is matched by the identifier pair at bytes 6-9, which names the
+object's **type**. See
+[wire_format.md](../wire_format.md#matching-a-reply-to-a-request).
+
+### What distinguishes this response
+
+Alarm and warning payloads are **uint16 codes**, not IEEE 754 floats.
+`0x0000` means none.
 
 ## Integration Notes
 
@@ -241,11 +248,11 @@ text_sensor:
 
 Early Python implementations incorrectly expected **OpSpec 0x13** for alarm responses. This was based on speculation before testing against actual hardware.
 
-**Testing** confirmed that the pump actually responds with **OpSpec 0x09**, using the standard Active Query Response format.
+**Testing** confirmed the pump does answer, with a 9-byte payload in the standard response layout.
 
 ### Discovery
 
-Testing against real hardware revealed consistent OpSpec 0x09 responses with data value `0x0000`, which was initially misinterpreted as "not supported." In reality, `0x0000` simply means "no active alarms."
+Testing against real hardware revealed consistent 9-byte replies carrying `0x0000`, which was initially misinterpreted as "not supported." In reality `0x0000` simply means "no active alarms."
 
 ## References
 
