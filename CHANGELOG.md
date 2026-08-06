@@ -3,6 +3,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-05
+
 ### Added
 
 - **Verified writes** (`WriteResult`). Every write now goes through one
