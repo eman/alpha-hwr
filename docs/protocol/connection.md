@@ -1,6 +1,37 @@
-# Connection & Authentication
+# Connection
 
-To control the ALPHA HWR pump, a client must follow a specific connection sequence. Simply connecting via BLE is not enough; the device requires an application-layer handshake to "unlock" control capabilities and high-frequency telemetry.
+To control the ALPHA HWR pump, a client bonds over BLE, subscribes to
+notifications, and then reads and writes GENIbus frames. That is the whole
+sequence.
+
+> **Correction, 2026-08-18.** This document used to say the device "requires an
+> application-layer handshake to 'unlock' control capabilities and
+> high-frequency telemetry", and described the four packets below as that
+> handshake. **Neither claim is supported by any capture in this repository.**
+>
+> The packets decode as ordinary reads — two GETs and two INFO queries — under
+> the GENIbus APDU rule that the second byte is `0booLLLLLL`, operation in the
+> top two bits and payload length in the low six. `0x03` is a GET with a 3-byte
+> payload, not a SET, and the "unlock code" was a length field misparsed. Reads
+> cannot change device state, so an unlock was never something these bytes could
+> perform.
+>
+> A separate client then ran ten connection cycles without sending any of them —
+> including two with the BLE bond cleared and re-paired, and five across pump
+> power cycles. All ten read every Class 7 device-info string and reached full
+> readiness; nine accepted Class 3 START and STOP commands with the motor
+> confirmed running. Across 1,019 captured frames there were no Class 2, Class 5
+> or Class 11 frames at all.
+>
+> `bench_findings.md`, this repository's record of measured rather than inferred
+> behaviour, has never said anything about a handshake requirement. The claim
+> entered in the initial documentation commit, hedged as "may ignore" and "may
+> return ... or fail", which is not how an observation gets written down.
+>
+> The packets are documented below because this client still sends them and
+> because knowing what they are has value. They are described as what they are.
+> See esphome-alpha-hwr issue #174 for the decode, the captures, and the
+> removal.
 
 ## 1. BLE Connection
 
@@ -23,18 +54,21 @@ The device requires **Pairing/Bonding** for normal use.
 *   **Level**: `Just Works` (No PIN usually required, though some models might prompt).
 *   **Requirement**: Bonding is recommended. While some commands might work without it, telemetry, control, stable Schedule downloading (HCI layer), and consistent reconnection are much more reliable after bonding.
 
-## 2. Authentication Handshake ("Unlock")
+## 2. Opening Reads (optional)
 
-After connecting and subscribing to notifications, the client **must** send a specific sequence of "Magic Packets". Without this, the pump may ignore control commands (Start/Stop/Set Mode) and will only stream basic or empty telemetry.
-
-This handshake appears to support both legacy GENI implementations and the newer Class 10 DataObject protocol.
+After connecting and subscribing to notifications, this client sends four
+frames. They are reads, their replies are not consumed, and a pump reaches full
+readiness and accepts control commands without them. They are retained here as a
+record of what this client does, not as a requirement.
 
 ### Sequence
 
 The client should send these packets in bursts to ensure the device receives them despite any radio interference or sleep states.
 
-#### Step A: Legacy Magic Packet (Burst)
-Send this packet 3 times with a small delay (~50ms) between writes.
+#### Step A: Class 2 identity read
+A GET of items 148, 149 and 150 — `unit_family`, `unit_type`, `unit_version`.
+The ALPHA HWR answers `52 / 7 / 2`. This client sends it 3 times, ~50ms apart;
+one send is sufficient, since the reply is the same every time.
 
 **Packet**: `27 07 E7 F8 02 03 94 95 96 EB 47`
 
@@ -49,8 +83,12 @@ Send this packet 3 times with a small delay (~50ms) between writes.
 | 6-8 | `94 95 96` | Payload (Capabilities/Family Query) |
 | 9-10 | `EB 47` | CRC-16 |
 
-#### Step B: Class 10 Unlock Packet (Burst)
-Send this packet 5 times with a small delay (~50ms) between writes. This appears to be the primary unlock command for modern HWR firmware.
+#### Step B: Class 10 operation-status read
+A GET of Object 86, Sub 6 — the operation-status object, which answers with the
+control mode, operation mode and current setpoint. This client sends it 5 times,
+~50ms apart. It was described here as "the primary unlock command for modern HWR
+firmware"; it is a read, and the same object is polled again in normal
+operation.
 
 **Packet**: `27 07 E7 F8 0A 03 56 00 06 C5 5A`
 
@@ -62,12 +100,15 @@ Send this packet 5 times with a small delay (~50ms) between writes. This appears
 | 3 | `0xF8` | Src |
 | 4 | `0x0A` | Class: 10 (DataObject) |
 | 5 | `0x03` | OpSpec: 0x03 (Length 3) |
-| 6-7 | `56 00` | SubID (Operation/Unlock) |
-| 8 | `0x06` | ObjID (Partial/Short) |
+| 6 | `0x56` | Object 86 |
+| 7-8 | `00 06` | Sub 6 |
 | 9-10 | `C5 5A` | CRC-16 |
 
-#### Step C: Authorization Extend (Sequence)
-Send these two packets once each, with a small delay (~100ms) in between.
+#### Step C: Two INFO queries
+INFO asks for a data item's scaling metadata; it reads nothing and changes
+nothing, which is why "Authorization Extend" was never an accurate name. The
+pump answers both with a one-byte INFO head meaning "unscaled". Sent once each,
+~100ms apart.
 
 1.  **Packet 1**: `27 05 E7 F8 05 C1 4B C3 82`
 2.  **Packet 2**: `27 05 E7 F8 0B C1 0F D0 C3`

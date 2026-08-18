@@ -13,10 +13,18 @@ Use this checklist to track your implementation progress. Features are organized
 - [ ] Bond/pair — an unbonded idle connection is dropped at ~1.8 s
 - [ ] Disconnect gracefully
 
-### Authentication
-- [ ] Send 3x Legacy Magic packets
+### Opening reads (optional — skip if writing a new client)
+
+> **Corrected 2026-08-18.** These four frames are **not** an authentication
+> handshake and are **not** required. They decode as GENIbus reads — two GETs
+> and two INFO queries — and ten connection cycles omitting them entirely,
+> including two with the BLE bond cleared and re-paired, reached full readiness
+> and accepted control commands. If you are writing a new client, **skip this
+> step.** See esphome-alpha-hwr issue #174.
+
+- [ ] Send 3x Class 2 identity read
   - Packet: `27 07 E7 F8 02 03 94 95 96 EB 47`
-- [ ] Send 5x Class 10 Unlock packets
+- [ ] Send 5x Class 10 operation-status read
   - Packet: `27 07 E7 F8 0A 03 56 00 06 C5 5A`
 - [ ] Send Extend 1 packet
   - Packet: `27 05 E7 F8 05 C1 4B C3 82`

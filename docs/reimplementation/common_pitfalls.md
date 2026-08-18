@@ -65,7 +65,7 @@ def check(frame_hex, expected):
 check("2705e7f805c14bc382", 0xC382)  # Extend 1
 check("2705e7f80bc10fd0c3", 0xD0C3)  # Extend 2
 check("2707e7f80203949596eb47", 0xEB47)  # Legacy magic
-check("2707e7f80a03560006c55a", 0xC55A)  # Class 10 unlock
+check("2707e7f80a03560006c55a", 0xC55A)  # Class 10 operation-status read
 check("2705e7f8038106e587", 0xE587)  # Class 3 START
 ```
 
@@ -106,12 +106,21 @@ pump. Do not reproduce it.
 
 **Cause:** Skipped or incorrect authentication sequence.
 
-**Correct Sequence:**
+**The sequence this client sends** — optional, and the "exactly N" was never
+a real constraint:
+
+> **Corrected 2026-08-18.** These four frames are **not** an authentication
+> handshake and are **not** required. They decode as GENIbus reads — two GETs
+> and two INFO queries — and ten connection cycles omitting them entirely,
+> including two with the BLE bond cleared and re-paired, reached full readiness
+> and accepted control commands. If you are writing a new client, **skip this
+> step.** See esphome-alpha-hwr issue #174.
+
 1. Connect to BLE device
-2. Send **exactly 3** Legacy Magic packets: `27 07 E7 F8 02 03 94 95 96 EB 47`
-3. Send **exactly 5** Class 10 Unlock packets: `27 07 E7 F8 0A 03 56 00 06 C5 5A`
-4. Send **exactly 1** Extend 1 packet: `27 05 E7 F8 0B C1 0F D0 C3`
-5. Send **exactly 1** Extend 2 packet: `27 05 E7 F8 05 C1 4B C3 82`
+2. 3x Class 2 identity read: `27 07 E7 F8 02 03 94 95 96 EB 47`
+3. 5x Class 10 operation-status read: `27 07 E7 F8 0A 03 56 00 06 C5 5A`
+4. 1x INFO query, Class 11 item `0x0F`: `27 05 E7 F8 0B C1 0F D0 C3`
+5. 1x INFO query, Class 5 item `0x4B`: `27 05 E7 F8 05 C1 4B C3 82`
 
 **Common Mistakes:**
 - Wrong number of repetitions

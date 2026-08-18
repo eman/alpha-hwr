@@ -28,7 +28,7 @@ The ALPHA HWR (Family 52, Type 7) supports reading detailed device identificatio
 
 ### Supported Parameters
 
-The following string parameters can be read when the device is connected and authenticated:
+The following string parameters can be read once the device is connected and subscribed:
 
 - **ID 1**: Product Name (e.g., `LPHA HWR`, cleaned up to `ALPHA HWR`)
 - **ID 9**: Serial Number Suffix (e.g., `0000479`)
@@ -47,9 +47,24 @@ Request:  2707e7f8070109...  (Read String ID 9)
 Response: 240ef8e70701093030303034373900... (Suffix: "0000479")
 ```
 
-### Authentication Requirement
+### There is no authentication requirement
 
-Class 7 reading requires the device to be **Authenticated** via the handshake sequence (Legacy Magic + Class 10 Magic + Auth Extend). If the device is not authenticated, Class 7 requests may return empty payloads or fail.
+**Corrected 2026-08-18.** This section used to read: *"Class 7 reading requires
+the device to be Authenticated via the handshake sequence (Legacy Magic + Class
+10 Magic + Auth Extend). If the device is not authenticated, Class 7 requests
+may return empty payloads or fail."*
+
+That is not true, and nothing in this repository ever supported it. Ten
+connection cycles that sent none of those packets — including two with the BLE
+bond cleared and re-paired, and five across pump power cycles — read all five
+Class 7 strings every time, fifty reads with no failures and no empty payloads.
+The independent ESPHome implementation likewise has no session check anywhere in
+its Class 7 read path.
+
+The claim entered in this repository's initial documentation commit, hedged as
+"may return ... or fail", and `bench_findings.md` — the record of measured
+rather than inferred behaviour — says nothing about it. See
+esphome-alpha-hwr issue #174.
 
 ## Available Information
 
@@ -61,7 +76,7 @@ Class 7 reading requires the device to be **Authenticated** via the handshake se
 
 ### Via Class 7 Strings (Detailed Info)
 
-Detailed information, including serial numbers and firmware versions, is available via **Class 7 ReadString** operations. This requires an active, authenticated connection.
+Detailed information, including serial numbers and firmware versions, is available via **Class 7 ReadString** operations. This requires an active connection with notifications subscribed.
 
 ```python
 # Full device info - connects and reads Class 7 strings
@@ -110,4 +125,4 @@ alpha-hwr info
 ## Related
 
 - **Class 2 Registers:** See `docs/protocol/telemetry.md`
-- **Authentication Handshake:** Required for Class 7 string reading (see `docs/protocol/connection.md`)
+- **Opening reads:** Not required for Class 7 string reading, despite what this document long claimed (see `docs/protocol/connection.md`)
