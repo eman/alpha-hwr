@@ -561,17 +561,23 @@ assert len(frame["payload"]) == 4
 
 ---
 
-## Layer 4: Authentication
+## Layer 4: Opening reads (optional — you can skip this layer)
 
-**Goal**: Unlock pump with magic packet sequence.
+> **Corrected 2026-08-18.** These four frames are **not** an authentication
+> handshake and are **not** required. They decode as GENIbus reads — two GETs
+> and two INFO queries — and ten connection cycles omitting them entirely,
+> including two with the BLE bond cleared and re-paired, reached full readiness
+> and accepted control commands. If you are writing a new client, **skip this
+> step.** See esphome-alpha-hwr issue #174.
 
-### 4.1 Authentication Sequence
+**Goal**: match what the reference client sends, if you want to.
 
-Send exactly these packets in order:
-1. Legacy Magic × 3
-2. Class 10 Unlock × 5
-3. Extend 1 × 1
-4. Extend 2 × 1
+### 4.1 The sequence this client sends
+
+1. Class 2 identity read × 3
+2. Class 10 operation-status read × 5
+3. INFO query on Class 5 item `0x4B` × 1
+4. INFO query on Class 11 item `0x0F` × 1
 
 **Packets** — these are captured constants the pump accepts. Earlier
 revisions of this page listed four *different* packets here, contradicting

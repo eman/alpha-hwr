@@ -4,7 +4,33 @@ This document shows a complete authentication sequence with byte-by-byte annotat
 
 ## Overview
 
-After BLE connection, the pump requires a specific sequence of "magic packets" to unlock full functionality. This sequence must be sent **exactly** as specified.
+> ## ⚠️ Corrected 2026-08-18 — this is not an authentication sequence
+>
+> This document used to open: *"After BLE connection, the pump requires a
+> specific sequence of 'magic packets' to unlock full functionality. This
+> sequence must be sent exactly as specified."* **Every part of that is wrong**,
+> and the byte annotations below were wrong in the way that produced it.
+>
+> The APDU's second byte is `0booLLLLLL` — operation in the top two bits,
+> payload length in the low six. So `0x03` is **GET with a 3-byte payload**, not
+> "SET operation, 3 data bytes". The three bytes after it are the payload, not a
+> register address plus a value, which is where "register 0x9495, unlock code
+> 0x96" came from. All four packets are reads: two GETs and two INFO queries.
+> Reads cannot unlock anything.
+>
+> Nor is the sequence required, or the repetition. Ten connection cycles sending
+> none of it — two with the BLE bond cleared and re-paired, five across pump
+> power cycles — reached full readiness, read every Class 7 string, and accepted
+> Class 3 START and STOP with the motor confirmed running.
+>
+> The per-packet annotations below are corrected. The Python example further
+> down still sends the packets, because this client still does; it is not doing
+> what its comments say it is doing. See esphome-alpha-hwr issue #174 for the
+> decode, the captures and the removal.
+
+After BLE connection, this client sends four frames before anything else. They
+are reads, and the sequence is retained here as a record of what the client
+does.
 
 ## Authentication Flow
 
@@ -15,7 +41,7 @@ sequenceDiagram
 
     Client->>Pump: Legacy Magic (x3)
     
-    Client->>Pump: Class 10 Unlock (x5)
+    Client->>Pump: Class 10 operation-status read (x5)
     
     Client->>Pump: Extend 1
     
@@ -41,18 +67,19 @@ sequenceDiagram
 | 2 | `0xE7` | Service ID | GENI service |
 | 3 | `0xF8` | Source | Client address |
 | 4 | `0x02` | Class | Class 2 (Register-based operations) |
-| 5 | `0x03` | OpSpec | SET operation, 3 data bytes |
-| 6 | `0x94` | Register High | Register address 0x9495 high byte |
-| 7 | `0x95` | Register Low | Register address 0x9495 low byte |
-| 8 | `0x96` | Data | Unlock value |
+| 5 | `0x03` | OpSpec | **GET**, 3-byte payload (`0b00` + length 3) |
+| 6 | `0x94` | Data Item | Item 148, `unit_family` |
+| 7 | `0x95` | Data Item | Item 149, `unit_type` |
+| 8 | `0x96` | Data Item | Item 150, `unit_version` |
 | 9 | `0xEB` | CRC High | CRC-16-CCITT high byte |
 | 10 | `0x47` | CRC Low | CRC-16-CCITT low byte |
 
 ### Purpose
-Unlocks legacy Class 2/3 commands (register-based operations).
+Reads the pump's identity. An ALPHA HWR answers `52 / 7 / 2`.
 
 ### Repetition
-Must be sent **exactly 3 times** in sequence.
+This client sends it 3 times. One send is sufficient — the reply is identical
+each time, and nothing consumes it in any case.
 
 ### Expected Response
 None (pump acknowledges silently).
@@ -68,7 +95,7 @@ for _ in range(3):
 
 ---
 
-## Packet 4-8: Class 10 Unlock (Send 5 Times)
+## Packet 4-8: Class 10 operation-status read (sent 5 times)
 
 ### Hex Dump
 ```
@@ -84,15 +111,17 @@ for _ in range(3):
 | 2 | `0xE7` | Service ID | GENI service |
 | 3 | `0xF8` | Source | Client |
 | 4 | `0x0A` | Class | Class 10 (DataObject) |
-| 5 | `0x03` | OpSpec | SET operation, 3 bytes follow |
-| 6 | `0x56` | Sub ID High | Sub 0x5600 (control/unlock subsystem) |
-| 7 | `0x00` | Sub ID Low | Sub 0x5600 low byte |
-| 8 | `0x06` | Object ID | Object 0x0006 (unlock object) |
+| 5 | `0x03` | OpSpec | **GET**, 3-byte payload (`0b00` + length 3) |
+| 6 | `0x56` | Object | Object 86 |
+| 7 | `0x00` | Sub ID High | Sub 6, high byte |
+| 8 | `0x06` | Sub ID Low | Sub 6, low byte |
 | 9 | `0xC5` | CRC High | CRC-16-CCITT high byte |
 | 10 | `0x5A` | CRC Low | CRC-16-CCITT low byte |
 
 ### Purpose
-Unlocks Class 10 commands (modern DataObject operations). Required for telemetry, control, and all advanced features.
+Reads the operation-status object, which answers with the control mode,
+operation mode and current setpoint. The same object is polled again in normal
+operation, so this read is redundant rather than enabling.
 
 ### Repetition
 Must be sent **exactly 5 times** in sequence.

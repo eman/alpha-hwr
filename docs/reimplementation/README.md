@@ -94,7 +94,7 @@ wrong again.
 For a minimal working implementation, you need:
 
 1. **BLE Transport** - Connect to pump, send/receive data
-2. **Authentication** - Send magic packets to unlock
+2. ~~**Authentication**~~ - not required; see below
 3. **Frame Encoding/Decoding** - Build and parse GENI frames
 4. **Telemetry Reading** - Read pump measurements
 5. **Control Commands** - Start/stop, set mode
@@ -151,11 +151,19 @@ graph TD
 
 ### Concepts
 
-#### 1. Authentication
-The pump requires a specific sequence of "magic packets" to unlock:
-- 3x Legacy Magic packets
-- 5x Class 10 Unlock packets
-- 2x Extend packets
+#### 1. Opening reads (skip these)
+
+> **Corrected 2026-08-18.** These four frames are **not** an authentication
+> handshake and are **not** required. They decode as GENIbus reads — two GETs
+> and two INFO queries — and ten connection cycles omitting them entirely,
+> including two with the BLE bond cleared and re-paired, reached full readiness
+> and accepted control commands. If you are writing a new client, **skip this
+> step.** See esphome-alpha-hwr issue #174.
+
+For the record, this client sends:
+- 3x Class 2 identity read (`unit_family` / `unit_type` / `unit_version`)
+- 5x Class 10 operation-status read (Object 86, Sub 6)
+- 2x INFO queries (Class 5 item `0x4B`, Class 11 item `0x0F`)
 
 See [02_authentication.md](../protocol/packet_traces/02_authentication.md) for details.
 
