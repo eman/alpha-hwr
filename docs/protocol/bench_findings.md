@@ -279,3 +279,66 @@ from 86/39, which is what makes the type-301 range the *factory* range: it
 does not account for a limiter that is enabled. On this unit neither is, so
 a setpoint here is delivered as written. On a unit with MaxFlow enabled it
 would not be, and nothing in the type-301 range would say so.
+
+## A Class 10 SET is never acknowledged, and silences the pump for 400 ms
+
+Two no-op write-backs — the ClockProgramOverview at Object 84 Sub 1 and
+the temperature-range config at Object 91 Sub 430, each written back
+byte-identically to what the pump already held, so nothing changed.
+
+**The SET draws no reply at all.** Zero frames in a six-second listen,
+three runs, both objects. Not a late acknowledgement — none.
+
+**Nothing else is answered either, for 200–400 ms afterwards:**
+
+    GET at +  50 ms -> answered 0/3
+    GET at + 100 ms -> answered 0/3
+    GET at + 200 ms -> answered 0/3
+    GET at + 400 ms -> answered 3/3   (~55 ms, as on an idle link)
+    GET at + 800 ms -> answered 3/3
+    GET at +1200 ms -> answered 3/3
+
+The link stays up throughout and the write is applied. Both comments in
+this client said the opposite — that the acknowledgement "usually lands
+after the response window has closed", explained as a two-phase commit.
+Nothing lands, and the quiet period neither comment mentioned is the part
+that is real.
+
+This is what the Grundfos GO app's `afterSetSendPause = 2500` is guarding:
+it is imposed on the SET → non-SET transition, i.e. before the next read.
+
+Until this was measured the client cleared the window by accident. Every
+SET waited a full second for an acknowledgement that was never coming, and
+a second is longer than 400 ms.
+
+## An Object 91 Sub 430 write is visible ~450 ms after it is issued
+
+Through the full write sequence — mode request, limits-tail read, Obj 91
+SET, overview commit — polling the readback as fast as the link allows:
+
+| run | target | visible after |
+|---|---|---|
+| 1 | 39.0 °C | 449 ms |
+| 2 | 38.9 °C | 459 ms |
+| 3 | 39.0 °C | 486 ms |
+| 4 | 38.9 °C | 456 ms |
+
+So the 1.2 s confirm delay is about 2.5× the settle time. Most of the
+450 ms is the deaf window above: the commit is the last SET in the
+sequence, and the readback cannot be answered until the pump returns.
+
+A consequence worth stating, because it removes a failure mode rather than
+adding one: reading *too early* does not return a stale value, it returns
+nothing. The confirm already retries an unanswered read.
+
+## The raw Obj 91 write does not take on its own
+
+Writing Object 91 Sub 430 directly — with a correct frame, a valid CRC,
+and the overview commit after it — leaves the stored value unchanged,
+whether the commit is sent 50 ms or 600 ms later (2 attempts each). The
+same value written through the client's sequence, which sends the Object
+86 Sub 10 mode request first, takes every time.
+
+So the mode request is not optional dressing around the temperature-range
+write; it is load-bearing. What exactly it enables was not established
+here — only that the write does not persist without it.

@@ -69,6 +69,25 @@
 
   Both rewrites are removed rather than retuned.
 
+- **Class 10 writes waited a second for an acknowledgement that never
+  comes.** A Class 10 SET draws no reply from this pump at all — zero
+  frames in a six-second listen, three runs, on two different objects.
+  Both places that waited for one explained the silence as a two-phase
+  commit whose acknowledgement "usually lands after the response window
+  has closed"; nothing lands.
+
+  What is real is the quiet period afterwards: **the pump answers nothing,
+  not even an unrelated read, for 200–400 ms after any Class 10 SET.** A
+  read at +50, +100 or +200 ms goes unanswered; the same read at +400 ms
+  answers in ~55 ms. The client had been clearing that window by accident,
+  since a second is longer than 400 ms — so removing the wait without
+  adding a deliberate hold would have started dropping reads, including
+  the limits-tail read a temperature write must echo back.
+
+  The hold is now armed in `Transport.write()` from the frame's own class
+  and operation bits, so no call site can forget it, and the pointless
+  wait is gone.
+
 - **The dedicated Class 10 setpoint write was refused, always.** It
   addressed sub-id first where every Class 10 SET this pump accepts is
   object first, so it named object `0x00` and the pump answered Unknown
@@ -127,11 +146,25 @@
   silently caps the pump and that is not a change to make as a side effect
   of a protocol sync.
 
+### Tests
+
+- **Doctests are run, and green.** 185 of 279 examples in the source were
+  failing. Seven were genuinely wrong — `encode_float_be(1.5)` claimed
+  `b'\x3f\xc0\x00\x00'` where Python prints `?`, a three-byte register
+  read's frame length was given as 9 rather than 11, `build_command_info`
+  claimed an address with a stray digit and a trailing ellipsis, and four
+  `Session` examples referred to objects nobody had built. The rest were
+  never executable — `await` at the top level, or a client that does not
+  exist — and now carry `# doctest: +SKIP`, which says what they are.
+  `tests/test_doctests.py` runs the remainder with a floor on the count,
+  so the failure mode cannot return as "skip everything".
+
 ### Documentation
 
 - `docs/protocol/bench_findings.md` records the 2026-08-20 session: the
   Class 7 header, the response type table, the setpoint ranges, the
-  second Class 10 acknowledgement, and the limiter survey.
+  second Class 10 acknowledgement, the limiter survey, the post-SET quiet
+  period, and how long an Object 91 write takes to become visible.
 
 
 ## [0.7.0] - 2026-08-05
