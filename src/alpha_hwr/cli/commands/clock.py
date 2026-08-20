@@ -8,6 +8,7 @@ Commands:
 
 import typer
 
+from ... import pump_time
 from ..app import console
 from ..common import get_client, handle_error, require_service, run_async
 from ..output.formatters import print_success
@@ -115,25 +116,26 @@ async def _clock_view(device: str | None) -> None:
         async with get_client(device) as client:
             time = require_service(client.time, "Time")
             # Read pump time
-            pump_time = await time.get_clock()
-            # Naive local, to match the pump's naive wall clock: this is
-            # compared against pump_time below, and mixing naive and
-            # aware datetimes raises.
-            system_time = pump_time.now()
+            pump_clock = await time.get_clock()
 
-            if pump_time is None:
+            if pump_clock is None:
                 console.print(
                     "[error]Failed to read pump clock (no response)[/error]"
                 )
                 raise typer.Exit(1)
 
+            # Naive local, to match the pump's naive wall clock: this is
+            # compared against pump_clock below, and mixing naive and
+            # aware datetimes raises.
+            system_time = pump_time.now()
+
             # Check if clock is unset (epoch or very old date)
-            if pump_time.year <= 1980:
+            if pump_clock.year <= 1980:
                 console.print(
                     "[warning]⚠ Pump clock is unset or invalid[/warning]"
                 )
                 console.print(
-                    f"  Pump Clock:   {pump_time.strftime('%Y-%m-%d %H:%M:%S')}"
+                    f"  Pump Clock:   {pump_clock.strftime('%Y-%m-%d %H:%M:%S')}"
                 )
                 console.print(
                     f"  System Clock: {system_time.strftime('%Y-%m-%d %H:%M:%S')}"
@@ -144,11 +146,11 @@ async def _clock_view(device: str | None) -> None:
                 raise typer.Exit(0)
 
             # Calculate offset
-            offset = (system_time - pump_time).total_seconds()
+            offset = (system_time - pump_clock).total_seconds()
 
             # Display results
             console.print(
-                f"  Pump Clock:   {pump_time.strftime('%Y-%m-%d %H:%M:%S')}"
+                f"  Pump Clock:   {pump_clock.strftime('%Y-%m-%d %H:%M:%S')}"
             )
             console.print(
                 f"  System Clock: {system_time.strftime('%Y-%m-%d %H:%M:%S')}"
