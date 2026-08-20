@@ -55,6 +55,11 @@ def control() -> MagicMock:
     c.set_temperature_range_control = AsyncMock(return_value=True)
     c.set_cycle_time_control = AsyncMock(return_value=True)
     c.is_cache_valid = True
+    # No range read yet, so the write layer falls back to its own wide
+    # constants. A MagicMock would return a truthy Mock here and be
+    # unpacked as a pair of bounds, which is not a state the real service
+    # can be in.
+    c.get_setpoint_range = MagicMock(return_value=None)
     return c
 
 
@@ -534,3 +539,61 @@ async def test_range_checks_are_per_mode(
 
     assert flow.status is WriteStatus.ACCEPTED
     assert speed.status is WriteStatus.INVALID
+
+
+@pytest.mark.asyncio
+async def test_the_pump_s_own_range_supersedes_the_fallback(
+    control: MagicMock,
+) -> None:
+    """
+    2000 RPM is inside the fallback range and inside the pump's.
+
+    4000 RPM is inside the fallback (500-4500) and outside the pump's
+    (1650-3671), so it must settle INVALID once the range has been read -
+    and the detail must say the bound came from the pump, since that is
+    the difference between "we guessed" and "it told us".
+    """
+    control.get_setpoint_range = MagicMock(return_value=(1650.0, 3671.0))
+    control.get_mode = AsyncMock(return_value=info(setpoint=2000.0))
+    writes = WriteOperationService(control)
+
+    ok = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:2",
+        mode=ControlMode.CONSTANT_SPEED,
+        value=2000.0,
+    )
+    assert ok.status is WriteStatus.ACCEPTED
+
+    refused = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:2",
+        mode=ControlMode.CONSTANT_SPEED,
+        value=4000.0,
+    )
+    assert refused.status is WriteStatus.INVALID
+    assert "1650" in refused.detail
+    assert "the pump reports" in refused.detail
+
+
+@pytest.mark.asyncio
+async def test_without_a_range_the_wider_fallback_is_used(
+    control: MagicMock,
+) -> None:
+    """
+    An unread range must not refuse what the pump might accept.
+
+    4000 RPM is outside the pump's real range, so the pump will clamp it -
+    but that is the pump's call to make. Refusing it here on a guess is
+    worse, because the guess is wrong in both directions on every mode.
+    """
+    control.get_setpoint_range = MagicMock(return_value=None)
+    writes = WriteOperationService(control)
+
+    result = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:2",
+        mode=ControlMode.CONSTANT_SPEED,
+        value=4000.0,
+    )
+    assert result.status is not WriteStatus.INVALID

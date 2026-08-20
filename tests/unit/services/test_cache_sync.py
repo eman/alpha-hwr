@@ -40,6 +40,13 @@ def control() -> ControlService:
         return_value=(35.0, 38.9, True)
     )
     service.get_cycle_time_config = AsyncMock(return_value=(5, 15))  # type: ignore[method-assign]
+    # sync_cache also reads the pump's setpoint ranges. Like the cycle
+    # config, they are not required for readiness - a pump that will not
+    # answer leaves the write layer on its fallback constants rather than
+    # unable to write at all.
+    service.read_setpoint_ranges = AsyncMock(  # type: ignore[method-assign]
+        return_value={ControlMode.CONSTANT_SPEED: (1650.0, 3671.0)}
+    )
     return service
 
 

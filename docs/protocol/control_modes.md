@@ -298,7 +298,7 @@ frame was accepted, not that your value is in the pump:
 - `set_constant_flow(value_m3h)` — mode 8 (converted to SI m³/s on the wire)
 - `set_temperature_range_control(min_c, max_c, autoadapt=True)` — mode 27
 - `set_cycle_time_control(on_min, off_min)` — mode 25
-- `set_flow_limit(value_gpm)` — Sub 39
+- `read_limiters()` — Object 86 Sub 600 (MaxFlow) and Sub 601 (MinFlow)
 
 **Deprecated Methods (for heating systems, not ALPHA HWR):**
 - `set_temperature_control(on_temp, off_temp, heating_type)` - Uses modes 13/14/15 (not for DHW)
@@ -317,11 +317,11 @@ frame was accepted, not that your value is in the pump:
 ```bash
 alpha-hwr control set-pressure <meters>
 alpha-hwr control set-proportional <meters>
-alpha-hwr control set-speed <rpm> [--flow-limit <gpm>]
+alpha-hwr control set-speed <rpm>
 alpha-hwr control set-flow <m3h>
-alpha-hwr control set-temperature --min <temp_c> --max <temp_c> [--autoadapt/--no-autoadapt] [--flow-limit <gpm>]
+alpha-hwr control set-temperature --min <temp_c> --max <temp_c> [--autoadapt/--no-autoadapt]
 alpha-hwr control set-cycle-time --on <minutes> --off <minutes>
-alpha-hwr control set-flow-limit <gpm>
+alpha-hwr control limiters
 alpha-hwr control get-cycle-time
 ```
 

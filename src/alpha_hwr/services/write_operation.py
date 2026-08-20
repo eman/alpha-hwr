@@ -341,13 +341,30 @@ class WriteOperationService:
 
     # -- setpoints -------------------------------------------------------
 
-    #: Which setter writes which mode's setpoint, and the range that
-    #: setter accepts. The range is repeated here deliberately: the setters
-    #: return a bare False for an out-of-range value *and* for a transport
-    #: failure, and those are opposite answers to "should this be retried".
-    #: Checking here lets an out-of-range request settle INVALID before
-    #: anything reaches the wire, leaving a False from the setter to mean
-    #: what it should - the pump or the link refused.
+    #: Which setter writes which mode's setpoint, and a fallback range.
+    #:
+    #: The range is repeated here deliberately: the setters return a bare
+    #: False for an out-of-range value *and* for a transport failure, and
+    #: those are opposite answers to "should this be retried". Checking
+    #: here lets an out-of-range request settle INVALID before anything
+    #: reaches the wire, leaving a False from the setter to mean what it
+    #: should - the pump or the link refused.
+    #:
+    #: These bounds are a **fallback**, used only until the pump's own have
+    #: been read. They are wrong in both directions on every scalar mode.
+    #: Measured 2026-08-20:
+    #:
+    #:     constant speed          1650   - 3671   RPM   (not 500 - 4500)
+    #:     constant pressure       1.000  - 2.450  m     (not 0.5 - 10.0)
+    #:     proportional pressure   2.599  - 4.569  m     (not 0.5 - 10.0)
+    #:     constant flow           0.114  - 2.498  m³/h  (not 0.1 - 10.0)
+    #:
+    #: Proportional pressure is the worst of them: a 0.5 m floor against a
+    #: real one of 2.6 m, in a range that does not even overlap constant
+    #: pressure's - which is what the two shared here until they were
+    #: measured. They are kept deliberately wide, because refusing a
+    #: setpoint the pump would have taken is worse than letting it clamp
+    #: one it dislikes.
     _SETTERS: ClassVar[dict[ControlMode, tuple[str, float, float, str]]] = {
         ControlMode.CONSTANT_PRESSURE: (
             "set_constant_pressure",
@@ -370,6 +387,19 @@ class WriteOperationService:
         ControlMode.CONSTANT_FLOW: ("set_constant_flow", 0.1, 10.0, "m3/h"),
     }
 
+    def _bounds_for(
+        self, mode: ControlMode, fallback: tuple[float, float]
+    ) -> tuple[tuple[float, float], bool]:
+        """
+        The bounds to judge a setpoint by, and whether they are the pump's.
+
+        Returns ``((low, high), from_pump)``.
+        """
+        published = self._control.get_setpoint_range(mode)
+        if published is not None:
+            return published, True
+        return fallback, False
+
     async def _run_set_setpoint(self, op: _Operation) -> None:
         mode = op.args["mode"]
         value = float(op.args["value"])
@@ -381,13 +411,21 @@ class WriteOperationService:
                 f"{mode!r} has no scalar setpoint to write",
             )
             return
-        setter_name, low, high, unit = spec
+        setter_name, fallback_low, fallback_high, unit = spec
+        (low, high), from_pump = self._bounds_for(
+            mode, (fallback_low, fallback_high)
+        )
 
         if not low <= value <= high:
+            source = (
+                "the pump reports for this mode"
+                if from_pump
+                else "this mode is assumed to accept"
+            )
             op.settle(
                 WriteStatus.INVALID,
-                f"{value:g} {unit} is outside the {low:g}-{high:g} {unit} "
-                f"this mode accepts",
+                f"{value:g} {unit} is outside the {low:.4g}-{high:.4g} "
+                f"{unit} {source}",
                 mode=mode,
             )
             return

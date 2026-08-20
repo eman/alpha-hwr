@@ -11,12 +11,13 @@ Commands:
   - set-speed: Set constant speed mode (RPM)
   - set-temperature: Set temperature range control
   - set-cycle-time: Set DHW cycle time control
-  - set-flow-limit: Set maximum flow limit (GPM)
+  - limiters: Show the MaxFlow and MinFlow limiters
   - get-cycle-time: Get DHW cycle time configuration
 """
 
 import typer
 
+from ...constants import FACTOR_M3H_TO_GPM
 from ..app import console
 from ..common import get_client, handle_error, require_service, run_async
 from ..output.formatters import format_setpoint_panel, print_success
@@ -156,9 +157,6 @@ def cmd_set_speed(
     setpoint: float = typer.Argument(
         ..., help="Speed setpoint in RPM (e.g., 2500)"
     ),
-    flow_limit: float | None = typer.Option(
-        None, "--flow-limit", "-f", help="Maximum flow limit in GPM (e.g. 1.5)"
-    ),
     device: str | None = typer.Option(
         None,
         "--device",
@@ -173,9 +171,9 @@ def cmd_set_speed(
     Optionally sets a flow limit (often used for 'Continuous operation').
 
     Example:
-      alpha-hwr control set-speed 2500 --flow-limit 1.5
+      alpha-hwr control set-speed 2500
     """
-    run_async(_control_set_speed(device, setpoint, flow_limit))
+    run_async(_control_set_speed(device, setpoint))
 
 
 @app.command("set-mode")
@@ -218,9 +216,6 @@ def cmd_set_temperature(
         "--autoadapt/--no-autoadapt",
         help="Enable/disable AutoAdapt flow adjustment",
     ),
-    flow_limit: float | None = typer.Option(
-        None, "--flow-limit", "-f", help="Maximum flow limit in GPM (e.g. 1.5)"
-    ),
     device: str | None = typer.Option(
         None,
         "--device",
@@ -237,13 +232,9 @@ def cmd_set_temperature(
 
     Examples:
       alpha-hwr control set-temperature --min 35 --max 39
-      alpha-hwr control set-temperature --min 45 --max 50 --no-autoadapt --flow-limit 1.5
+      alpha-hwr control set-temperature --min 45 --max 50 --no-autoadapt
     """
-    run_async(
-        _control_set_temperature(
-            device, min_temp, max_temp, autoadapt, flow_limit
-        )
-    )
+    run_async(_control_set_temperature(device, min_temp, max_temp, autoadapt))
 
 
 @app.command("set-cycle-time")
@@ -294,9 +285,8 @@ def cmd_get_cycle_time(
     run_async(_control_get_cycle_time(device))
 
 
-@app.command("set-flow-limit")
-def cmd_set_flow_limit(
-    limit_gpm: float = typer.Argument(..., help="Maximum flow limit in GPM"),
+@app.command("limiters")
+def cmd_limiters(
     device: str | None = typer.Option(
         None,
         "--device",
@@ -305,17 +295,22 @@ def cmd_set_flow_limit(
     ),
 ) -> None:
     """
-    Set the maximum flow limit (GPM).
+    Show the pump's MaxFlow and MinFlow limiters.
 
-    Common limits by pipe diameter:
-    - 1/2": 1.5 GPM
-    - 3/4": 2.3 GPM
-    - 1": 3.8 GPM
+    An enabled limiter caps delivered flow whatever the setpoint says, and
+    nothing in the setpoint range reveals it - so a setpoint can be
+    accepted, read back correct, and still not be delivered. This is the
+    only way to see that.
+
+    Replaces `set-flow-limit`, which wrote to Object 86 Sub 39. That is the
+    constant-flow *setpoint range*, not a limiter, and the write was
+    refused by the pump in any case. The limiters live at Object 86 Sub 600
+    (MaxFlow) and Sub 601 (MinFlow).
 
     Example:
-      alpha-hwr control set-flow-limit 1.5
+      alpha-hwr control limiters
     """
-    run_async(_control_set_flow_limit(device, limit_gpm))
+    run_async(_control_limiters(device))
 
 
 # Internal async implementations
@@ -441,7 +436,6 @@ async def _control_set_temperature(
     min_temp: float,
     max_temp: float,
     autoadapt: bool,
-    flow_limit: float | None = None,
 ) -> None:
     """Internal async implementation of set-temperature command."""
     try:
@@ -454,13 +448,6 @@ async def _control_set_temperature(
 
             if success:
                 msg = f"Set Temperature Range Control to {min_temp}°C - {max_temp}°C (autoadapt={autoadapt})"
-                if flow_limit is not None:
-                    if await control.set_flow_limit(flow_limit):
-                        msg += f" with {flow_limit} GPM flow limit"
-                    else:
-                        console.print(
-                            "[yellow]Warning: Mode set, but flow limit failed[/yellow]"
-                        )
                 print_success(msg)
             else:
                 console.print("[error]Failed to set temperature range[/error]")
@@ -516,9 +503,7 @@ async def _control_get_cycle_time(device: str | None) -> None:
         handle_error(e, "Failed to read cycle time configuration")
 
 
-async def _control_set_speed(
-    device: str | None, setpoint: float, flow_limit: float | None = None
-) -> None:
+async def _control_set_speed(device: str | None, setpoint: float) -> None:
     """Internal async implementation of set-speed command."""
     try:
         async with get_client(device) as client:
@@ -528,13 +513,6 @@ async def _control_set_speed(
 
             if success:
                 msg = f"Set Constant Speed to {setpoint} RPM"
-                if flow_limit is not None:
-                    if await control.set_flow_limit(flow_limit):
-                        msg += f" with {flow_limit} GPM flow limit"
-                    else:
-                        console.print(
-                            "[yellow]Warning: Speed set, but flow limit failed[/yellow]"
-                        )
                 print_success(msg)
             else:
                 console.print("[error]Failed to set constant speed[/error]")
@@ -544,19 +522,35 @@ async def _control_set_speed(
         handle_error(e, "Failed to set constant speed")
 
 
-async def _control_set_flow_limit(device: str | None, limit_gpm: float) -> None:
-    """Internal async implementation of set-flow-limit command."""
+async def _control_limiters(device: str | None) -> None:
+    """Internal async implementation of the limiters command."""
     try:
         async with get_client(device) as client:
             control = require_service(client.control, "Control")
-            # Set flow limit
-            success = await control.set_flow_limit(limit_gpm)
+            limiters = await control.read_limiters()
 
-            if success:
-                print_success(f"Successfully set flow limit to {limit_gpm} GPM")
-            else:
-                console.print("[error]Failed to set flow limit[/error]")
+            if not limiters:
+                console.print("[error]Could not read the limiters[/error]")
                 raise typer.Exit(1)
+
+            for name, values in limiters.items():
+                enabled = values.get("enabled")
+                limiting = values.get("limiting")
+                state = "enabled" if enabled else "disabled"
+                console.print(f"[bold]{name}[/bold]: {state}")
+                if "limit_m3h" in values:
+                    m3h = values["limit_m3h"]
+                    console.print(
+                        f"  limit    {m3h:.3f} m³/h "
+                        f"({m3h / FACTOR_M3H_TO_GPM:.2f} GPM)"
+                    )
+                if "factory_min_m3h" in values:
+                    console.print(
+                        f"  bounds   {values['factory_min_m3h']:.3f} - "
+                        f"{values['factory_max_m3h']:.3f} m³/h"
+                    )
+                if limiting is not None:
+                    console.print(f"  limiting {'yes' if limiting else 'no'}")
 
     except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
         handle_error(e, "Failed to set flow limit")

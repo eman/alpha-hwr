@@ -158,3 +158,124 @@ itself while the event opens hours from where it was meant to.
 `ClockProgramOverview` byte 1 (`max_nof_single_events`) reads `0x05`, and
 Object 84 Sub 905 does not answer. The slot count should be taken from the
 overview rather than assumed.
+
+---
+
+# 2026-08-20 session
+
+Measured against the same ALPHA HWR, reported by its own Class 7 strings as
+product `ALPHA HWR`, serial `10000479`, software `92601618V04.02.01.02539`,
+hardware `92601617V01.03.00.00469`, BLE `92811431V06.00.01.00001`. Its
+advertisement reports family 52, type 7, version 2.
+
+## The Class 7 header is six bytes, and byte 5 is a byte count
+
+The reply is `[STX][LEN][DST][SRC][0x07][Count][...STRING...][CRC16]`. The
+first character is at offset **6**, and there is no echoed string ID.
+
+    24 0E F8 E7 07 0A 41 4C 50 48 41 20 48 57 52 00 83 8D
+                    ^^ count = 10        ^^ "ALPHA HWR\0"
+
+Reading from offset 7 dropped the first character of every string. The two
+most-read strings were patched up afterwards and so looked correct — an "A"
+prepended to `LPHA HWR`, and a "1" prepended to a serial reading `0000479`.
+The second was right for this unit only by coincidence; a serial beginning
+`20` would have been corrupted. The version strings had no such patch and
+were short. Before and after, on the same pump:
+
+    software  2601618V04.02.01.02539  ->  92601618V04.02.01.02539
+    hardware  2601617V01.03.00.00469  ->  92601617V01.03.00.00469
+    BLE       2811431V06.00.01.00001  ->  92811431V06.00.01.00001
+
+## Class 7 needs no handshake at all
+
+Five string reads answered on a link that had sent **no** opening packets —
+connect, subscribe, read. This is the same conclusion `connection.md`
+reached from the captures, now confirmed by not sending them.
+
+## A response's bytes 6-9 are `[00][TypeH][TypeL][Version]`
+
+Measured by reading each object and recording the answer:
+
+| read | reply bytes 6-9 | type |
+|---|---|---|
+| 86/7 operation status | `00 01 2f 01` | 303 v1 |
+| 86/13, 86/15, 86/17, 86/39 | `00 01 2d 01` | 301 v1 — **all four** |
+| 84/1 schedule overview | `00 00 da 01` | 218 v1 |
+| 94/101 clock | `00 01 42 01` | 322 v1 |
+| 91/430 temperature range | `00 03 f4 02` | 1012 v2 |
+| motor state | `00 01 00 03` | 3 v1 |
+| flow / head | `00 02 35 02` | 0x3502 v2 |
+| temperatures | `00 02 16 02` | 0x1602 v2 |
+| 88/0 alarms and 88/11 warnings | `00 02 3a 01` | 0x3A01 v2 — **both** |
+
+Two collisions matter. The four setpoint ranges are indistinguishable in a
+reply, so a chain reading them must be sequential and stop at the first
+failure. Alarms and warnings are indistinguishable too, so only the caller
+that issued the read knows which list came back.
+
+`byte5 == len(frame) - 8` held for every frame recorded in this session.
+
+## The pump publishes its own setpoint ranges
+
+Object 86, type 301 v1, three big-endian floats at offsets 0, 4 and 8 of the
+struct: default, minimum, maximum.
+
+| sub | mode | default | min | max | native |
+|---|---|---|---|---|---|
+| 13 | constant speed | 2800 | **1650** | **3671** | RPM |
+| 15 | constant pressure | 1.632 | **1.000** | **2.450** | Pa ÷ 9806.65 |
+| 17 | proportional pressure | 3.649 | **2.599** | **4.569** | Pa ÷ 9806.65 |
+| 39 | constant flow | 0.228 | **0.114** | **2.498** | m³/s × 3600 |
+
+Every one of these contradicts the constants this client validated against
+(500–4500 RPM, 0.5–10 m, 0.5–10 m, 0.1–10 m³/h), in both directions and on
+every mode. Proportional pressure is the worst: a 0.5 m floor against a real
+one of 2.6 m, a range that does not even overlap constant pressure's.
+
+## A Class 10 reply carries a second acknowledgement
+
+Confirmed by accident while probing the limiter objects. Reading a sub-id
+the pump does not implement returns
+
+    24 05 F8 E7 0A 01 04 EE 26
+
+whose APDU head `0x01` is ack **OK** with one payload byte — and that byte
+is `0x04`. That is the Class 10 status `OPERATION_FAILED`, from the
+decompiled GO app's `GeniAPDU.CLASS10_ACK_*` (0 OK, 2 BUSY, 4
+OPERATION_FAILED). So the head ack alone is not the verdict: an unimplemented
+object answers "understood, and it failed".
+
+The status byte must only be read at `len >= 9`. In an eight-byte frame
+declaring one payload byte, `data[6]` is the CRC's high byte.
+
+## The limiters: two of them, both disabled (ESPHome issue #274)
+
+`geni_profile_52_7.xml` describes `limiter_user_config` (type 895, Obj 86 sub
+600–619), `limiter_factory_config` (897, 620–639), `limiter_status` (896,
+640–659) and `limitation_manager_status` (896, 660). The capture corpus stops
+at 86/601 and 86/621, so this could only be settled on hardware.
+
+Sub-ids 602–619, 622–639 and 642–659 **do not exist**: every one answers
+`OPERATION_FAILED`. Only indices 1 and 2 are implemented, and the name enum
+at `geni_profile_52_7.xml:1386` gives `MaxFlow = 1`, `MinFlow = 2`. So the
+instances are per *limiter*, not per mode.
+
+    user config 895, 18 bytes: [name][enable][limit f32 m³/s][kp][ti][td]
+      600  01 00 38c676f1 3f19999a 3fcccccd 3ecccccd   MaxFlow disabled, 0.341 m³/h (1.50 gpm)
+      601  02 00 3925631d 3f19999a 3fcccccd 3ecccccd   MinFlow disabled, 0.567 m³/h (2.50 gpm)
+
+    factory config 897, 9 bytes: [name][lower f32][upper f32]
+      620  01 38044f4b 3a35ed8d    MaxFlow  0.114 - 2.498 m³/h
+      621  02 38844f4b 3a5700d9    MinFlow  0.227 - 2.952 m³/h
+
+    status 896, 6 bytes: [name][limiting][reference f32]
+      640  01 00 00000000    MaxFlow not limiting
+      641  02 00 00000000    MinFlow not limiting
+      660  00 00 00000000    manager not limiting
+
+MaxFlow's factory bounds are exactly the constant-flow setpoint range read
+from 86/39, which is what makes the type-301 range the *factory* range: it
+does not account for a limiter that is enabled. On this unit neither is, so
+a setpoint here is delivered as written. On a unit with MaxFlow enabled it
+would not be, and nothing in the type-301 range would say so.

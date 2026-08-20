@@ -109,7 +109,7 @@ The ALPHA HWR supports 5 primary control modes specifically optimized for hot wa
 alpha-hwr control set-temperature --min 35 --max 39 --autoadapt
 
 # Set range 40-45°C with AUTOADAPT disabled and 1.5 GPM limit
-alpha-hwr control set-temperature --min 40 --max 45 --no-autoadapt --flow-limit 1.5
+alpha-hwr control set-temperature --min 40 --max 45 --no-autoadapt
 ```
 
 ### 2. Cycle Time Control (Mode 25)
@@ -137,7 +137,7 @@ alpha-hwr control set-cycle-time --on 5 --off 15
 **Example:**
 ```bash
 # Set to 2500 RPM with 2.3 GPM limit (3/4" pipe)
-alpha-hwr control set-speed 2500 --flow-limit 2.3
+alpha-hwr control set-speed 2500
 ```
 
 ### 4. Constant Pressure (Mode 0)
@@ -176,7 +176,7 @@ The ALPHA HWR allows setting a maximum flow limit to prevent **flow-accelerated 
 
 **CLI:**
 ```bash
-alpha-hwr control set-flow-limit 1.5
+alpha-hwr control limiters
 ```
 
 ---
