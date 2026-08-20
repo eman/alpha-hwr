@@ -120,7 +120,12 @@ class ParsedFrame:
         short acknowledgement is not mistaken for a truncated struct.
         """
         body = self.payload
-        if len(body) >= 3 and body[0] == 0 and body[1] == 0 and body[2] == len(body) - 3:
+        if (
+            len(body) >= 3
+            and body[0] == 0
+            and body[1] == 0
+            and body[2] == len(body) - 3
+        ):
             return body[3:]
         return body
 
@@ -305,8 +310,7 @@ TELEMETRY_TYPES = {
     (0x0003, 0x0001),  # motor state
     (0x3502, 0x0002),  # flow / pressure
     (0x1602, 0x0002),  # temperature
-    (88, 0),  # active alarms
-    (88, 11),  # active warnings
+    (0x3A01, 0x0002),  # active alarms *and* active warnings
 }
 
 

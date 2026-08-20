@@ -19,7 +19,7 @@ from alpha_hwr.constants import ControlMode
 from alpha_hwr.protocol import FrameParser
 from alpha_hwr.protocol.codec import encode_float_be, encode_uint16_be
 from alpha_hwr.protocol.matcher import expected_reply
-from alpha_hwr.utils import calc_crc16, calc_crc16_read
+from alpha_hwr.utils import calc_crc16_read
 
 logger = logging.getLogger(__name__)
 
@@ -748,7 +748,9 @@ class MockPump:
                 f"declared in six bits; the pump splits these."
             )
         apdu = bytes([class_byte, len(apdu_payload)]) + apdu_payload
-        frame = bytearray([0x24, len(apdu) + 2, self.REPLY_DEST, self.REPLY_SRC])
+        frame = bytearray(
+            [0x24, len(apdu) + 2, self.REPLY_DEST, self.REPLY_SRC]
+        )
         frame.extend(apdu)
         frame.extend(encode_uint16_be(calc_crc16_read(bytes(frame[1:]))))
         return bytes(frame)
@@ -850,7 +852,9 @@ class MockPump:
         read it - so a refusal naming item ``0x00`` was taken for success.
         """
         apdu = bytes([0x0A, 0x81, 0x00])
-        frame = bytearray([0x24, len(apdu) + 2, self.REPLY_DEST, self.REPLY_SRC])
+        frame = bytearray(
+            [0x24, len(apdu) + 2, self.REPLY_DEST, self.REPLY_SRC]
+        )
         frame.extend(apdu)
         frame.extend(encode_uint16_be(calc_crc16_read(bytes(frame[1:]))))
         return bytes(frame)

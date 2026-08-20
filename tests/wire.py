@@ -35,7 +35,9 @@ def frame(class_byte: int, apdu_payload: bytes, start: int = 0x24) -> bytes:
         raise ValueError(
             f"{len(apdu_payload)} payload bytes cannot be declared in six bits"
         )
-    dest, src = (REPLY_DEST, REPLY_SRC) if start == 0x24 else (REPLY_SRC, REPLY_DEST)
+    dest, src = (
+        (REPLY_DEST, REPLY_SRC) if start == 0x24 else (REPLY_SRC, REPLY_DEST)
+    )
     apdu = bytes([class_byte, len(apdu_payload)]) + apdu_payload
     body = bytes([len(apdu) + 2, dest, src]) + apdu
     crc = calc_crc16_read(body)
@@ -103,7 +105,9 @@ CAPTURED = {
     "schedule_overview": bytes.fromhex(
         "2415f8e70a110000da0100000a02050005010100000000dd89"
     ),
-    "clock": bytes.fromhex("2417f8e70a130001420100000c07ea08140a04155b000401017298"),
+    "clock": bytes.fromhex(
+        "2417f8e70a130001420100000c07ea08140a04155b000401017298"
+    ),
     "temp_range_config": bytes.fromhex(
         "2419f8e70a150003f40200000e00420c0000421b999a0f3c020501ec1f"
     ),

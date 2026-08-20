@@ -115,24 +115,38 @@ def test_frame_parser_class10_response():
 
     frame = FrameParser.parse_frame(packet)
     assert frame.valid
+    assert frame.crc_valid
     assert frame.class_byte == 0x0A
-    assert frame.obj_id == 0x3502
-    assert frame.sub_id == 0x0002
+    # Bytes 6-9 are the object's type, not the register that was read.
+    assert frame.type_high == 0x0002
+    assert frame.type_low_ver == 0x3502
+    # Byte 5 declares 43 payload bytes, which is exactly len - 8.
+    assert packet[5] == len(packet) - 8
 
-    # Payload should start after the DataLen byte (offset 13)
-    # The new parser logic uses data[13:-2] for these special OpSpecs
-    assert frame.payload.hex().startswith("390aa426")
+    # The payload opens with the object's own [00][00][size] header;
+    # object_body strips it. Selecting offset 13 by matching byte 5
+    # against {0x30, 0x2B, 0x14, ...} worked only because those values are
+    # the payload *lengths* of three telemetry registers.
+    assert frame.payload.hex().startswith("000024")
+    assert frame.object_body.hex().startswith("390aa426")
 
 
 def test_frame_parser_class10_notification():
-    """Test that FrameParser correctly handles Class 10 notification frames (OpSpec 0x0E)."""
-    # Motor state notification (OpSpec 0x0E)
-    # [Start][Len][Dst][Src][Class=0x0A][OpSpec=0x0E][Sub=0045][Obj=0057][Payload...][CRC]
-    packet = bytes.fromhex("2415e7f80a0e00450057437000000000000040200000fbdc")
+    """
+    A Class 10 data reply, as recorded from the pump.
+
+    The frame this replaced declared a length of 25 while carrying 24
+    bytes, and put the addresses in request order on a response. Both
+    make it a frame the pump cannot send, so the parser now rejects it -
+    correctly.
+    """
+    # Object 86 Sub 7, captured 2026-08-20.
+    packet = bytes.fromhex("2412f8e70a0e00012f0100000701001b39678ac3f7dd")
 
     frame = FrameParser.parse_frame(packet)
     assert frame.valid
+    assert frame.crc_valid
     assert frame.class_byte == 0x0A
-    assert frame.sub_id == 0x0045  # 69
-    assert frame.obj_id == 0x0057  # 87
-    assert frame.payload.hex().startswith("43700000")
+    assert frame.type_high == 0x0001
+    assert frame.type_low_ver == 0x2F01
+    assert packet[1] + 4 == len(packet)

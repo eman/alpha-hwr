@@ -184,14 +184,18 @@ class TestFrameVectors:
         """Test parsing a valid response frame."""
         # Build a simple Class 3 response
         # Format: [Start][Len][SvcH][SvcL][Class][OpSpec][Data...][CRCH][CRCL]
+        # Length counts bytes [2] through the last APDU byte: two
+        # addresses plus class and APDU head. That is 4, not 6 - this
+        # fixture used to declare a frame two bytes longer than it was.
+        # Destination 0xF8, source 0xE7: a reply, not a request.
         frame = bytearray(
             [
                 0x24,  # Start (RESPONSE_START)
-                0x06,  # Length (data + service + CRC)
-                0xE7,
-                0xF8,  # Service ID
+                0x04,  # Length
+                0xF8,  # Destination (us)
+                0xE7,  # Source (the pump)
                 0x03,  # Class 3
-                0x81,  # OpSpec (response)
+                0x00,  # APDU head: ack OK, zero payload bytes
             ]
         )
 
@@ -220,11 +224,11 @@ class TestFrameVectors:
         frame = bytes(
             [
                 0x24,  # Start (valid)
-                0x06,  # Length
-                0xE7,
-                0xF8,  # Service ID
+                0x04,  # Length
+                0xF8,  # Destination
+                0xE7,  # Source
                 0x03,  # Class 3
-                0x81,  # OpSpec
+                0x00,  # APDU head
                 0xFF,
                 0xFF,  # Invalid CRC
             ]

@@ -1,6 +1,7 @@
 import struct
 
-from alpha_hwr.constants import RESPONSE_START
+from wire import class10_reply
+
 from alpha_hwr.protocol.codec import decode_float_be, encode_float_be
 from alpha_hwr.protocol.frame_parser import FrameParser
 from alpha_hwr.protocol.telemetry_decoder import TelemetryDecoder
@@ -22,15 +23,19 @@ class TestProtocolExpanded:
         # To get class=10, data[4] == 10.
         # To get sub/obj, len > 9.
 
-        pkt = bytes(
-            [RESPONSE_START, 0x05, 0x00, 0x00, 10, 0x00, 0x01, 0x02, 0x03, 0x04]
-        )
-        # Len=10. Index 4=10 (Class). Index 6,7=0x0102 (Sub). Index 8,9=0x0304 (Obj).
+        # A reply's bytes 6-9 are [00][TypeH][TypeL][Version], not a
+        # Sub-ID and Object ID. This frame used to be built with a length
+        # byte of 5 - declaring nine bytes while carrying ten - and an
+        # APDU head of 0, declaring no payload at all; it then asserted
+        # that four bytes of that absent payload had been extracted.
+        pkt = class10_reply(0x0001, 0x0203, b"\x04")
 
         res = FrameParser.parse_frame(pkt)
+        assert res.valid
+        assert res.crc_valid
         assert res.class_byte == 10
-        assert res.sub_id == 0x0102
-        assert res.obj_id == 0x0304
+        assert res.type_high == 0x0001
+        assert res.type_low_ver == 0x0203
 
     def test_class10_temperature_parsing(self):
         """Test Class 10 Temperature Object (Sub 300) Parsing."""
@@ -41,19 +46,15 @@ class TestProtocolExpanded:
         payload[4:8] = struct.pack(">f", 40.0)  # PCB
         payload[8:12] = struct.pack(">f", 30.0)  # Control Box
 
-        # Build packet: [START] [LEN?] [DEST] [SRC] [CLASS=10] [OP] [SUB_H] [SUB_L] [OBJ_H] [OBJ_L] [PAYLOAD...] [CRC_H] [CRC_L]
-        # Length is not checked strictly in parser, but structure is.
-        # SubID = 300 = 0x012C
-        # ObjID = 93 = 0x5D = 0x005D
+        # Temperatures answer as type 0x1602 version 2 (measured
+        # 2026-08-20). The frame this replaced declared a 20-byte length
+        # while carrying 24, an APDU head of 0 declaring no payload, and
+        # two zero bytes where the CRC goes - so it tested neither the
+        # length field nor the checksum.
+        packet = class10_reply(0x0002, 0x1602, bytes(payload))
 
-        header = bytes(
-            [RESPONSE_START, 20, 0x01, 0x02, 0x0A, 0x00, 0x01, 0x2C, 0x00, 0x5D]
-        )
-        crc = bytes([0x00, 0x00])
-        packet = header + payload + crc
-
-        # Call parse and decode
         frame = FrameParser.parse_frame(packet)
+        assert frame.crc_valid
         data = TelemetryDecoder.decode(frame)
 
         assert data["media_temperature_c"] == 25.5

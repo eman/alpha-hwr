@@ -239,6 +239,7 @@ class TestAlarmsWarningsDecoding:
         # Should only decode complete uint16
         assert result == [1]
 
+
 class TestAutoDecoding:
     """
     Routing a real reply to the right decoder.
@@ -306,36 +307,36 @@ class TestAutoDecoding:
         }
         assert types == {0x0003, 0x3502, 0x1602}
 
-    def test_decode_alarms_frame(self):
-        payload = encode_uint16_be(1) + encode_uint16_be(2)
-        frame = ParsedFrame(
-            valid=True,
-            frame_type="response",
-            class_byte=0x0A,
-            type_high=0,
-            type_low_ver=88,
-            payload=payload,
-            multi_apdu=False,
-            crc_valid=True,
-            raw_data=b"",
-        )
-        result = TelemetryDecoder.decode(frame)
-        assert result["active_alarms"] == [1, 2]
+    def test_alarms_and_warnings_are_not_routed(self):
+        """
+        The router cannot label an alarm list, and does not pretend to.
 
-    def test_decode_warnings_frame(self):
+        Reading Object 88 Sub 0 and Object 88 Sub 11 on 2026-08-20 returned
+        byte-identical frames, both typed 0x3A01 version 2. Whichever list
+        came back, the reply says the same thing - so only the caller that
+        issued the read knows, and DeviceInfoService.read_alarms() decodes
+        them itself rather than coming through here.
+        """
+        captured = bytes.fromhex("240df8e70a0900023a010000020000dc50")
+        frame = FrameParser.parse_frame(captured)
+
+        assert frame.crc_valid
+        assert (frame.type_high, frame.type_low_ver) == (0x0002, 0x3A01)
+        assert TelemetryDecoder.decode(frame) == {}
+
+    def test_alarm_codes_still_decode_when_the_caller_knows(self):
         frame = ParsedFrame(
             valid=True,
             frame_type="response",
             class_byte=0x0A,
-            type_high=11,
-            type_low_ver=88,
-            payload=encode_uint16_be(10),
+            type_high=0x0002,
+            type_low_ver=0x3A01,
+            payload=encode_uint16_be(42) + encode_uint16_be(7),
             multi_apdu=False,
             crc_valid=True,
             raw_data=b"",
         )
-        result = TelemetryDecoder.decode(frame)
-        assert result["active_warnings"] == [10]
+        assert TelemetryDecoder.decode_alarms_warnings(frame.payload) == [42, 7]
 
     def test_decode_non_class10_frame(self):
         """A Class 7 string reply carries no telemetry."""
@@ -353,9 +354,7 @@ class TestAutoDecoding:
         the pump did not recognise - here item 0. Read as an acknowledgement
         carrying an error code, this frame said "success, code 0".
         """
-        frame = FrameParser.parse_frame(
-            bytes.fromhex("2407f8e70a810040405ebf")
-        )
+        frame = FrameParser.parse_frame(bytes.fromhex("2407f8e70a810040405ebf"))
         assert frame.class_byte == 0x0A
         assert TelemetryDecoder.decode(frame) == {}
 

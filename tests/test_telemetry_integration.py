@@ -8,6 +8,8 @@ alarms/warnings using the new protocol architecture.
 
 import struct
 
+from wire import class10_reply
+
 from alpha_hwr.protocol.frame_parser import FrameParser
 from alpha_hwr.protocol.telemetry_decoder import TelemetryDecoder
 
@@ -266,28 +268,23 @@ class TestTelemetryDecoder:
         payload.extend(struct.pack(">f", power))
         payload.extend(struct.pack(">f", speed))
 
-        # Build Class 10 APDU: [Class][Op][Sub(2)][Obj(2)][Payload]
-        apdu = bytearray([0x0A, 0x90, 0x00, 0x45, 0x00, 0x57])  # Sub 69, Obj 87
-        apdu.extend(payload)
+        # The motor-state register answers as type 3 version 1. The frame
+        # this replaced put the requested Sub-ID and Object ID in bytes
+        # 6-9, declared a length eight bytes past the frame's end, and left
+        # two zero bytes where the CRC goes.
+        packet = class10_reply(0x0001, 0x0003, bytes(payload))
 
-        # Build GENI frame header
-        length = len(apdu) + 8
-        header = bytes(
-            [0x24, length, 0xF8, 0xE7, 0x0A, 0x90, 0x00, 0x45, 0x00, 0x57]
-        )
-
-        packet = header + payload + b"\x00\x00"  # CRC placeholder
-
-        # Parse frame
         frame = FrameParser.parse_frame(packet)
 
         assert frame is not None
+        assert frame.valid
+        assert frame.crc_valid
         assert frame.class_byte == 10
-        assert frame.obj_id == 87
-        assert frame.sub_id == 69
+        assert frame.type_high == 0x0001
+        assert frame.type_low_ver == 0x0003
 
-        # Decode telemetry
-        motor_data = TelemetryDecoder.decode_motor_state(frame.payload)
+        # object_body strips the object's own three-byte size header.
+        motor_data = TelemetryDecoder.decode_motor_state(frame.object_body)
 
         assert "voltage_ac_v" in motor_data
         assert abs(motor_data["voltage_ac_v"] - voltage) < 0.1

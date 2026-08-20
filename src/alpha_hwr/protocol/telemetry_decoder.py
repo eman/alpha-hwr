@@ -711,17 +711,13 @@ class TelemetryDecoder:
             case (0x1602, 0x0002):  # Temperature, 20-byte reply
                 return TelemetryDecoder.decode_temperature(frame.object_body)
 
-            case (88, 0):  # Active alarms
-                codes = TelemetryDecoder.decode_alarms_warnings(
-                    frame.object_body, True
-                )
-                return {"active_alarms": codes}
-
-            case (88, 11):  # Active warnings
-                codes = TelemetryDecoder.decode_alarms_warnings(
-                    frame.object_body, False
-                )
-                return {"active_warnings": codes}
+            # Alarms (88/0) and warnings (88/11) are deliberately absent.
+            # Both answer with type 0x3A01 version 2 - measured 2026-08-20,
+            # where the two reads returned byte-identical frames - so a
+            # reply cannot say which list it carries and this router cannot
+            # label it. Only the caller that issued the read knows, which is
+            # why DeviceInfoService.read_alarms() decodes them itself with
+            # decode_alarms_warnings() rather than coming through here.
 
             case _:
                 # Unknown standard object - try register-read response decoder first

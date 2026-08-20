@@ -42,10 +42,7 @@ from dataclasses import dataclass, field
 
 from ..constants import CLASS_10, RESPONSE_START
 from .apdu import (
-    Class10Ack,
-    apdu_ack_is_ok,
     apdu_payload_len,
-    class10_reply_is_ok,
 )
 
 #: Classes whose acknowledgement is a bare frame with no identifier
@@ -90,6 +87,11 @@ RESPONSE_TYPES: dict[tuple[int, range], tuple[int, int]] = {
     (53, range(454, 455)): (0x0003, 0xB301),  # trend: power-on time
     # Telemetry. These were absent, so every telemetry read was matched by
     # class alone and any Class 10 notification could answer one.
+    # Alarms and warnings answer with one and the same type, so a reply
+    # cannot say which of the two it is; only the request knows. Measured
+    # 2026-08-20: reading 88/0 and 88/11 returned byte-identical frames.
+    (88, range(1)): (0x0002, 0x3A01),  # active alarms
+    (88, range(11, 12)): (0x0002, 0x3A01),  # active warnings
     (87, range(69, 70)): (0x0001, 0x0003),  # motor state
     (93, range(290, 291)): (0x0002, 0x3502),  # flow / head
     (93, range(300, 301)): (0x0002, 0x1602),  # temperatures
