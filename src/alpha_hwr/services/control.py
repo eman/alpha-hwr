@@ -80,7 +80,6 @@ import logging
 from typing import TYPE_CHECKING, ClassVar
 
 from ..constants import ControlMode
-from ..core.transport import is_class10_set
 from ..exceptions import READ_ERRORS, ConnectionError
 from ..models import SetpointInfo, WriteCommand, WriteResult
 from ..protocol import FrameBuilder
@@ -1614,33 +1613,20 @@ class ControlService(BaseService):
         For control commands, we attempt to verify success by waiting for a response.
         If no response is received, we still consider it successful (fire-and-forget).
         """
-        # A Class 10 SET is never acknowledged. Measured 2026-08-20 against
-        # an ALPHA HWR: no-op writes to Object 84 Sub 1 and Object 91 Sub
-        # 430 drew zero replies in six seconds, three runs each. Waiting
-        # for one spent a full second per write on a frame that was never
-        # coming - and the client depended on that second without knowing
-        # it, because the pump answers nothing at all for 200-400 ms after
-        # a SET, and one second is longer than 400 ms.
+        # A reply only counts if it comes back on the class the command
+        # was sent on. This matters most for the Class 3 run commands:
+        # their acknowledgement is a bare two-byte frame with nothing to
+        # match on but the class, so without this gate a Class 10 telemetry
+        # notification arriving first would be read as the answer.
         #
-        # The transport now holds that quiet period deliberately (see
-        # POST_SET_QUIET), so the wait can go. The write still has to be
-        # read back to know what the pump stored; that is what the verified
-        # write path is for.
-        if is_class10_set(packet):
-            try:
-                await self.transport.write(packet)
-            except READ_ERRORS as e:
-                logger.warning(f"{description} failed: {e}")
-                return False
-            logger.debug(f"{description}: sent (Class 10 SETs are not acked)")
-            return True
-
-        # Everything else may be answered, and a reply only counts if it
-        # comes back on the class the command was sent on. This matters
-        # most for the Class 3 run commands: their acknowledgement is a
-        # bare two-byte frame with nothing to match on but the class, so
-        # without this gate a Class 10 telemetry notification arriving
-        # first would be read as the answer.
+        # Class 10 SETs *are* acknowledged, in 90-120 ms measured through
+        # this client against an ALPHA HWR, with the canonical nine-byte
+        # 24 05 F8 E7 0A 01 00 AE A2. An earlier revision here skipped the
+        # wait on the strength of a probe that never saw one - because the
+        # probe wrote frames whole, and this pump ignores a GENI frame that
+        # is not split into 20-byte GATT writes whatever the negotiated
+        # MTU says. The frames never arrived, so of course nothing answered
+        # them.
         command = Command.for_request(
             packet,
             expect_short_ack=True,

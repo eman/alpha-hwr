@@ -195,77 +195,56 @@ async def test_disconnect_clears_the_pacing_clock(
     assert slept == []
 
 
-class TestPostSetQuietPeriod:
+class TestFramesAreChunkedForThePump:
     """
-    The pump answers nothing for ~400 ms after a Class 10 SET.
+    This pump needs GENI frames split into 20-byte GATT writes.
 
-    Measured 2026-08-20: a read at +50, +100 or +200 ms goes unanswered
-    (0/3 each); the same read at +400 ms answers in ~55 ms (3/3). The write
-    itself is applied throughout - the window suppresses replies, not
-    processing - so only a frame expecting an answer has to wait for it.
+    Not an optimisation, and not about the negotiated ATT MTU - which is 65
+    on this link, easily enough for a 27-byte frame in one write. Measured:
+    the Object 84 Sub 1 overview write sent as a single 27-byte
+    write_gatt_char draws no reply at all, while the identical bytes
+    chunked at 20 are acknowledged in 111 ms.
+
+    An earlier reading of that silence was that Class 10 SETs are never
+    acknowledged. They are, in 90-120 ms; the frames simply were not
+    arriving.
     """
 
     @pytest.mark.asyncio
-    async def test_a_read_after_a_set_waits_out_the_window(
+    async def test_a_frame_over_the_limit_is_split(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        transport, slept = _transport_recording_sleeps(monkeypatch)
+        transport, _ = _transport_recording_sleeps(monkeypatch)
 
         await transport.write(_SET)
-        slept.clear()
-        await transport.write(_GET)
 
-        assert any(s >= 0.3 for s in slept), (
-            f"a read issued straight after a SET must wait out the pump's "
-            f"quiet period; slept {slept}"
-        )
+        written = [
+            c[0][1] for c in transport.client.write_gatt_char.call_args_list
+        ]
+        assert len(written) > 1, "a 27-byte frame must not go out whole"
+        assert all(len(chunk) <= 20 for chunk in written)
+        assert b"".join(written) == _SET
 
     @pytest.mark.asyncio
-    async def test_a_second_set_does_not_wait(
+    async def test_a_frame_within_the_limit_goes_in_one_write(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """
-        Consecutive writes go back to back, as the GO app's do.
+        transport, _ = _transport_recording_sleeps(monkeypatch)
 
-        267 of the 289 consecutive SET-to-SET pairs in the capture corpus
-        are under 200 ms, and they include the five-layer schedule uploads
-        that demonstrably work. Holding here would put 400 ms between every
-        layer for nothing.
-        """
-        transport, slept = _transport_recording_sleeps(monkeypatch)
+        await transport.write(_GET)
 
-        await transport.write(_SET)
-        slept.clear()
-        await transport.write(_SET)
-
-        assert all(s < 0.3 for s in slept), (
-            f"a write following a write must not wait; slept {slept}"
-        )
+        written = [
+            c[0][1] for c in transport.client.write_gatt_char.call_args_list
+        ]
+        assert written == [_GET]
 
     @pytest.mark.asyncio
-    async def test_the_window_still_applies_after_the_second_set(
+    async def test_chunks_are_paced(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Skipping the hold for a SET must not cancel the next one's."""
+        """The pump drops traffic that arrives faster than SEND_PACING."""
         transport, slept = _transport_recording_sleeps(monkeypatch)
 
         await transport.write(_SET)
-        await transport.write(_SET)
-        slept.clear()
-        await transport.write(_GET)
 
-        assert any(s >= 0.3 for s in slept), (
-            f"the second SET arms its own quiet period; slept {slept}"
-        )
-
-    @pytest.mark.asyncio
-    async def test_a_read_after_a_read_does_not_wait(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        transport, slept = _transport_recording_sleeps(monkeypatch)
-
-        await transport.write(_GET)
-        slept.clear()
-        await transport.write(_GET)
-
-        assert all(s < 0.3 for s in slept), f"slept {slept}"
+        assert slept, "chunks of one frame must be paced apart"

@@ -98,24 +98,13 @@
   builtin - so no single `except` clause caught both. It now inherits from
   both, which is what anyone writing `except ConnectionError` expects.
 
-- **Class 10 writes waited a second for an acknowledgement that never
-  comes.** A Class 10 SET draws no reply from this pump at all — zero
-  frames in a six-second listen, three runs, on two different objects.
-  Both places that waited for one explained the silence as a two-phase
-  commit whose acknowledgement "usually lands after the response window
-  has closed"; nothing lands.
-
-  What is real is the quiet period afterwards: **the pump answers nothing,
-  not even an unrelated read, for 200–400 ms after any Class 10 SET.** A
-  read at +50, +100 or +200 ms goes unanswered; the same read at +400 ms
-  answers in ~55 ms. The client had been clearing that window by accident,
-  since a second is longer than 400 ms — so removing the wait without
-  adding a deliberate hold would have started dropping reads, including
-  the limits-tail read a temperature write must echo back.
-
-  The hold is now armed in `Transport.write()` from the frame's own class
-  and operation bits, so no call site can forget it, and the pointless
-  wait is gone.
+- **A GENI frame must be split into 20-byte GATT writes.** The transport
+  has always chunked at `BLE_MTU_LIMIT = 20`, and it turns out that is a
+  pump requirement rather than a guess about the radio: with the ATT MTU
+  negotiated at 65, a 27-byte frame sent in one `write_gatt_char` is
+  ignored outright, while the identical bytes chunked at 20 are
+  acknowledged in 111 ms. Documented, and pinned by tests, so it does not
+  get "optimised" away.
 
 - **The dedicated Class 10 setpoint write was refused, always.** It
   addressed sub-id first where every Class 10 SET this pump accepts is

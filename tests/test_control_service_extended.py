@@ -30,9 +30,9 @@ class TestSetConstantSpeed:
         result = await mock_client_simple.control.set_constant_speed(2500.0)
 
         assert result is True
-        # A Class 10 SET is never acknowledged, so it goes out through
-        # transport.write() rather than consuming a query.
-        assert mock_client_simple.transport.write.call_count >= 1
+        # The Class 10 SET is acknowledged, so it goes through
+        # send_command() and consumes a query.
+        assert mock_client_simple.transport.query.call_count >= 2
 
     @pytest.mark.asyncio
     async def test_set_constant_speed_min_value(self, mock_client_simple):
@@ -156,9 +156,9 @@ class TestSetAutoadaptModes:
         result = await mock_client_simple.control.set_autoadapt_radiator(3.0)
 
         assert result is True
-        # A Class 10 SET is never acknowledged, so it goes out through
-        # transport.write() rather than consuming a query.
-        assert mock_client_simple.transport.write.call_count >= 1
+        # The Class 10 SET is acknowledged, so it goes through
+        # send_command() and consumes a query.
+        assert mock_client_simple.transport.query.call_count >= 2
 
     @pytest.mark.asyncio
     async def test_set_autoadapt_radiator_min_value(self, mock_client_simple):
@@ -300,12 +300,6 @@ class TestControlServiceErrorHandling:
         self, mock_client_simple
     ):
         """Test set_constant_speed when transport raises exception."""
-        # The setpoint write is a Class 10 SET, which is never
-        # acknowledged and so goes through transport.write(). A transport
-        # failure has to surface from there.
-        mock_client_simple.transport.write = AsyncMock(
-            side_effect=BleakError("Transport error")
-        )
         mock_client_simple.transport.query = AsyncMock(
             side_effect=BleakError("Transport error")
         )
@@ -320,12 +314,6 @@ class TestControlServiceErrorHandling:
         self, mock_client_simple
     ):
         """Test set_proportional_pressure when transport raises exception."""
-        # The setpoint write is a Class 10 SET, which is never
-        # acknowledged and so goes through transport.write(). A transport
-        # failure has to surface from there.
-        mock_client_simple.transport.write = AsyncMock(
-            side_effect=BleakError("Transport error")
-        )
         mock_client_simple.transport.query = AsyncMock(
             side_effect=BleakError("Transport error")
         )
@@ -374,9 +362,8 @@ class TestControlServiceIntegration:
             is True
         )
 
-        # Each mode switch writes its Class 10 SETs; none of them is
-        # acknowledged, so they are counted on write() rather than query().
-        assert mock_client_simple.transport.write.call_count >= 4
+        # Each mode switch makes query calls (set_mode + set_setpoint).
+        assert mock_client_simple.transport.query.call_count >= 8
 
     @pytest.mark.asyncio
     async def test_setpoint_validation_across_modes(self, mock_client_simple):

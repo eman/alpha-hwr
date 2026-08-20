@@ -40,6 +40,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+#: How long to wait for a Class 10 write's acknowledgement.
+#:
+#: Measured through this client against an ALPHA HWR: 90-120 ms across
+#: Object 86 Sub 10, Object 91 Sub 430 and Object 84 Sub 1. The capture
+#: corpus puts the whole distribution at 36-193 ms with nothing over
+#: 295 ms anywhere. 400 ms clears all of it.
+SET_ACK_TIMEOUT = 0.4
+
 
 class ScheduleService(BaseService):
     """
@@ -819,19 +827,30 @@ class ScheduleService(BaseService):
 
             logger.debug(f"Writing Class 10 command: {frame.hex()}")
 
-            # A Class 10 SET draws no acknowledgement - not a late one, no
-            # acknowledgement at all. This used to wait three seconds for
-            # it, with a comment explaining the silence as a two-phase
-            # commit whose ack "usually lands after the response window has
-            # closed". Measured 2026-08-20: a no-op write to Object 84 Sub
-            # 1 drew zero frames in six seconds, three runs, and the same
-            # for Object 91 Sub 430.
+            # A Class 10 SET is acknowledged with the bare nine-byte
+            # 24 05 F8 E7 0A 01 00 AE A2, in 90-120 ms measured through
+            # this client. The acknowledgement carries no identifiers, so
+            # it can only be attributed to the command in flight - hence
+            # expect_short_ack.
             #
-            # What is real is the quiet period afterwards - the pump
-            # answers nothing for 200-400 ms while it commits - and the
-            # transport now holds that itself. Only a readback can say
-            # whether the pump took the write.
-            await self.transport.write(frame)
+            # It is not the verdict. The pump clamps values it dislikes
+            # rather than refusing them, so only a readback establishes
+            # what was stored; this just says the frame arrived.
+            response = await self.transport.send_command(
+                frame,
+                Command(
+                    expect_short_ack=True,
+                    description="Class 10 write",
+                ),
+                timeout=SET_ACK_TIMEOUT,
+            )
+
+            if response is None:
+                logger.warning(
+                    "No acknowledgement for the Class 10 write; the "
+                    "readback will say whether it landed"
+                )
+
             return True
 
         except READ_ERRORS as e:

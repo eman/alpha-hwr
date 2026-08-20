@@ -280,36 +280,46 @@ does not account for a limiter that is enabled. On this unit neither is, so
 a setpoint here is delivered as written. On a unit with MaxFlow enabled it
 would not be, and nothing in the type-301 range would say so.
 
-## A Class 10 SET is never acknowledged, and silences the pump for 400 ms
+## Class 10 SETs *are* acknowledged, in 90-120 ms
 
-Two no-op write-backs — the ClockProgramOverview at Object 84 Sub 1 and
-the temperature-range config at Object 91 Sub 430, each written back
-byte-identically to what the pump already held, so nothing changed.
+Measured through this client against an ALPHA HWR, capturing every inbound
+frame during a temperature-range write:
 
-**The SET draws no reply at all.** Zero frames in a six-second listen,
-three runs, both objects. Not a late acknowledgement — none.
+    Object 86 Sub 10   +119.6 ms   24 05 F8 E7 0A 01 00 AE A2
+    Object 91 Sub 430  +119.8 ms   24 05 F8 E7 0A 01 00 AE A2
+    Object 84 Sub 1     +89.8 ms   24 05 F8 E7 0A 01 00 AE A2
 
-**Nothing else is answered either, for 200–400 ms afterwards:**
+Consistent with the capture corpus, which puts SET latency at 36-193 ms and
+nothing anywhere over 295 ms. `SET_ACK_TIMEOUT = 0.4` clears all of it.
 
-    GET at +  50 ms -> answered 0/3
-    GET at + 100 ms -> answered 0/3
-    GET at + 200 ms -> answered 0/3
-    GET at + 400 ms -> answered 3/3   (~55 ms, as on an idle link)
-    GET at + 800 ms -> answered 3/3
-    GET at +1200 ms -> answered 3/3
+The acknowledgement is not the verdict. This pump clamps values it dislikes
+rather than refusing them, so only a readback says what was stored.
 
-The link stays up throughout and the write is applied. Both comments in
-this client said the opposite — that the acknowledgement "usually lands
-after the response window has closed", explained as a two-phase commit.
-Nothing lands, and the quiet period neither comment mentioned is the part
-that is real.
+### The measurement that said otherwise, and why it was wrong
 
-This is what the Grundfos GO app's `afterSetSendPause = 2500` is guarding:
-it is imposed on the SET → non-SET transition, i.e. before the next read.
+An earlier entry here claimed the opposite - that a Class 10 SET draws no
+reply at all, and that the pump then answers nothing for 200-400 ms. Both
+came from a raw probe that wrote each GENI frame in a single
+`write_gatt_char` call, and **this pump ignores a frame that is not split
+into 20-byte GATT writes**, whatever the ATT MTU has been negotiated to.
 
-Until this was measured the client cleared the window by accident. Every
-SET waited a full second for an acknowledgement that was never coming, and
-a second is longer than 400 ms.
+The negotiated MTU on this link is 65, so 27 bytes fits comfortably at the
+ATT layer. It still does not work:
+
+    Object 84 Sub 1 SET, one 27-byte write   -> no reply
+    the same bytes, chunked at 20            -> acked in 111 ms
+    Object 84 Sub 1 GET, 11 bytes, one write -> answered in 69 ms
+
+Reads are 11 bytes and fit, which is why every read in that probe worked
+and every write did not. The writes were never arriving, so nothing
+answered them, and the "deaf window" was the pump's own reassembly timer
+recovering from a truncated frame - the same mechanism as
+esphome-alpha-hwr #200, seen from the other side.
+
+Two lessons worth keeping. A negative result from a hand-rolled probe is
+only as good as the probe: check it can do something you know works before
+believing what it says is impossible. And `BLE_MTU_LIMIT = 20` in the
+transport is a pump requirement, not a guess about the radio.
 
 ## An Object 91 Sub 430 write is visible ~450 ms after it is issued
 
@@ -331,15 +341,12 @@ A consequence worth stating, because it removes a failure mode rather than
 adding one: reading *too early* does not return a stale value, it returns
 nothing. The confirm already retries an unanswered read.
 
-## The quiet window suppresses replies, not processing
+## The GO app sends consecutive SETs back to back
 
-A SET sent inside the 200-400 ms window is still applied; only a frame that
-expects an answer has to wait. This was left open when the window was first
-measured, because the obvious test - write, then write again 50 ms later,
-then read back - is confounded on Obj 91 by the mode request below. The
-captures and the vendor's own app settle it instead.
+Recorded while chasing a window that turned out not to exist (above). It
+still says something true about pacing.
 
-**The GO app sends consecutive SETs back to back.** Across the corpus there
+**Consecutive SETs are not spaced.** Across the corpus there
 are 289 consecutive SET-to-SET pairs:
 
     min 43 ms   p50 62   p90 121
@@ -351,7 +358,7 @@ Those uploads write five layers and then commit, and they work: if a SET
 inside the window were dropped, every upload would lose four of its five
 layers, and every single-event save would lose four of its five slots.
 
-**The app arms its pause only before a non-SET.** From
+**The app's 2500 ms pause is armed only before a non-SET.** From
 ``DongleHelper.handleOutgoingQueue``:
 
     } else if (isSetOperation(t) && !isSetOperation(peekNextTelegramInQueue())) {
@@ -363,16 +370,9 @@ layers, and every single-event save would lose four of its five slots.
 The ``else`` branch clears the pause outright, so consecutive writes are
 deliberately not spaced. The 2500 ms is a read guard, not a write guard.
 
-**GENIbus agrees in principle.** The Application Programming Manual
-promises a reply per request and says "the SET operation never returns
-anything but the APDU Head" - so the pause is about being able to read a
-reply, not about the write landing. Worth noting this pump returns not even
-the APDU head for a Class 10 SET, so it is more silent than the manual
-describes.
-
-The client therefore skips the hold when the next frame out is itself a
-Class 10 SET. A five-layer schedule upload would otherwise spend two
-seconds waiting for nothing.
+**GENIbus agrees.** The Application Programming Manual promises a reply per
+request and says "the SET operation never returns anything but the APDU
+Head" - which is exactly the nine-byte frame measured above.
 
 ## The raw Obj 91 write does not take on its own
 

@@ -182,27 +182,26 @@ class TestScheduleState:
             ]
         )
 
-        # Sequence of query() calls. The writes themselves no longer
-        # appear here: a Class 10 SET draws no acknowledgement from the
-        # pump, so it goes out through transport.write() and consumes no
-        # response. This list used to carry a b"" in each write's place,
-        # which meant the verify read was being answered with the write's
-        # empty slot and every subsequent answer was off by one.
-        #
+        # Sequence of query() calls:
         # 1. enable() reads current state
-        # 2. enable() verifies
-        # 3. disable() reads current state
-        # 4. disable() verifies
+        # 2. enable() writes - the Class 10 SET is acknowledged, and the
+        #    empty response stands in for that acknowledgement
+        # 3. enable() verifies
+        # 4. disable() reads current state
+        # 5. disable() writes
+        # 6. disable() verifies
         responses = [
             build_class10_response(
                 84, 1, bytes(payload_disabled)
             ),  # Read for enable
+            b"",  # Write acknowledgement for enable
             build_class10_response(
                 84, 1, bytes(payload_enabled)
             ),  # Verify enable worked
             build_class10_response(
                 84, 1, bytes(payload_enabled)
             ),  # Read for disable
+            b"",  # Write acknowledgement for disable
             build_class10_response(
                 84, 1, bytes(payload_disabled)
             ),  # Verify disable worked
@@ -218,8 +217,8 @@ class TestScheduleState:
         result_disable = await mock_client_simple.schedule.disable()
         assert result_disable is True
 
-        # Two reads and two verifies; the writes consume no response.
-        assert mock_client_simple.transport.query.call_count == 4
+        # Verify query was called 6 times total
+        assert mock_client_simple.transport.query.call_count == 6
 
 
 class TestScheduleReadEntries:

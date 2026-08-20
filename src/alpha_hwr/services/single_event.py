@@ -24,6 +24,7 @@ watching a window open with the motor at 0 RPM.
 
 from __future__ import annotations
 
+import asyncio
 import calendar
 import logging
 import time
@@ -39,6 +40,14 @@ logger = logging.getLogger(__name__)
 #: Object 84 sub-id of the first single-event slot.
 SUB_FIRST_SLOT = 900
 
+#: How long to let a single-event write settle before reading it back.
+#:
+#: An Object 91 config write measured 449-486 ms from issue to visible on
+#: this pump, and Object 84 is the faster of the two - the ESPHome port
+#: measured a schedule layer visible within 100 ms of its acknowledgement.
+#: This is generous against both.
+CONFIRM_DELAY = 1.0
+
 #: Wire actions. Note this is the opposite sense from the weekly schedule's
 #: ``default_action``, where 0x01 means Stop.
 ACTION_STOP = 0x01
@@ -50,6 +59,24 @@ TYPE_SINGLE_EVENT = 0xDC01
 #: Bytes of the single-event structure.
 STRUCT_LEN = 0x0A
 
+#: Highest slot the *protocol* can address, whatever the pump implements.
+#:
+#: The sub-id is ``900 + slot`` and the weekly schedule's layer records
+#: start at 1000, so slot 100 does not address a single event at all - it
+#: addresses layer 0. This is derived from "1000 is spoken for", not from
+#: any observed pump limit; the only capture evidence covers 900-904.
+#:
+#: Checked *before* the pump is read, deliberately. Deferring it means an
+#: impossible slot on a broken link reports "the overview could not be
+#: read", blaming the link for an argument that could never have been
+#: right whatever the link was doing.
+SLOT_LIMIT = 100
+
+#: The pump stores each timestamp as a 32-bit unsigned Unix time, so the
+#: representable range runs to 2106. The GENI profile declares
+#: ``ClockProgramSingleEvent``'s begin and end as uint32_t.
+MAX_PUMP_TIME = 0xFFFFFFFF
+
 
 def to_pump_time(when: datetime) -> int:
     """
@@ -59,7 +86,13 @@ def to_pump_time(when: datetime) -> int:
     they were UTC. A naive datetime is taken as local, which is the only
     reading that makes sense for a schedule.
     """
-    return calendar.timegm(when.timetuple())
+    stamped = calendar.timegm(when.timetuple())
+    if not 0 <= stamped <= MAX_PUMP_TIME:
+        raise ValueError(
+            f"{when} is outside the range the pump can store "
+            f"(1970-01-01 to 2106-02-07); it encodes as {stamped}"
+        )
+    return stamped
 
 
 def from_pump_time(value: int) -> datetime:
@@ -208,15 +241,26 @@ class SingleEventService(BaseService):
         """
         Build the write frame for one slot.
 
-        ``[0A][B3][54][SubH][SubL][00][DC][01][00][00][0A][enabled][action]
+        ``[0A][93][54][SubH][SubL][00][DC][01][00][00][0A][enabled][action]
         [begin u32 BE][end u32 BE]`` - the object is addressed first as a
         single byte here, then a 16-bit sub-id.
+
+        The head is ``0x93``: SET, with the 19 payload bytes that follow
+        it. It was ``0xB3`` - SET with 51 - borrowed from the schedule
+        layer write, whose 53-byte APDU really does carry 51. This frame
+        carries 19, so it declared a length it did not have.
+
+        The pump accepts both, so nothing was visibly failing; the capture
+        corpus is what settles it. Every one of the 29 single-event writes
+        the Grundfos GO app makes uses ``0x93``, and the 8 layer writes
+        use ``0xB3``. A firmware that checked the field would have refused
+        ours with no diagnostic.
         """
         sub = SUB_FIRST_SLOT + slot
         apdu = bytearray(
             [
                 0x0A,  # Class 10
-                0xB3,  # OpSpec: long SET
+                0x93,  # SET, 19 payload bytes
                 0x54,  # Object 84
                 (sub >> 8) & 0xFF,
                 sub & 0xFF,
@@ -236,12 +280,60 @@ class SingleEventService(BaseService):
         apdu.extend(to_pump_time(end).to_bytes(4, "big") if end else bytes(4))
         return bytes(apdu)
 
+    async def confirm(
+        self,
+        slot: int,
+        begin: datetime,
+        end: datetime,
+        action: int,
+    ) -> bool:
+        """
+        Read a slot back and check the pump kept what was asked for.
+
+        The ACTION byte is compared, and that is the point of this method.
+        It is half the meaning of a single event - ``0x01`` holds the pump
+        off across the window (which is what a vacation *is*), ``0x02``
+        runs it once - and a confirm that checked only the window and the
+        enabled flag would settle a vacation as written while the pump was
+        scheduled to run for a week, or the reverse.
+
+        Not used on a clear: clearing disables the slot whatever it held,
+        so there is no requested action to compare against.
+        """
+        stored = await self.read(slot)
+        if stored is None:
+            logger.error(f"Could not read single-event slot {slot} back")
+            return False
+
+        if not stored.enabled:
+            logger.error(f"The pump did not keep single event {slot}")
+            return False
+
+        if stored.action != action:
+            logger.error(
+                f"Single event {slot} was written as "
+                f"{'Stop' if action == ACTION_STOP else 'Run'} but the pump "
+                f"stored {'Stop' if stored.action == ACTION_STOP else 'Run'}"
+            )
+            return False
+
+        if stored.begin != begin or stored.end != end:
+            logger.error(
+                f"Single event {slot} window differs: asked for "
+                f"{begin:%Y-%m-%d %H:%M} -> {end:%Y-%m-%d %H:%M}, pump has "
+                f"{stored.begin:%Y-%m-%d %H:%M} -> {stored.end:%Y-%m-%d %H:%M}"
+            )
+            return False
+
+        return True
+
     async def write(
         self,
         slot: int,
         begin: datetime,
         end: datetime,
         action: int = ACTION_RUN,
+        confirm: bool = True,
     ) -> bool:
         """
         Write one slot and commit it.
@@ -252,13 +344,32 @@ class SingleEventService(BaseService):
             end: Wall clock it closes.
             action: :data:`ACTION_RUN` for a one-off run,
                 :data:`ACTION_STOP` for a vacation.
+            confirm: Read the slot back and check the pump kept it,
+                including the ACTION byte. Pass False only when the caller
+                is going to verify some other way.
 
         Returns:
-            True if the frame was sent and committed. Whether the pump
-            kept it is a separate question - read it back.
+            True if the pump holds what was asked for. With ``confirm``
+            off, only that the frame was sent and committed.
         """
+        if not await self._slot_is_addressable(slot):
+            return False
+
         if end <= begin:
             logger.error(f"A window must end after it starts: {begin} -> {end}")
+            return False
+
+        # A window that has already closed cannot ever open, and writing it
+        # spends one of the pump's five slots on an event that will never
+        # run. A window that has already *started* is legitimate - it just
+        # begins part-way through - so only the end is compared.
+        now = datetime.now()  # noqa: DTZ005 - wall clock, to match the pump
+        if end <= now:
+            logger.error(
+                f"That window closed at {end:%Y-%m-%d %H:%M}, before the "
+                f"current wall clock of {now:%Y-%m-%d %H:%M}; it would "
+                f"occupy a slot and never run"
+            )
             return False
 
         try:
@@ -277,10 +388,60 @@ class SingleEventService(BaseService):
             f"{end:%Y-%m-%d %H:%M} "
             f"({'off' if action == ACTION_STOP else 'run'})"
         )
+
+        if not confirm:
+            return True
+
+        # The pump answers nothing for a few hundred milliseconds after a
+        # write while it commits, so a readback taken immediately is not
+        # answered at all. See POST_SET_QUIET in the transport - the hold
+        # is applied there, this is the settle on top of it.
+        await asyncio.sleep(CONFIRM_DELAY)
+        return await self.confirm(slot, begin, end, action)
+
+    async def _slot_is_addressable(self, slot: int) -> bool:
+        """
+        Two bounds, in this order, because the order is the point.
+
+        The protocol envelope comes first and needs no device read: a slot
+        at or past :data:`SLOT_LIMIT` addresses a schedule layer rather
+        than a single event, and that is true whatever the pump is doing.
+
+        The pump's own count comes second, from the overview, because it
+        varies by model. A slot the protocol allows but this pump lacks
+        still reports the link failure when the link is down - deliberately,
+        since the count comes from the pump and without it we do not know.
+        """
+        if slot < 0 or slot >= SLOT_LIMIT:
+            logger.error(
+                f"Slot {slot} is not a single event: sub-id "
+                f"{SUB_FIRST_SLOT + slot} lands in the schedule layers, "
+                f"which start at {SUB_FIRST_SLOT + SLOT_LIMIT}"
+            )
+            return False
+
+        count = await self.slot_count()
+        if count is None:
+            logger.error(
+                f"Cannot tell whether slot {slot} exists: the schedule "
+                f"overview could not be read"
+            )
+            return False
+
+        if slot >= count:
+            logger.error(
+                f"This pump has {count} single-event slots, so slot "
+                f"{slot} does not exist"
+            )
+            return False
+
         return True
 
     async def clear(self, slot: int) -> bool:
         """Empty one slot."""
+        if not await self._slot_is_addressable(slot):
+            return False
+
         try:
             await self.transport.write(
                 self._build_geni_packet(
@@ -311,12 +472,41 @@ class SingleEventService(BaseService):
         return await self.write(slot, begin, end, action=ACTION_STOP)
 
     async def clear_vacation(self) -> bool:
-        """Clear the first enabled ``Stop`` event."""
+        """
+        Clear the vacation that is running, or the next one due.
+
+        This used to clear the *first* enabled Stop event in slot order,
+        with no reference to the clock. A finished vacation sitting in an
+        early slot therefore shadowed a live one later on: the call
+        reported success, and the pump stayed off.
+
+        ``find_free_slot`` one method up has always been clocked. The
+        asymmetry was the bug.
+        """
         events = await self.read_all()
         if events is None:
             return False
-        for event in events:
-            if event.enabled and event.is_vacation:
-                return await self.clear(event.slot)
+
+        now = datetime.now()  # noqa: DTZ005 - wall clock, to match the pump
+        vacations = [e for e in events if e.enabled and e.is_vacation]
+
+        live = [e for e in vacations if e.begin <= now < e.end]
+        if live:
+            return await self.clear(live[0].slot)
+
+        upcoming = sorted(
+            (e for e in vacations if e.begin > now), key=lambda e: e.begin
+        )
+        if upcoming:
+            return await self.clear(upcoming[0].slot)
+
+        expired = [e for e in vacations if e.end <= now]
+        if expired:
+            logger.info(
+                f"No live or upcoming vacation; clearing the expired one "
+                f"in slot {expired[0].slot}"
+            )
+            return await self.clear(expired[0].slot)
+
         logger.info("No vacation to clear")
         return True

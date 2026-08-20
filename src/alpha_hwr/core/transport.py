@@ -63,50 +63,6 @@ MIN_LENGTH_BYTE = 5
 MAX_PDU_LEN = 253
 MAX_TELEGRAM_LEN = MAX_PDU_LEN + 4
 
-#: How long the pump answers nothing after a Class 10 SET.
-#:
-#: Measured 2026-08-20 on an ALPHA HWR, twice over, with a no-op write to
-#: Object 84 Sub 1 and another to Object 91 Sub 430. Two things came out of
-#: it, and both contradict what this client believed:
-#:
-#: * **A Class 10 SET is never acknowledged.** Not late, not at all - 0
-#:   replies in 6 seconds, three runs, both objects. The comments here and
-#:   in the schedule service said the acknowledgement "usually lands after
-#:   the response window has closed"; nothing lands.
-#: * **Nothing else is answered either, for 200-400 ms afterwards.** A read
-#:   issued at +50, +100 or +200 ms goes unanswered (0/3 each); the same
-#:   read at +400 ms and beyond answers normally in ~55 ms (3/3 each). The
-#:   link stays up throughout and the write itself is applied.
-#:
-#: That is why the Grundfos GO app holds the bus quiet for 2500 ms after
-#: any SET before reading (``DongleHelper.afterSetSendPause``) - a
-#: conservative version of this same rule.
-#:
-#: The client used to clear the window by accident: every SET waited a full
-#: second for an acknowledgement that was never coming, and a second is
-#: longer than 400 ms. Making it deliberate keeps the spacing and returns
-#: the second.
-#:
-#: **The window suppresses replies, not processing.** A SET sent inside it
-#: is still applied, so only a frame that expects an answer has to wait.
-#: Three things agree:
-#:
-#: * The GO app sends consecutive SETs back to back - 267 of the 289
-#:   consecutive SET-to-SET pairs in the capture corpus are under 200 ms,
-#:   median 62 ms, the tightest 43 ms - and those include the five-layer
-#:   schedule uploads and the five single-event slot writes, which work.
-#:   If a SET in the window were dropped, an upload would lose four of its
-#:   five layers every time.
-#: * The app's own scheduler arms the pause only on a SET followed by a
-#:   non-SET, and explicitly clears it otherwise
-#:   (``DongleHelper.handleOutgoingQueue``: ``noSentBefore = 0L``).
-#: * GENIbus itself only promises a reply per request; the pause is about
-#:   being able to read one, not about the write landing.
-#:
-#: So the hold is skipped when the next frame out is itself a Class 10
-#: SET, which is what :func:`Transport.write` does.
-POST_SET_QUIET = 0.4
-
 #: How long a partial frame may sit before it is abandoned.
 #:
 #: The pump paces fragments about 50 ms apart, so a gap of a full second
@@ -271,45 +227,21 @@ class Transport:
         # between chunks of one frame and between separate commands alike.
         self._last_write: float | None = None
 
-        # Event-loop time before which the pump will answer nothing,
-        # because a Class 10 SET has just gone out. See POST_SET_QUIET.
-        self._quiet_until: float | None = None
-
         logger.debug("Transport initialized")
 
-    async def _pace(self, outgoing: bytes | None = None) -> None:
+    async def _pace(self) -> None:
         """
-        Wait out the inter-write gap, and any quiet period a SET imposed.
+        Wait out the inter-write gap.
 
-        The two are separate constraints: SEND_PACING is about how fast the
-        pump's radio will take bytes, POST_SET_QUIET is about it answering
-        nothing while it commits a write.
-
-        A frame sent inside the quiet period is still *applied* - the pump
-        simply will not reply to anything until it is over. So the hold is
-        skipped when ``outgoing`` is itself a Class 10 SET, exactly as the
-        Grundfos GO app does: a write does not need an answer, and making
-        one wait would put 400 ms between every layer of a schedule upload
-        for nothing.
+        SEND_PACING is about how fast the pump's radio will take bytes.
+        Note the chunking in :meth:`write` is not an optimisation: this
+        pump requires GENI frames split into BLE_MTU_LIMIT-byte writes
+        regardless of the negotiated ATT MTU. A 27-byte frame sent as one
+        GATT write is silently ignored - measured, with the MTU negotiated
+        at 65 - while the same frame chunked at 20 is acknowledged in
+        111 ms.
         """
         now = asyncio.get_event_loop().time()
-
-        if outgoing is not None and is_class10_set(outgoing):
-            # Consecutive writes go back to back. The window still stands
-            # for whatever comes after this one.
-            self._quiet_until = None
-
-        if self._quiet_until is not None:
-            remaining = self._quiet_until - now
-            if remaining > 0:
-                logger.debug(
-                    f"Holding {remaining * 1000:.0f} ms for the pump to "
-                    f"finish committing a write"
-                )
-                await asyncio.sleep(remaining)
-                now = asyncio.get_event_loop().time()
-            self._quiet_until = None
-
         if self._last_write is None:
             return
         elapsed = now - self._last_write
@@ -558,22 +490,12 @@ class Transport:
             for i in range(0, len(data), BLE_MTU_LIMIT)
         ] or [data]
 
-        for index, chunk in enumerate(chunks):
-            # Only the first chunk decides whether the quiet period applies;
-            # the rest are continuations of a frame already under way.
-            await self._pace(data if index == 0 else None)
+        for chunk in chunks:
+            await self._pace()
             await self.client.write_gatt_char(
                 GENI_CHAR_UUID, chunk, response=response
             )
             self._last_write = asyncio.get_event_loop().time()
-
-        # A Class 10 SET puts the pump to work, and it answers nothing -
-        # not even an unrelated read - until it is finished. Arm the quiet
-        # period here rather than at the call sites, so nothing can forget
-        # it: the whole frame is on the wire by this point, and every path
-        # that talks to the pump comes through _pace().
-        if is_class10_set(data):
-            self._quiet_until = asyncio.get_event_loop().time() + POST_SET_QUIET
 
         if len(chunks) > 1:
             sizes = " + ".join(str(len(c)) for c in chunks)
@@ -1000,7 +922,6 @@ class Transport:
         """
         logger.info("BLE link dropped")
         self._last_write = None
-        self._quiet_until = None
 
         # Wake every waiter before the handlers run. A reply that has not
         # arrived by now is not going to: nothing in GENIbus cancels a
