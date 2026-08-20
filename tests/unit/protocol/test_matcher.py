@@ -101,14 +101,50 @@ def test_exact_identifier_match() -> None:
     assert matches(cmd, frame(0x0A, 0x0E, a=0x0001, b=0x2F01))
 
 
-def test_swapped_identifiers_still_match() -> None:
+def test_swapped_type_fields_do_not_match() -> None:
     """
-    The pump does not place the two identifiers consistently. Several
-    reads only work because of this - the Object 86 status read included.
+    Bytes 6-9 are one type field, so reversing them is not the same type.
+
+    This used to be asserted the other way round, on the theory that the
+    pump placed two identifiers inconsistently. It does not place
+    identifiers at all - it names the object's type - and every reply
+    measured against an ALPHA HWR matches in wire order, so nothing ever
+    needed the reversal. Accepting it meant any two objects whose type
+    bytes were transposes of each other could answer each other's reads.
     """
     cmd = Command(expect_a=0x2F01, expect_b=0x0001)
 
-    assert matches(cmd, frame(0x0A, 0x0E, a=0x0001, b=0x2F01))
+    assert not matches(cmd, frame(0x0A, 0x0E, a=0x0001, b=0x2F01))
+
+
+def test_the_measured_mode_reply_matches_in_wire_order() -> None:
+    """
+    Object 86 Sub 7, captured 2026-08-20, against the table's expectation.
+
+    Uses the real frame rather than a synthetic one so the table and the
+    pump are checked against each other, not against the same assumption.
+    """
+    captured = bytes.fromhex("2412f8e70a0e00012f0100000701001b39678ac3f7dd")
+
+    assert matches(read_command(86, 7), captured)
+
+
+def test_a_sibling_of_the_same_type_answers_the_same_expectation() -> None:
+    """
+    Object 86 subs 13, 15, 17 and 39 are indistinguishable in a reply.
+
+    All four are type 301 version 1, so the setpoint-range read of sub 13
+    accepts sub 15's answer. That is not a defect in the matcher - the
+    information is not on the wire - which is why the chain that reads them
+    has to be sequential and stop at the first failure.
+    """
+    sub15_reply = bytes.fromhex(
+        "2427f8e70a2300012d0100001c467a00004619300046bbb200"
+        "461930003dcccccd3f7333333f8000006f88"
+    )
+
+    assert matches(read_command(86, 13), sub15_reply)
+    assert read_command(86, 13) == read_command(86, 39)
 
 
 def test_unrelated_identifiers_do_not_match() -> None:

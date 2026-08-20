@@ -2,33 +2,38 @@
 Deciding whether a notification answers an outstanding command.
 
 GENIbus carries no transaction id, so a reply is matched positionally
-against the command still in flight. What makes that non-trivial is the
-pump's firmware: it answers with a different Sub-ID than was asked for,
-puts the identifier fields in different places depending on the operation
-specifier, and acknowledges some writes with a frame far shorter than a
-normal response.
+against the command still in flight. What makes that hard is not firmware
+inconsistency, as this module long assumed, but the protocol itself: **a
+reply carries no Object ID and no Sub-ID.** Bytes 6-9 hold
+``[00][TypeH][TypeL][Version]`` - the *type* of the object answered.
 
-The rules below are the pump's observed behaviour rather than anything
-the protocol promises. They mirror the C++ port's ``try_dispatch_response``
-(``components/alpha_hwr/transport.cpp``), which is the version currently
-validated against hardware.
+That has a sharp consequence. Matching discriminates types, not instances.
+Object 86 sub-ids 13, 15, 17 and 39 are four different setpoint ranges and
+all four answer ``00 01 2d 01``, because all four are type 301 version 1.
+So are the five schedule layers, every single-event slot, and every event
+log entry. A chain that reads siblings must be strictly sequential and must
+stop at the first failure: carry on, and read N's late reply is handed to
+read N+1, shifting every remaining answer by one slot.
+
+Measured against an ALPHA HWR on 2026-08-20 by reading each object and
+recording bytes 6-9 of the answer.
 
 Frame layout (see ``frame_parser``)::
 
-    [0] start (0x24 response, 0x27 request/echo)
+    [0] start (0x24 response, 0x27 request)
     [1] length
-    [2] service id (0xE7)
-    [3] source address (0xF8)
+    [2] destination address
+    [3] source address
     [4] class
-    [5] operation specifier
-    [6:8] identifier field A
-    [8:10] identifier field B
+    [5] APDU head: 0booLLLLLL - operation/ack, then payload length
+    [6:8] 0x00 then the object type's high byte
+    [8:10] the type's low byte then its version
 
-Whether field A holds the Object ID or the Sub-ID depends on the operation
-specifier, and the pump is not consistent about it - so a command declares
-which values it expects and a match is accepted with the two fields in
-either order. Naming them A and B rather than guessing keeps the ambiguity
-visible instead of encoding a claim the traffic does not support.
+This module used to call bytes 6-7 "identifier field A" and 8-9 "field B",
+and accepted a match with the two in either order, on the theory that the
+pump placed them inconsistently. It does not; they are one four-byte type
+field, and the swapped-order rule was accepting frames on the strength of a
+coincidence. It is gone.
 """
 
 from __future__ import annotations
@@ -36,6 +41,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..constants import CLASS_10, RESPONSE_START
+from .apdu import (
+    Class10Ack,
+    apdu_ack_is_ok,
+    apdu_payload_len,
+    class10_reply_is_ok,
+)
 
 #: Classes whose acknowledgement is a bare frame with no identifier
 #: fields: the pump replies ``[class, 0x00]`` for a command it executed
@@ -62,7 +73,7 @@ MIN_FRAME_LENGTH = 6
 #: This is the reliable way to tell a solicited reply from the pump's
 #: notification stream. Matching on the frame's second byte is not: see
 #: RESPONSE_LENGTH_IS_BYTE_5 below.
-RESPONSE_IDENTIFIERS: dict[tuple[int, range], tuple[int, int]] = {
+RESPONSE_TYPES: dict[tuple[int, range], tuple[int, int]] = {
     (86, range(5, 11)): (0x0001, 0x2F01),  # operation status request
     (86, range(13, 40)): (0x0001, 0x2D01),  # setpoint limits
     (91, range(421, 422)): (0x0003, 0xD901),  # DHW / cycle-time config
@@ -77,7 +88,16 @@ RESPONSE_IDENTIFIERS: dict[tuple[int, range], tuple[int, int]] = {
     (88, range(13300, 13302)): (0x0003, 0xE801),  # cycle timestamps
     (53, range(451, 454)): (0x0003, 0xB201),  # trends: flow, head, temp
     (53, range(454, 455)): (0x0003, 0xB301),  # trend: power-on time
+    # Telemetry. These were absent, so every telemetry read was matched by
+    # class alone and any Class 10 notification could answer one.
+    (87, range(69, 70)): (0x0001, 0x0003),  # motor state
+    (93, range(290, 291)): (0x0002, 0x3502),  # flow / head
+    (93, range(300, 301)): (0x0002, 0x1602),  # temperatures
 }
+
+#: Backwards-compatible alias. The old name claimed these were identifiers
+#: echoed from the request; they are object type codes.
+RESPONSE_IDENTIFIERS = RESPONSE_TYPES
 
 #: In a *response*, byte 5 is a length field, not an operation specifier.
 #:
@@ -94,11 +114,22 @@ RESPONSE_IDENTIFIERS: dict[tuple[int, range], tuple[int, int]] = {
 #: on RESPONSE_IDENTIFIERS instead.
 RESPONSE_LENGTH_IS_BYTE_5 = True
 
-#: Operation specifiers a Class 10 *write* is acknowledged with. The ack
-#: carries no identifiers, so it can only be attributed to the command in
-#: flight - which is why a command has to opt in via
-#: :attr:`Command.expect_short_ack`.
-SHORT_ACK_OPSPECS = frozenset({0x01, 0x81})
+#: Longest APDU payload a bare Class 10 acknowledgement or refusal carries.
+#:
+#: An acknowledgement declares one byte (the Class 10 status); a refusal
+#: declares one byte (the offending Data Item's ID); Unknown Class declares
+#: **zero**, an eight-byte frame. So the test is ``<= 1``, not ``== 1`` -
+#: and it is a length, not a set of opcodes.
+#:
+#: This was ``frozenset({0x01, 0x81})``, which was wrong twice over.
+#: ``0x81`` is not an acknowledgement at all: it is Unknown Data Item, and
+#: its payload byte names the item rather than carrying an error code, so a
+#: refused write read as accepted whenever that item was ``0x00`` - the
+#: case this pump produces. And a literal set cannot match ``0xC1``
+#: (Illegal Operation) or ``0x40`` (Unknown Class), so those replies fell
+#: through and died by timeout, making the log say "no response" about a
+#: pump that answered in milliseconds.
+MAX_SHORT_ACK_PAYLOAD = 1
 
 
 @dataclass(frozen=True)
@@ -275,7 +306,8 @@ def matches(command: Command, packet: bytes) -> bool:
     # an error for data.
     if (
         cls == CLASS_10
-        and opspec in SHORT_ACK_OPSPECS
+        and opspec is not None
+        and apdu_payload_len(opspec) <= MAX_SHORT_ACK_PAYLOAD
         and len(packet) < MIN_IDENTIFIED_LENGTH
     ):
         return command.expect_short_ack
@@ -287,24 +319,23 @@ def matches(command: Command, packet: bytes) -> bool:
     if identifiers is None:
         return False
 
-    a, b = identifiers
-    if (a, b) == (command.expect_a, command.expect_b):
-        return True
-
-    # The pump does not place the two identifiers consistently, so accept
-    # them the other way round as well. This is the only reason several
-    # reads work at all - the Object 86 status read included, whose reply
-    # is a passive notification carrying identifiers unrelated to the
-    # request.
-    # There is deliberately no "one field came back zero, so match on the
-    # other" rule here. It was inherited as a firmware quirk, but the pump
-    # never actually echoes the Sub-ID it was asked for - it answers with a
-    # type code, and a zero in the first field is that object's real value
-    # rather than a wildcard. Treating it as one is not merely redundant, it
-    # is wrong: the temperature-range config (0x0003, 0xF402) and an event
-    # log entry (0x0000, 0xF402) share a type code and differ only in the
-    # field the rule discarded, so each would answer the other's read.
-    return (b, a) == (command.expect_a, command.expect_b)
+    # Both halves of the type must match. There is deliberately no
+    # relaxation here, and two tempting ones are wrong:
+    #
+    # Accepting the fields *swapped* was this module's rule until the four
+    # bytes were decoded. They are one type field, not two independently
+    # placed identifiers, and a reply that matches when reversed matches by
+    # coincidence. Every measured reply matches in wire order - Object 86
+    # Sub 7 answers `00 01 2f 01` against an expectation of
+    # (0x0001, 0x2F01) - so nothing needed the rule.
+    #
+    # Treating `type_high == 0` as a wildcard is the ESPHome port's rule and
+    # is not adopted here. Zero is a real type-high value: the schedule
+    # overview answers `00 00 da 01`. The collision it would reopen is
+    # already on record - the temperature-range config (0x0003, 0xF402) and
+    # an event log entry (0x0000, 0xF402) differ *only* in that field, so
+    # each would answer the other's read.
+    return identifiers == (command.expect_a, command.expect_b)
 
 
 def is_response(packet: bytes) -> bool:
@@ -328,7 +359,7 @@ def expected_reply(obj_id: int, sub_id: int) -> tuple[int, int] | None:
     >>> expected_reply(999, 1) is None
     True
     """
-    for (obj, subs), identifiers in RESPONSE_IDENTIFIERS.items():
+    for (obj, subs), identifiers in RESPONSE_TYPES.items():
         if obj == obj_id and sub_id in subs:
             return identifiers
     return None

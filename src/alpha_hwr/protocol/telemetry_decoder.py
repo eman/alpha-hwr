@@ -690,26 +690,36 @@ class TelemetryDecoder:
         if frame.obj_id is None or frame.sub_id is None:
             return {}  # Missing identifiers, can't decode as telemetry
 
-        # Route to appropriate decoder
+        # Route on the object *type* the pump answered with. A reply
+        # carries no Object ID and no Sub-ID (see frame_parser), so the
+        # pairs here are (type_low_ver, type_high) as measured against an
+        # ALPHA HWR on 2026-08-20 by issuing each register read and
+        # recording bytes 6-9 of the answer.
+        #
+        # This used to match on (87, 69), (93, 290) and (93, 300) - the
+        # Object/Sub-ID pairs that were *requested*. No reply ever carries
+        # those, so every case fell through to the register-read fallback
+        # below, which parsed the raw frame instead. The fallback still
+        # exists, but it is now a fallback rather than the only live path.
         match (frame.obj_id, frame.sub_id):
-            case (87, 69):  # Motor state
-                return TelemetryDecoder.decode_motor_state(frame.payload)
+            case (0x0003, 0x0001):  # Motor state, 48-byte reply
+                return TelemetryDecoder.decode_motor_state(frame.object_body)
 
-            case (93, 290):  # Flow/Pressure
-                return TelemetryDecoder.decode_flow_pressure(frame.payload)
+            case (0x3502, 0x0002):  # Flow/Pressure, 43-byte reply
+                return TelemetryDecoder.decode_flow_pressure(frame.object_body)
 
-            case (93, 300):  # Temperature
-                return TelemetryDecoder.decode_temperature(frame.payload)
+            case (0x1602, 0x0002):  # Temperature, 20-byte reply
+                return TelemetryDecoder.decode_temperature(frame.object_body)
 
             case (88, 0):  # Active alarms
                 codes = TelemetryDecoder.decode_alarms_warnings(
-                    frame.payload, True
+                    frame.object_body, True
                 )
                 return {"active_alarms": codes}
 
             case (88, 11):  # Active warnings
                 codes = TelemetryDecoder.decode_alarms_warnings(
-                    frame.payload, False
+                    frame.object_body, False
                 )
                 return {"active_warnings": codes}
 

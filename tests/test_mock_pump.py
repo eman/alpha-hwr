@@ -46,12 +46,16 @@ class TestMockPump:
         # Parse response
         frame = FrameParser.parse_frame(response)
         assert frame.valid
+        assert frame.crc_valid
         assert frame.class_byte == 10
-        # For Class 10, obj_id is the full register in the response
-        # The parser extracts this differently
+        # The reply names the object's type, not the register asked for.
+        assert (frame.type_high, frame.type_low_ver) == (0x0001, 0x0003)
 
-        # Decode telemetry
-        data = TelemetryDecoder.decode_motor_state(frame.payload)
+        # Decode through the production router, which strips the object's
+        # three-byte size header. Calling decode_motor_state() on the raw
+        # payload reads every float three bytes late and yields denormals
+        # that still pass the range checks.
+        data = TelemetryDecoder.decode(frame)
         assert "voltage_ac_v" in data
         assert "speed_rpm" in data
         assert data["voltage_ac_v"] == 230.0

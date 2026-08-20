@@ -66,15 +66,27 @@ class TestFrameParser:
         assert frame.payload == bytes([0x94, 0x95, 0x96])
 
     def test_parse_class10_frame(self):
-        """Test parsing Class 10 frame with Sub-ID and Object ID."""
-        # Class 10 frame: motor state telemetry (Sub=0x0045=69, Obj=0x0057=87)
-        data = bytes.fromhex("2412e7f80a0a0045005700000000000000000000fd72")
+        """
+        A Class 10 reply carries a type in bytes 6-9, not an address.
+
+        Captured motor-state reply: bytes 6-9 read ``00 01 00 03``, which is
+        object type 3 version 1. Nothing in it echoes the Object 87 /
+        Sub-ID 69 that was asked for, because the pump does not send an
+        address back.
+        """
+        data = bytes.fromhex(
+            "2434f8e70a300001000300002942e730d643237a000000000000000000"
+            "00000000000000007fffffff7fffffff0000000000000000002385"
+        )
         frame = FrameParser.parse_frame(data)
         assert frame.valid is True
+        assert frame.crc_valid is True
         assert frame.class_byte == CLASS_10
-        assert frame.sub_id == 0x0045  # 69
-        assert frame.obj_id == 0x0057  # 87
-        assert len(frame.payload) == 10
+        assert frame.type_high == 0x0001
+        assert frame.type_low_ver == 0x0003
+        # Declared payload is 48 bytes; four of them are the type fields.
+        assert data[5] == 48
+        assert len(frame.payload) == 44
 
     def test_crc_validation_valid(self):
         """Test CRC validation with correct CRC."""
@@ -101,39 +113,53 @@ class TestClass10Parsing:
     """Test Class 10 specific parsing."""
 
     def test_motor_state_frame(self):
-        """Test parsing motor state telemetry frame."""
-        # Motor state: Sub=0x0045 (69), Obj=0x0057 (87)
-        data = bytes.fromhex("2412e7f80a0a0045005700000000000000000000fd72")
+        """Motor-state reply: object type 3 version 1."""
+        data = bytes.fromhex(
+            "2434f8e70a300001000300002942e730d643237a000000000000000000"
+            "00000000000000007fffffff7fffffff0000000000000000002385"
+        )
         frame = FrameParser.parse_frame(data)
         assert frame.class_byte == CLASS_10
-        assert frame.sub_id == 69  # 0x0045
-        assert frame.obj_id == 87  # 0x0057
+        assert (frame.type_high, frame.type_low_ver) == (0x0001, 0x0003)
         assert frame.crc_valid is True
 
     def test_flow_pressure_frame(self):
-        """Test parsing flow/pressure telemetry frame."""
-        # Flow/pressure: Sub=0x0122 (290), Obj=0x005D (93)
+        """Flow/pressure reply: object type 0x3502 version 2."""
         data = bytes.fromhex(
-            "2416e7f80a0e0122005d00000000000000000000000000000b8b"
+            "242ff8e70a2b0002350200002400000000000000007fffffff7fffffff"
+            "7fffffff7fffffff000000000000000000000000edbe"
         )
         frame = FrameParser.parse_frame(data)
 
         assert frame.valid is True
         assert frame.class_byte == CLASS_10
-        assert frame.sub_id == 290  # 0x0122
-        assert frame.obj_id == 93  # 0x005D
-        assert len(frame.payload) == 14
+        assert (frame.type_high, frame.type_low_ver) == (0x0002, 0x3502)
+        assert data[5] == len(data) - 8
+        assert len(frame.payload) == 39
         assert frame.crc_valid is True
 
-    def test_class10_identifiers_extraction(self):
-        """Test extracting Class 10 identifiers."""
-        # Motor state packet
-        data = bytes.fromhex("2412e7f80a0a0045005700000000000000000000fd72")
-        frame = FrameParser.parse_frame(data)
+    def test_four_objects_share_one_type(self):
+        """
+        Object 86 subs 13, 15, 17 and 39 answer identically.
 
-        ids = FrameParser.extract_class10_identifiers(frame)
-        assert ids["sub_id"] == 69  # 0x0045
-        assert ids["obj_id"] == 87  # 0x0057
+        All four are instances of type 301 version 1, so a reply cannot say
+        which sub-id it came from. That is why a chain reading them has to
+        be strictly sequential and stop at the first failure - carrying on
+        shifts every remaining answer by one slot.
+        """
+        speed = bytes.fromhex(
+            "2427f8e70a2300012d0100001c452f000044ce400045657000"
+            "c56570003f8000003f8000003f80000089a9"
+        )
+        pressure = bytes.fromhex(
+            "2427f8e70a2300012d0100001c467a00004619300046bbb200"
+            "461930003dcccccd3f7333333f8000006f88"
+        )
+        a = FrameParser.parse_frame(speed)
+        b = FrameParser.parse_frame(pressure)
+        assert a.crc_valid and b.crc_valid
+        assert (a.type_high, a.type_low_ver) == (b.type_high, b.type_low_ver)
+        assert a.payload != b.payload
 
 
 class TestTelemetryFrameDetection:
@@ -142,11 +168,12 @@ class TestTelemetryFrameDetection:
     def test_is_telemetry_motor_state(self):
         """Test detection of motor state telemetry."""
         # Motor state packet
-        data = bytes.fromhex("2412e7f80a0a0045005700000000000000000000fd72")
+        data = bytes.fromhex(
+            "2434f8e70a300001000300002942e730d643237a000000000000000000"
+            "00000000000000007fffffff7fffffff0000000000000000002385"
+        )
         frame = FrameParser.parse_frame(data)
-        # Motor state: obj_id=87, sub_id=69
-        assert frame.obj_id == 87
-        assert frame.sub_id == 69
+        assert FrameParser.is_telemetry_frame(frame) is True
 
     def test_is_telemetry_non_telemetry_frame(self):
         """Test detection returns false for non-telemetry frames."""
@@ -156,12 +183,15 @@ class TestTelemetryFrameDetection:
         assert FrameParser.is_telemetry_frame(frame) is False
 
     def test_is_telemetry_unknown_class10(self):
-        """Test detection returns false for unknown Class 10 objects."""
-        # Class 10 frame with unknown object (SubID=0xFFFF, ObjID=0x0000)
-        data = bytes.fromhex("2415e7f80a01ffff0000000000000000000000000000")
+        """A Class 10 object we have no type for is not telemetry."""
+        # Schedule overview - a real reply, but not part of the stream.
+        data = bytes.fromhex(
+            "2415f8e70a110000da0100000a02050005010100000000dd89"
+        )
         frame = FrameParser.parse_frame(data)
-        # This may fail due to invalid CRC, but structure should be valid
         assert frame.class_byte == CLASS_10
+        assert frame.crc_valid is True
+        assert FrameParser.is_telemetry_frame(frame) is False
 
 
 class TestFrameIntegrityValidation:
@@ -193,69 +223,66 @@ class TestFrameIntegrityValidation:
         assert valid is False
         assert "crc" in error.lower()
 
-    def test_validate_missing_class10_ids(self):
-        """Test validation of Class 10 frame with missing IDs."""
-        # Create a short Class 10 frame (not enough bytes for IDs)
-        data = bytes.fromhex(
-            "2407e7f80a01008b08"
-        )  # Too short - missing SubID/ObjID
+    def test_short_class10_ack_is_valid_without_type_fields(self):
+        """
+        A short acknowledgement has no type fields, and is still valid.
+
+        This used to be asserted the other way round - a Class 10 frame
+        without identifiers was called invalid. But the pump's write
+        acknowledgement is nine bytes and carries none, so the rule
+        condemned every reply to every write.
+        """
+        data = bytes.fromhex("2405f8e70a0100aea2")
         frame = FrameParser.parse_frame(data)
 
-        # Frame should parse but be missing Sub/Obj IDs
-        if frame.class_byte == CLASS_10:
-            valid, error = FrameParser.validate_frame_integrity(frame)
-            if frame.sub_id is None or frame.obj_id is None:
-                assert valid is False
-                assert "sub-id" in error.lower() or "object id" in error.lower()
+        assert frame.class_byte == CLASS_10
+        assert frame.type_high is None
+        assert frame.type_low_ver is None
+        valid, error = FrameParser.validate_frame_integrity(frame)
+        assert valid is True, error
 
 
 class TestReferenceVectors:
-    """Test with reference test vectors for other language implementations."""
+    """
+    The captured vectors, for validating a reimplementation.
 
-    def test_class10_motor_state_vector(self):
-        """Test motor state reference vector."""
-        vector = TEST_VECTORS["class10_motor_state"]
-        data = bytes.fromhex(vector["hex"])
-        frame = FrameParser.parse_frame(data)
+    Every entry is a recording from an ALPHA HWR. The table these replaced
+    was hand-written with the destination and source addresses reversed,
+    which is a shape this pump never sends - so a port checked against it
+    was being checked against a frame that cannot arrive.
+    """
 
-        expected = vector["expected"]
-        assert frame.valid == expected["valid"]
-        assert frame.frame_type == expected["frame_type"]
-        assert frame.class_byte == expected["class_byte"]
-        assert frame.sub_id == expected["sub_id"]
-        assert frame.obj_id == expected["obj_id"]
-        assert len(frame.payload) == expected["payload_len"]
-        assert frame.crc_valid == expected["crc_valid"]
+    def test_every_vector_parses_and_checksums(self):
+        for name, vector in TEST_VECTORS.items():
+            data = bytes.fromhex(vector["hex"])
+            frame = FrameParser.parse_frame(data)
+            expected = vector["expected"]
 
-    def test_class10_flow_pressure_vector(self):
-        """Test flow/pressure reference vector."""
-        vector = TEST_VECTORS["class10_flow_pressure"]
-        data = bytes.fromhex(vector["hex"])
-        frame = FrameParser.parse_frame(data)
+            assert frame.valid == expected["valid"], name
+            assert frame.frame_type == expected["frame_type"], name
+            assert frame.class_byte == expected["class_byte"], name
+            assert frame.crc_valid == expected["crc_valid"], name
 
-        expected = vector["expected"]
-        assert frame.valid == expected["valid"]
-        assert frame.frame_type == expected["frame_type"]
-        assert frame.class_byte == expected["class_byte"]
-        assert frame.sub_id == expected["sub_id"]
-        assert frame.obj_id == expected["obj_id"]
-        assert len(frame.payload) == expected["payload_len"]
-        assert frame.crc_valid == expected["crc_valid"]
+            if "type_high" in expected:
+                assert frame.type_high == expected["type_high"], name
+                assert frame.type_low_ver == expected["type_low_ver"], name
+            if "payload_len" in expected:
+                assert len(frame.payload) == expected["payload_len"], name
+            if "payload" in expected:
+                assert frame.payload.decode() == expected["payload"], name
 
-    def test_auth_legacy_magic_vector(self):
-        """Test authentication legacy magic reference vector."""
-        vector = TEST_VECTORS["auth_legacy_magic"]
-        data = bytes.fromhex(vector["hex"])
-        frame = FrameParser.parse_frame(data)
+    def test_every_vector_is_addressed_pump_to_host(self):
+        """Destination 0xF8, source 0xE7 - the reply direction."""
+        for name, vector in TEST_VECTORS.items():
+            data = bytes.fromhex(vector["hex"])
+            assert (data[2], data[3]) == (0xF8, 0xE7), name
 
-        expected = vector["expected"]
-        assert frame.valid == expected["valid"]
-        assert frame.frame_type == expected["frame_type"]
-        assert frame.class_byte == expected["class_byte"]
-        assert frame.sub_id == expected["sub_id"]
-        assert frame.obj_id == expected["obj_id"]
-        assert len(frame.payload) == expected["payload_len"]
-        assert frame.crc_valid == expected["crc_valid"]
+    def test_every_vector_declares_its_own_length(self):
+        """``byte5 == len(frame) - 8`` on every reply this pump sends."""
+        for name, vector in TEST_VECTORS.items():
+            data = bytes.fromhex(vector["hex"])
+            assert data[5] == len(data) - 8, name
+            assert data[1] + 4 == len(data), name
 
 
 class TestEdgeCases:

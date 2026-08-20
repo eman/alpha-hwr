@@ -1,131 +1,48 @@
 """
 GENI protocol frame parser.
 
-This module parses raw GENI protocol frames received from the pump:
-- Response validation (start byte, length, CRC)
-- Class 2/3 register responses
-- Class 10 DataObject notifications
-- Error handling and validation
+A frame is::
 
-Frame Structure
----------------
-All GENI frames follow this structure:
+    [0]     start: 0x24 from the pump, 0x27 from us
+    [1]     length: bytes from [2] through the last APDU byte
+    [2]     destination address
+    [3]     source address
+    [4]     class
+    [5]     APDU head: 0booLLLLLL - operation/ack, then payload length
+    [6:]    APDU payload
+    [-2:]   CRC-16-CCITT over frame[1:-2], final XOR 0xFFFF
 
-[Start] [Length] [ServiceID-H] [ServiceID-L/Source] [APDU...] [CRC-H] [CRC-L]
+Bytes 2 and 3 are addresses, not a "service ID". We send
+``[0x27][len][0xE7][0xF8]`` - destination 0xE7 is the pump's unit address,
+source 0xF8 is ours - and the pump answers ``[0x24][len][0xF8][0xE7]`` with
+the two swapped. Frames in this package's history that show ``24 .. E7 F8``
+were written by hand rather than captured; a real reply never looks like
+that.
 
-Where:
-- Start: 0x24 (RESPONSE_START for responses) or 0x27 (FRAME_START for requests)
-- Length: Number of bytes from ServiceID to end of APDU (not including CRC)
-- ServiceID-H: 0xE7 (GENI service)
-- ServiceID-L/Source: 0xF8 (standard) or 0x0A (alternative)
-- APDU: Application Protocol Data Unit (class, opspec, data)
-- CRC: CRC-16-CCITT checksum
+Two things follow from the APDU head (see :mod:`alpha_hwr.protocol.apdu`)
+and both were wrong here until they were decoded properly:
 
-APDU Formats
-------------
+**The payload is bounded by its declared length, not by the CRC.** A GENIbus
+telegram may carry several APDUs - the application manual is explicit that
+"errors in one APDU will in no way influence the reply to sound APDU's" - so
+an error reply can substitute for one answer inside a telegram carrying
+others. Slicing to ``[-2]`` therefore reports the *next* APDU, and its CRC,
+as this one's payload. :attr:`ParsedFrame.multi_apdu` says when there was
+more in the telegram than the frame reports.
 
-Class 2/3 (Register-based):
-[Class] [OpSpec] [Register...] [Data...]
+**Byte 5 is not an opcode.** The set ``{0x30, 0x2B, 0x14, 0x2E, 0x2D, 0x09}``
+was carried here as "register-read operation specifiers" and used to select a
+different payload offset. They are the payload lengths 48, 43, 20, 46, 45 and
+9. Nothing dispatches on them any more.
 
-Class 10 (DataObject):
-[0x0A] [OpSpec] [SubID-H] [SubID-L] [ObjID-H] [ObjID-L] [Data...]
+A Class 10 reply's bytes 6-9 are ``[00][TypeH][TypeL][Version]`` - the
+object's *type*, not the Object ID and Sub-ID it was asked for. The pump
+does not echo an address. Measured against an ALPHA HWR: reading Object 86
+sub-ids 13, 15, 17 and 39 returns ``00 01 2d 01`` for all four, because they
+are four instances of type 301 version 1. See
+:mod:`alpha_hwr.protocol.matcher` for what that costs a caller.
 
-For complete protocol reference, see:
-- docs/protocol/wire_format.md
-- docs/protocol/ble_architecture.md
-
-The parser is deliberately simple, and worth reproducing in this order:
-
-1. **Validation First**: Always validate start byte, length, and CRC before parsing
-2. **Big-Endian**: All multi-byte values are big-endian (network byte order)
-3. **Minimal State**: Parser is stateless - each frame parsed independently
-4. **Type Safety**: Use dataclasses/structs to ensure type correctness
-
-Example in C:
-```c
-typedef struct {
-    bool valid;
-    FrameType frame_type;
-    uint8_t class_byte;
-    uint16_t sub_id;
-    uint16_t obj_id;
-    uint8_t* payload;
-    size_t payload_len;
-    bool crc_valid;
-} ParsedFrame;
-
-ParsedFrame parse_frame(const uint8_t* data, size_t len) {
-    ParsedFrame frame = {0};
-
-    // Validate minimum length
-    if (len < 8) return frame;
-
-    // Validate start byte
-    if (data[0] != FRAME_START && data[0] != RESPONSE_START) return frame;
-
-    // Validate CRC
-    uint16_t expected_crc = calc_crc16(&data[1], len - 3);
-    uint16_t actual_crc = (data[len-2] << 8) | data[len-1];
-    frame.crc_valid = (expected_crc == actual_crc);
-
-    // Extract fields
-    frame.frame_type = (data[0] == RESPONSE_START) ? RESPONSE : REQUEST;
-    frame.class_byte = data[4];
-
-    if (frame.class_byte == CLASS_10 && len > 9) {
-        frame.sub_id = (data[6] << 8) | data[7];
-        frame.obj_id = (data[8] << 8) | data[9];
-        frame.payload = &data[10];
-        frame.payload_len = len - 12;  // Subtract header + CRC
-    }
-
-    frame.valid = true;
-    return frame;
-}
-```
-
-Example in JavaScript:
-```javascript
-class ParsedFrame {
-    constructor() {
-        this.valid = false;
-        this.frameType = null;
-        this.classByte = null;
-        this.subId = null;
-        this.objId = null;
-        this.payload = null;
-        this.crcValid = false;
-    }
-}
-
-function parseFrame(data) {
-    const frame = new ParsedFrame();
-
-    // Validate minimum length
-    if (data.length < 8) return frame;
-
-    // Validate start byte
-    if (data[0] !== FRAME_START && data[0] !== RESPONSE_START) return frame;
-
-    // Validate CRC
-    const expectedCrc = calcCrc16(data.slice(1, -2));
-    const actualCrc = (data[data.length-2] << 8) | data[data.length-1];
-    frame.crcValid = (expectedCrc === actualCrc);
-
-    // Extract fields
-    frame.frameType = data[0] === RESPONSE_START ? 'response' : 'request';
-    frame.classByte = data[4];
-
-    if (frame.classByte === CLASS_10 && data.length > 9) {
-        frame.subId = (data[6] << 8) | data[7];
-        frame.objId = (data[8] << 8) | data[9];
-        frame.payload = data.slice(10, -2);
-    }
-
-    frame.valid = true;
-    return frame;
-}
-```
+For the full wire reference see ``docs/protocol/wire_format.md``.
 """
 
 from dataclasses import dataclass
@@ -133,6 +50,19 @@ from typing import Literal
 
 from ..constants import CLASS_10, FRAME_START, RESPONSE_START
 from ..utils import calc_crc16_read
+from .apdu import apdu_payload_len
+
+#: Smallest legal frame: start, length, destination, source, class, APDU
+#: head and two CRC bytes, with an empty payload.
+MIN_FRAME_LENGTH = 8
+
+#: Bytes 6-9 of a Class 10 reply carry ``[00][TypeH][TypeL][Version]``, so a
+#: frame has to reach this length before it can be said to carry a type.
+MIN_TYPED_LENGTH = 12
+
+#: Offset of the first payload byte in a Class 10 reply, past the type and
+#: version fields.
+CLASS10_BODY_OFFSET = 10
 
 
 @dataclass
@@ -140,117 +70,150 @@ class ParsedFrame:
     """
     Parsed GENI protocol frame.
 
-    This structure represents a fully parsed GENI frame with all fields extracted
-    and validated. Use this as a reference for implementing in other languages.
-
     Attributes:
-        valid: True if the frame structure is valid (correct start byte, length)
-        frame_type: 'request' (0x27) or 'response' (0x24)
-        class_byte: GENI class byte (2, 3, 10, etc.)
-        sub_id: Sub-ID for Class 10 frames (None for other classes)
-        obj_id: Object ID for Class 10 frames (None for other classes)
-        payload: Raw payload bytes (excluding header and CRC)
-        crc_valid: True if CRC checksum is correct
-        raw_data: Original raw frame data
+        valid: The frame is structurally sound - plausible start byte, and
+            long enough for the length it declares.
+        frame_type: 'request' (0x27) or 'response' (0x24).
+        class_byte: GENI class byte (2, 3, 7, 10, ...).
+        type_high: Bytes 6-7 of a Class 10 reply. None for other classes.
+        type_low_ver: Bytes 8-9 of a Class 10 reply - the low byte of the
+            object type and its version. None for other classes.
+        payload: Payload of the *first* APDU, bounded by the length that
+            APDU declares.
+        multi_apdu: The telegram carried more after the first APDU. This
+            describes the telegram, not the payload, so it can be true on a
+            frame too short to extract any payload from.
+        crc_valid: The trailing CRC matches the body.
+        raw_data: Original frame bytes.
 
-    Example:
-        >>> # Parse a Class 10 telemetry response
-        >>> raw = bytes.fromhex('2415e7f80a015700450000000000000000000000fa3c')
-        >>> frame = FrameParser.parse_frame(raw)
-        >>> frame.valid
-        True
-        >>> frame.class_byte
-        10
-        >>> frame.sub_id
-        22272  # 0x5700
-        >>> frame.obj_id
-        69     # 0x0045
+    Note:
+        ``valid`` says the frame parses, not that it is trustworthy. Check
+        ``crc_valid`` before believing a payload - or better, let
+        :class:`~alpha_hwr.core.transport.Transport` drop bad frames before
+        they reach here, which is what it now does.
     """
 
     valid: bool
     frame_type: Literal["request", "response"] | None
     class_byte: int | None
-    sub_id: int | None
-    obj_id: int | None
+    type_high: int | None
+    type_low_ver: int | None
     payload: bytes
+    multi_apdu: bool
     crc_valid: bool
     raw_data: bytes
+
+    @property
+    def object_body(self) -> bytes:
+        """
+        Payload with the object's three-byte size header removed.
+
+        A typed Class 10 object puts ``[00][00][size]`` in front of its
+        struct. Measured on an ALPHA HWR: the motor register declares 48
+        payload bytes, of which four are the type fields, leaving 44 from
+        offset 10 - and the first three of those read ``00 00 29``, a size
+        of 41, which is exactly the 44 that remain. The same holds for the
+        flow (36 of 39), temperature (13 of 16) and schedule-overview
+        (10 of 13) replies.
+
+        Returns the payload unchanged when no such header is present, so a
+        short acknowledgement is not mistaken for a truncated struct.
+        """
+        body = self.payload
+        if len(body) >= 3 and body[0] == 0 and body[1] == 0 and body[2] == len(body) - 3:
+            return body[3:]
+        return body
+
+    @property
+    def sub_id(self) -> int | None:
+        """
+        Deprecated alias for :attr:`type_high`.
+
+        A response carries no Sub-ID; this name survives only so older
+        callers keep working while they are moved over.
+        """
+        return self.type_high
+
+    @property
+    def obj_id(self) -> int | None:
+        """
+        Deprecated alias for :attr:`type_low_ver`.
+
+        A response carries no Object ID - see the module docstring.
+        """
+        return self.type_low_ver
+
+
+def frame_crc_valid(data: bytes) -> bool:
+    """
+    Whether a frame's trailing CRC matches its body.
+
+    The CRC covers ``frame[1:-2]``: the start byte is excluded because it is
+    a delimiter, and the CRC cannot cover itself.
+
+    Examples:
+        >>> frame_crc_valid(bytes.fromhex('240ef8e7070a414c5048412048575200838d'))
+        True
+        >>> frame_crc_valid(bytes.fromhex('240ef8e7070a414c5048412048575200ffff'))
+        False
+    """
+    if len(data) < 4:
+        return False
+    return calc_crc16_read(data[1:-2]) == ((data[-2] << 8) | data[-1])
 
 
 class FrameParser:
     """
     Parses GENI protocol frames.
 
-    This is a stateless parser - each frame is parsed independently.
-    All methods are static for easy porting to other languages.
+    Stateless - each frame is parsed independently.
     """
 
     @staticmethod
     def parse_frame(data: bytes) -> ParsedFrame:
         """
-        Parse raw GENI frame into structured data.
-
-        This method validates the frame structure and extracts all fields.
-        It performs the following validations:
-        1. Minimum length (8 bytes)
-        2. Valid start byte (0x27 or 0x24)
-        3. CRC checksum
+        Parse a raw GENI frame into structured data.
 
         Args:
-            data: Raw frame bytes from BLE notification or response
+            data: One reassembled frame. Trailing bytes beyond the declared
+                length are ignored rather than folded into the payload.
 
         Returns:
-            ParsedFrame with extracted fields and validation flags
+            ParsedFrame with fields extracted and validation flags set.
 
         Examples:
-            >>> # Parse a request frame
-            >>> request = bytes.fromhex('2707e7f80203949596eb47')
-            >>> frame = FrameParser.parse_frame(request)
-            >>> frame.valid
-            True
-            >>> frame.frame_type
-            'request'
-            >>> frame.class_byte
-            2
-
-            >>> # Parse a Class 10 response
-            >>> response = bytes.fromhex('2415e7f80a015700450000000000000000000000fa3c')
-            >>> frame = FrameParser.parse_frame(response)
-            >>> frame.class_byte
-            10
-            >>> frame.sub_id
-            22272
-            >>> frame.obj_id
-            69
-
-            >>> # Parse invalid frame
-            >>> invalid = bytes.fromhex('ff00')
-            >>> frame = FrameParser.parse_frame(invalid)
-            >>> frame.valid
+            >>> # Object 86 Sub 7, captured from an ALPHA HWR
+            >>> f = FrameParser.parse_frame(
+            ...     bytes.fromhex('2412f8e70a0e00012f0100000701001b39678ac3f7dd'))
+            >>> f.valid, f.crc_valid, f.class_byte
+            (True, True, 10)
+            >>> hex(f.type_high), hex(f.type_low_ver)
+            ('0x1', '0x2f01')
+            >>> f.multi_apdu
             False
 
-        Implementation Notes:
-            - Always check `valid` flag before using parsed data
-            - Check `crc_valid` for data integrity
-            - Handle None values for sub_id/obj_id (not present in Class 2/3)
+            >>> # A refusal: Unknown Data Item naming item 0x00
+            >>> r = FrameParser.parse_frame(bytes.fromhex('2407f8e70a810040405ebf'))
+            >>> r.class_byte, r.payload.hex()
+            (10, '00')
+            >>> r.multi_apdu
+            True
         """
-        # Initialize result with invalid state
         result = ParsedFrame(
             valid=False,
             frame_type=None,
             class_byte=None,
-            sub_id=None,
-            obj_id=None,
+            type_high=None,
+            type_low_ver=None,
             payload=b"",
+            multi_apdu=False,
             crc_valid=False,
             raw_data=data,
         )
 
-        # Validate minimum length
-        if len(data) < 8:
+        if len(data) < MIN_FRAME_LENGTH:
             return result
 
-        # Validate start byte
         start_byte = data[0]
         if start_byte == RESPONSE_START:
             result.frame_type = "response"
@@ -259,127 +222,70 @@ class FrameParser:
         else:
             return result
 
-        # Frame is structurally valid
+        # A frame promising fewer bytes than the protocol's minimum is not a
+        # short frame, it is a broken one. Clamping instead would leave a
+        # "valid" frame with no class byte.
+        declared_total = data[1] + 4
+        if declared_total < MIN_FRAME_LENGTH or declared_total > len(data):
+            return result
+
         result.valid = True
-
-        # Validate CRC
-        # CRC covers from Length byte to end of APDU (excludes Start and CRC itself)
-        crc_data = data[1:-2]
-        calculated_crc = calc_crc16_read(crc_data)
-        actual_crc = (data[-2] << 8) | data[-1]
-        result.crc_valid = calculated_crc == actual_crc
-
-        # Extract class byte (offset 4 in frame)
+        result.crc_valid = frame_crc_valid(data[:declared_total])
         result.class_byte = data[4]
 
-        # Parse based on class
-        if result.class_byte == CLASS_10 and len(data) > 5:
-            opspec = data[5]
-            # OpSpecs for register-read responses: 0x30 (motor), 0x2b (flow), 0x14 (temp), 0x09 (alarms/warnings), etc.
-            # Format: [Class][OpSpec][Seq(2)][Id(2)][Res(2)][DataLen][Data...]
-            if opspec in (0x30, 0x2B, 0x14, 0x2E, 0x2D, 0x09):
-                if len(data) > 12:
-                    result.payload = data[13:-2]  # Data starts at offset 13
-                    # We can store the ID as obj_id for routing if needed,
-                    # but these are handled by decode_register_read_response anyway.
-                    result.obj_id = (data[8] << 8) | data[9]
-                    result.sub_id = (data[6] << 8) | data[
-                        7
-                    ]  # This is actually sequence number
-            elif len(data) > 9:
-                # Class 10 Notification/SET: [Class][OpSpec][SubH][SubL][ObjH][ObjL][Payload...][CRC]
-                result.sub_id = (data[6] << 8) | data[7]  # Big-endian uint16
-                result.obj_id = (data[8] << 8) | data[9]  # Big-endian uint16
-                result.payload = data[10:-2]  # From after ObjID to before CRC
+        # Everything from here is bounded by what the first APDU declares.
+        # body_limit is where the CRC starts; apdu1_end is where this APDU's
+        # payload stops. They differ exactly when the telegram carries more.
+        body_limit = declared_total - 2
+        apdu1_end = min(6 + apdu_payload_len(data[5]), body_limit)
+        result.multi_apdu = apdu1_end < body_limit
+
+        if result.class_byte == CLASS_10:
+            if len(data) >= MIN_TYPED_LENGTH:
+                result.type_high = (data[6] << 8) | data[7]
+                result.type_low_ver = (data[8] << 8) | data[9]
+            if apdu1_end > CLASS10_BODY_OFFSET:
+                result.payload = data[CLASS10_BODY_OFFSET:apdu1_end]
+            elif apdu1_end > 6:
+                # A short Class 10 reply - an acknowledgement or a refusal -
+                # carries its one byte at offset 6, with no type fields.
+                result.payload = data[6:apdu1_end]
         else:
-            # Class 2/3: Payload starts after OpSpec
-            # Format: [Start][Len][SvcH][SvcL][Class][OpSpec][Register...][Payload...][CRC]
-            result.payload = data[6:-2]  # From after OpSpec to before CRC
+            result.payload = data[6:apdu1_end]
 
         return result
 
     @staticmethod
-    def extract_class10_identifiers(
-        frame: ParsedFrame,
-    ) -> dict[str, int | None]:
-        """
-        Extract Class 10 identifiers from parsed frame.
-
-        Convenience method to get Sub-ID and Object ID as a dictionary.
-        Useful for routing/dispatching based on object type.
-
-        Args:
-            frame: Parsed frame from parse_frame()
-
-        Returns:
-            Dictionary with 'sub_id' and 'obj_id' keys
-
-        Examples:
-            >>> frame = FrameParser.parse_frame(response_data)
-            >>> ids = FrameParser.extract_class10_identifiers(frame)
-            >>> if ids['obj_id'] == 87 and ids['sub_id'] == 69:
-            ...     print("Motor state telemetry")
-        """
-        return {
-            "sub_id": frame.sub_id,
-            "obj_id": frame.obj_id,
-        }
-
-    @staticmethod
     def is_telemetry_frame(frame: ParsedFrame) -> bool:
         """
-        Check if frame is a telemetry notification.
-
-        Telemetry frames are Class 10 responses with known Sub-ID/Object ID pairs.
+        Check whether a frame is one of the known telemetry notifications.
 
         Args:
-            frame: Parsed frame from parse_frame()
+            frame: Parsed frame from parse_frame().
 
         Returns:
-            True if frame is a known telemetry type
-
-        Examples:
-            >>> frame = FrameParser.parse_frame(response_data)
-            >>> if FrameParser.is_telemetry_frame(frame):
-            ...     telemetry_data = TelemetryDecoder.decode(frame)
+            True if the frame's type matches a known telemetry object.
         """
         if not frame.valid or frame.class_byte != CLASS_10:
             return False
-
-        # Known telemetry object IDs
-        TELEMETRY_OBJECTS = {
-            (87, 69),  # Motor state
-            (93, 290),  # Flow/Pressure
-            (93, 300),  # Temperature
-            (88, 0),  # Active alarms
-            (88, 11),  # Active warnings
-            (3, 1),  # Custom electrical
-            (0x2D01, 1),  # Custom speed/power
-            (0x1602, 2),  # Custom temperature
-        }
-
-        return (frame.obj_id, frame.sub_id) in TELEMETRY_OBJECTS
+        return (frame.type_low_ver, frame.type_high) in TELEMETRY_TYPES
 
     @staticmethod
     def validate_frame_integrity(frame: ParsedFrame) -> tuple[bool, str]:
         """
-        Comprehensive validation of frame integrity.
-
-        Checks all validation flags and returns detailed error message if invalid.
+        Validate a parsed frame, with a reason when it fails.
 
         Args:
-            frame: Parsed frame from parse_frame()
+            frame: Parsed frame from parse_frame().
 
         Returns:
-            Tuple of (is_valid, error_message)
-            - is_valid: True if all checks pass
-            - error_message: Empty string if valid, otherwise describes the issue
+            ``(is_valid, error_message)``; the message is empty when valid.
 
         Examples:
-            >>> frame = FrameParser.parse_frame(data)
-            >>> valid, error = FrameParser.validate_frame_integrity(frame)
-            >>> if not valid:
-            ...     logger.error(f"Frame validation failed: {error}")
+            >>> f = FrameParser.parse_frame(
+            ...     bytes.fromhex('240ef8e7070a414c5048412048575200838d'))
+            >>> FrameParser.validate_frame_integrity(f)
+            (True, '')
         """
         if not frame.valid:
             return False, "Invalid frame structure (bad start byte or length)"
@@ -390,50 +296,74 @@ class FrameParser:
         if frame.class_byte is None:
             return False, "Missing class byte"
 
-        if frame.class_byte == CLASS_10 and (
-            frame.sub_id is None or frame.obj_id is None
-        ):
-            return False, "Class 10 frame missing Sub-ID or Object ID"
-
         return True, ""
 
 
-# Test vectors for validation in other languages
-# These can be used to verify correct implementation
+#: Response types the pump's telemetry stream uses, as
+#: ``(type_low_ver, type_high)``.
+TELEMETRY_TYPES = {
+    (0x0003, 0x0001),  # motor state
+    (0x3502, 0x0002),  # flow / pressure
+    (0x1602, 0x0002),  # temperature
+    (88, 0),  # active alarms
+    (88, 11),  # active warnings
+}
+
+
+#: Frames captured from an ALPHA HWR (family 52, type 7, version 2) on
+#: 2026-08-20, for validating a reimplementation.
+#:
+#: These are recordings, not constructions. An earlier table here was
+#: hand-written and had the destination and source addresses the wrong way
+#: round, which no reply from this pump ever has - so anything checked
+#: against it was being checked against a frame the pump cannot send.
 TEST_VECTORS = {
-    "class10_motor_state": {
-        "hex": "2412e7f80a0a0045005700000000000000000000fd72",
+    "class7_product_name": {
+        "hex": "240ef8e7070a414c5048412048575200838d",
+        "expected": {
+            "valid": True,
+            "frame_type": "response",
+            "class_byte": 7,
+            "payload": "ALPHA HWR\x00",
+            "crc_valid": True,
+        },
+    },
+    "class10_mode_read": {
+        "hex": "2412f8e70a0e00012f0100000701001b39678ac3f7dd",
         "expected": {
             "valid": True,
             "frame_type": "response",
             "class_byte": 10,
-            "sub_id": 69,  # 0x0045
-            "obj_id": 87,  # 0x0057
+            "type_high": 0x0001,
+            "type_low_ver": 0x2F01,
             "payload_len": 10,
             "crc_valid": True,
         },
     },
-    "class10_flow_pressure": {
-        "hex": "2416e7f80a0e0122005d00000000000000000000000000000b8b",
+    "class10_setpoint_range": {
+        "hex": (
+            "2427f8e70a2300012d0100001c452f000044ce400045657000"
+            "c56570003f8000003f8000003f80000089a9"
+        ),
         "expected": {
             "valid": True,
             "frame_type": "response",
             "class_byte": 10,
-            "sub_id": 290,  # 0x0122 (big-endian: 01 22)
-            "obj_id": 93,  # 0x005D (big-endian: 00 5D)
-            "payload_len": 14,
+            "type_high": 0x0001,
+            "type_low_ver": 0x2D01,
+            "payload_len": 31,
             "crc_valid": True,
         },
     },
-    "auth_legacy_magic": {
-        "hex": "2707e7f80203949596eb47",
+    "class10_schedule_overview": {
+        "hex": "2415f8e70a110000da0100000a02050005010100000000dd89",
         "expected": {
             "valid": True,
-            "frame_type": "request",
-            "class_byte": 2,
-            "sub_id": None,
-            "obj_id": None,
-            "payload_len": 3,  # Payload is after OpSpec (offset 6), before CRC
+            "frame_type": "response",
+            "class_byte": 10,
+            "type_high": 0x0000,
+            "type_low_ver": 0xDA01,
+            "payload_len": 13,
             "crc_valid": True,
         },
     },
