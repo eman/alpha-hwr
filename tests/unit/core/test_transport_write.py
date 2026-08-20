@@ -12,6 +12,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from wire import CAPTURED
 
 from alpha_hwr.constants import GENI_CHAR_UUID
 from alpha_hwr.core.transport import BLE_MTU_LIMIT, SEND_PACING, Transport
@@ -248,3 +249,73 @@ class TestFramesAreChunkedForThePump:
         await transport.write(_SET)
 
         assert slept, "chunks of one frame must be paced apart"
+
+
+class TestFrameDropCounters:
+    """
+    A dropped frame leaves a trace.
+
+    Dropping is the system working - a bad CRC caught is a corrupted frame
+    that did not become a write verdict. What was missing is any way to
+    know it happened: a link quietly shedding frames is otherwise
+    indistinguishable from a client that occasionally times out for no
+    reason. One counter per reason, because they mean different things.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_bad_crc_is_counted(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        transport, _ = _transport_recording_sleeps(monkeypatch)
+        delivered: list[bytes] = []
+        transport._custom_handlers.append(delivered.append)
+
+        corrupt = bytearray(CAPTURED["mode_read"])
+        corrupt[-1] ^= 0xFF
+        transport._notification_callback(None, corrupt)
+
+        assert delivered == []
+        assert transport.frame_drops["crc_failures"] == 1
+
+    @pytest.mark.asyncio
+    async def test_an_impossible_length_is_counted_separately(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        A runt length is a peer talking nonsense, not a corrupted link.
+
+        Counting it as a CRC failure would make a framing bug look like
+        radio interference.
+        """
+        transport, _ = _transport_recording_sleeps(monkeypatch)
+
+        transport._notification_callback(
+            None, bytearray([0x24, 0x00, 0xF8, 0xE7, 0x0A, 0x00])
+        )
+
+        assert transport.frame_drops["runt_length_drops"] == 1
+        assert transport.frame_drops["crc_failures"] == 0
+
+    @pytest.mark.asyncio
+    async def test_bytes_that_start_no_frame_are_counted(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Usually means sync was lost, not that the radio is bad."""
+        transport, _ = _transport_recording_sleeps(monkeypatch)
+
+        transport._notification_callback(None, bytearray(b"\xde\xad\xbe\xef"))
+
+        assert transport.frame_drops["unsolicited_fragments"] == 1
+
+    @pytest.mark.asyncio
+    async def test_a_clean_frame_counts_nothing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        transport, _ = _transport_recording_sleeps(monkeypatch)
+        delivered: list[bytes] = []
+        transport._custom_handlers.append(delivered.append)
+
+        transport._notification_callback(None, bytearray(CAPTURED["mode_read"]))
+
+        assert len(delivered) == 1
+        assert not any(transport.frame_drops.values())

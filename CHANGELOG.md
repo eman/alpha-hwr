@@ -38,6 +38,15 @@
   `_has_motor_state_stream` could never be set by a notification — so the
   polling it exists to suppress ran whether or not the pump was streaming.
 
+- **Every reason a frame is thrown away is now counted**
+  (`transport.frame_drops`): bad CRC, an abandoned partial, bytes that
+  start no frame, an impossible declared length, a reassembly overflow,
+  and a full response queue. They are separate counters because they mean
+  different things - a bad CRC is a corrupted link, a runt length is a
+  peer talking nonsense, and unsolicited fragments usually mean sync was
+  lost rather than that the radio is bad. A dropped frame is the system
+  working; what was missing was any way to know it had happened.
+
 - **Inbound CRC is now enforced.** It was computed and never read:
   `validate_frame_integrity()` was its only consumer and had no call site,
   so every write verdict was decided by reading unverified bytes back.

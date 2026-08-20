@@ -203,9 +203,18 @@ class Transport:
         # timeout for a pump that is no longer there.
         self._link_down = asyncio.Event()
 
-        # Frames dropped because their CRC did not match. Until the CRC was
-        # enforced this could not be counted, because nothing checked it.
+        # Why inbound bytes were thrown away. One counter per reason,
+        # because they mean different things: a bad CRC is a corrupted
+        # link, a runt length is a peer talking nonsense, and bytes that
+        # start no frame usually mean we lost sync rather than that the
+        # radio is bad. Until the CRC was enforced none of this could be
+        # counted, because nothing checked anything.
         self.crc_failures = 0
+        self.stale_partials = 0
+        self.unsolicited_fragments = 0
+        self.runt_length_drops = 0
+        self.overflow_drops = 0
+        self.queue_full_drops = 0
 
         # Custom notification handlers (for telemetry streaming)
         self._custom_handlers: list[Callable[[bytes], None]] = []
@@ -306,6 +315,25 @@ class Transport:
         except READ_ERRORS as e:
             logger.debug(f"Error stopping notifications: {e}")
 
+    @property
+    def frame_drops(self) -> dict[str, int]:
+        """
+        Every reason a frame was thrown away, and how often.
+
+        A drop is the system working, so none of these is an error by
+        itself - but a link quietly shedding frames is otherwise
+        indistinguishable from a client that occasionally times out for no
+        reason, which is the gap this closes.
+        """
+        return {
+            "crc_failures": self.crc_failures,
+            "stale_partials": self.stale_partials,
+            "unsolicited_fragments": self.unsolicited_fragments,
+            "runt_length_drops": self.runt_length_drops,
+            "overflow_drops": self.overflow_drops,
+            "queue_full_drops": self.queue_full_drops,
+        }
+
     def _reset_reassembly(self) -> None:
         """Drop any partial frame and forget when it started."""
         self._response_buffer = bytearray()
@@ -361,6 +389,7 @@ class Transport:
             and self._reassembly_started is not None
             and now - self._reassembly_started > REASSEMBLY_TIMEOUT
         ):
+            self.stale_partials += 1
             logger.warning(
                 f"Abandoning a partial frame after "
                 f"{now - self._reassembly_started:.1f}s: "
@@ -372,6 +401,7 @@ class Transport:
             if data[0] != RESPONSE_START_BYTE:
                 # Not a frame start and nothing under way: there is no
                 # frame this can belong to.
+                self.unsolicited_fragments += 1
                 logger.debug(
                     f"Ignoring {len(data)} bytes that start no frame: "
                     f"{bytes(data).hex()}"
@@ -389,6 +419,7 @@ class Transport:
 
         length_byte = self._response_buffer[1]
         if length_byte < MIN_LENGTH_BYTE:
+            self.runt_length_drops += 1
             logger.warning(
                 f"Frame declares {length_byte} bytes, below the "
                 f"{MIN_LENGTH_BYTE}-byte minimum; dropping"
@@ -404,6 +435,7 @@ class Transport:
         # this runs *before* anything is dispatched - it used to run after,
         # so an overlong buffer was delivered and only then cleared.
         if len(self._response_buffer) > MAX_TELEGRAM_LEN:
+            self.overflow_drops += 1
             logger.warning(
                 f"Reassembly buffer reached {len(self._response_buffer)} "
                 f"bytes, past the {MAX_TELEGRAM_LEN}-byte maximum telegram; "
@@ -440,6 +472,7 @@ class Transport:
         try:
             self._response_queue.put_nowait(full_packet)
         except asyncio.QueueFull:
+            self.queue_full_drops += 1
             logger.warning("Response queue full, dropping packet")
 
         for handler in self._custom_handlers:
