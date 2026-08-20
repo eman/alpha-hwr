@@ -6,6 +6,7 @@ import struct
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from wire import frame
 
 from alpha_hwr.core.session import Session
 from alpha_hwr.core.transport import Transport
@@ -35,12 +36,14 @@ def device_info_service(mock_transport, mock_session):
 async def test_read_detailed_info(device_info_service, mock_transport):
     """Test reading serial and versions via Class 7 strings."""
 
-    # Side effect for multiple string reads (ID 9, 50, 52, 58)
-    # APDU: [0x07, 0x01, string_id]
-    # Header: [27, Len, E7, F8]
-    # string_id is at index 6
-    def mock_query(frame, match_func=None, timeout=None):
-        string_id = frame[6]
+    # Requests are [27][Len][E7][F8][0x07][head][string_id], so the ID is
+    # at index 6. Replies are built by tests.wire, which computes a real
+    # length and CRC and puts the text at offset 6 - the shape the pump
+    # actually sends. The fixture this replaced declared a length of 0,
+    # used 0x81 as a constant "response opcode", and echoed the string ID
+    # in front of the text.
+    def mock_query(request, match_func=None, timeout=None):
+        string_id = request[6]
         val = ""
         if string_id == 9:
             val = "SERIAL123"
@@ -51,21 +54,15 @@ async def test_read_detailed_info(device_info_service, mock_transport):
         elif string_id == 58:
             val = "BLE3.0"
 
-        # Response: [24][Len][Dst][Src][Class][Cmd][ID][Data][CRC]
-        resp = (
-            bytes([0x24, 0x00, 0xE7, 0xF8, 0x07, 0x81, string_id])
-            + val.encode()
-            + b"\x00\x00\x00"
-        )
-        return resp
+        return frame(0x07, val.encode() + b"\x00")
 
     mock_transport.send_command.side_effect = mock_query
 
     info = await device_info_service.read_detailed()
 
     assert info is not None
-    # Serial number gets "1" prepended to the suffix
-    assert info.serial_number == "1SERIAL123"
+    # The serial arrives whole; nothing is prepended to it.
+    assert info.serial_number == "SERIAL123"
     assert info.software_version == "SW1.0"
     assert info.hardware_version == "HW2.0"
     assert info.ble_version == "BLE3.0"

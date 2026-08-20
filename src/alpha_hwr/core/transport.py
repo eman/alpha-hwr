@@ -21,6 +21,7 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 
 from ..constants import GENI_CHAR_UUID
 from ..exceptions import READ_ERRORS
+from ..protocol.frame_parser import frame_crc_valid
 from ..protocol.matcher import Command as MatcherCommand
 from ..protocol.matcher import matches as matcher_matches
 
@@ -35,6 +36,37 @@ BLE_MTU_LIMIT = 20
 #: or separate commands. The pump drops or ignores traffic that arrives
 #: faster than this.
 SEND_PACING = 0.05
+
+#: Only the pump's start byte is accepted inbound.
+#:
+#: 0x27 was accepted here too, described as "request/echo". The pump does
+#: not echo: across the reference capture corpus, all 22,062 pump-to-phone
+#: frames start 0x24 and none start 0x27. Accepting 0x27 meant an ordinary
+#: payload byte could be taken for the start of a new frame.
+RESPONSE_START_BYTE = 0x24
+
+#: Smallest length byte a real frame can declare.
+#:
+#: A frame is ``length + 4`` bytes and the shortest legal one is the
+#: nine-byte Class 10 acknowledgement ``24 05 F8 E7 0A 01 00 AE A2``. With
+#: no floor, a length byte of 0x00 declared a four-byte frame, so any
+#: notification "completed" instantly and was dispatched as a runt.
+MIN_LENGTH_BYTE = 5
+
+#: Largest telegram the protocol allows: 253 PDU bytes plus start, length
+#: and the two CRC bytes.
+#:
+#: The old ceiling was 256, three short, so a legal maximum-length telegram
+#: would have been discarded mid-reassembly.
+MAX_PDU_LEN = 253
+MAX_TELEGRAM_LEN = MAX_PDU_LEN + 4
+
+#: How long a partial frame may sit before it is abandoned.
+#:
+#: The pump paces fragments about 50 ms apart, so a gap of a full second
+#: means the rest is not coming. Without this a truncated frame wedges
+#: reassembly for the life of the connection.
+REASSEMBLY_TIMEOUT = 1.0
 
 
 class Transport:
@@ -141,6 +173,16 @@ class Transport:
         self._response_queue: asyncio.Queue[bytes] = asyncio.Queue()
         self._response_buffer = bytearray()
 
+        # When the current partial frame's first fragment arrived. A frame
+        # start only begins a new packet when we are not already
+        # reassembling, so this is what stops a truncated frame wedging the
+        # buffer forever.
+        self._reassembly_started: float | None = None
+
+        # Frames dropped because their CRC did not match. Until the CRC was
+        # enforced this could not be counted, because nothing checked it.
+        self.crc_failures = 0
+
         # Custom notification handlers (for telemetry streaming)
         self._custom_handlers: list[Callable[[bytes], None]] = []
 
@@ -223,6 +265,11 @@ class Transport:
         except READ_ERRORS as e:
             logger.debug(f"Error stopping notifications: {e}")
 
+    def _reset_reassembly(self) -> None:
+        """Drop any partial frame and forget when it started."""
+        self._response_buffer = bytearray()
+        self._reassembly_started = None
+
     def _notification_callback(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
     ) -> None:
@@ -243,62 +290,129 @@ class Transport:
         -----
         This runs in BLE event loop context. Keep processing minimal.
 
-        GENI packets can be fragmented by BLE MTU limits (20 bytes).
-        We accumulate fragments until we have a complete packet:
-        - If data[0] is 0x24 or 0x27 (frame start), start new packet
-        - Otherwise, append to current buffer
-        - Check if packet complete: len(buffer) >= buffer[1] + 4
-        - Only queue complete packets
+        GENI frames are fragmented by the 20-byte MTU, so fragments are
+        accumulated until the frame's own length field says it is complete:
+
+        - 0x24 starts a new frame, but *only* when not already
+          reassembling. A mid-frame fragment can begin with 0x24 - it is an
+          ordinary payload byte - and treating it as a start discarded the
+          frame under way and dispatched the fragment as a runt.
+        - The declared length must be plausible before it is trusted.
+        - The frame is trimmed to its declared length and its CRC checked
+          before anything downstream sees it. This is the only place a
+          frame becomes visible to the rest of the client, so it is the
+          only place that check has to happen - and until it was made, every
+          write verdict was decided by reading unverified bytes back.
         """
         logger.debug(
             f"BLE notification received: {len(data)} bytes - {data.hex()}"
         )
 
-        # Handle packet fragmentation
-        # Frame start bytes: 0x24 (response) or 0x27 (request/echo)
-        if len(data) > 0 and data[0] in (0x24, 0x27):
-            # New packet starting
+        if not data:
+            return
+
+        now = asyncio.get_event_loop().time()
+
+        # A partial frame that stopped arriving is abandoned rather than
+        # left to absorb the next frame's fragments.
+        if (
+            self._response_buffer
+            and self._reassembly_started is not None
+            and now - self._reassembly_started > REASSEMBLY_TIMEOUT
+        ):
+            logger.warning(
+                f"Abandoning a partial frame after "
+                f"{now - self._reassembly_started:.1f}s: "
+                f"{self._response_buffer.hex()}"
+            )
+            self._reset_reassembly()
+
+        if not self._response_buffer:
+            if data[0] != RESPONSE_START_BYTE:
+                # Not a frame start and nothing under way: there is no
+                # frame this can belong to.
+                logger.debug(
+                    f"Ignoring {len(data)} bytes that start no frame: "
+                    f"{bytes(data).hex()}"
+                )
+                return
             self._response_buffer = bytearray(data)
+            self._reassembly_started = now
         else:
-            # Continuation of existing packet
+            # Already reassembling. Everything is a continuation, including
+            # a fragment that happens to begin 0x24.
             self._response_buffer.extend(data)
 
-        # Check if we have a complete packet
-        if len(self._response_buffer) >= 2:
-            expected_len = (
-                self._response_buffer[1] + 4
-            )  # Length field + start + len + CRC(2)
-            if len(self._response_buffer) >= expected_len:
-                # Packet complete!
-                full_packet = bytes(self._response_buffer)
-                logger.debug(f"Complete packet assembled: {full_packet.hex()}")
+        if len(self._response_buffer) < 2:
+            return
 
-                # Queue for protocol layer processing
-                try:
-                    self._response_queue.put_nowait(full_packet)
-                except asyncio.QueueFull:
-                    logger.warning("Response queue full, dropping packet")
+        length_byte = self._response_buffer[1]
+        if length_byte < MIN_LENGTH_BYTE:
+            logger.warning(
+                f"Frame declares {length_byte} bytes, below the "
+                f"{MIN_LENGTH_BYTE}-byte minimum; dropping"
+            )
+            self._reset_reassembly()
+            return
 
-                # Call custom handlers (e.g., for telemetry updates)
-                for handler in self._custom_handlers:
-                    try:
-                        handler(full_packet)
-                    except Exception as e:  # noqa: BLE001
-                        # Caller-supplied handler: isolate it so one bad
-                        # handler cannot kill the notification callback.
-                        logger.error(f"Error in custom handler: {e}")
+        expected_len = length_byte + 4
 
-                # Clear buffer for next packet
-                self._response_buffer.clear()
-            else:
-                logger.debug(
-                    f"Partial packet: have {len(self._response_buffer)}, need {expected_len}"
-                )
+        # An overflow means frame sync was lost. Drop the partial frame and
+        # nothing else: it says nothing about whether the pump will answer
+        # commands already sent, so it must not tear down the queue. Note
+        # this runs *before* anything is dispatched - it used to run after,
+        # so an overlong buffer was delivered and only then cleared.
+        if len(self._response_buffer) > MAX_TELEGRAM_LEN:
+            logger.warning(
+                f"Reassembly buffer reached {len(self._response_buffer)} "
+                f"bytes, past the {MAX_TELEGRAM_LEN}-byte maximum telegram; "
+                f"dropping the partial frame"
+            )
+            self._reset_reassembly()
+            return
 
-        # Safety: Clear buffer if it grows too large (corrupted data)
-        if len(self._response_buffer) > 256:
-            logger.warning("Response buffer overflow, clearing")
-            self._response_buffer.clear()
+        if len(self._response_buffer) < expected_len:
+            logger.debug(
+                f"Partial frame: have {len(self._response_buffer)}, "
+                f"need {expected_len}"
+            )
+            return
+
+        # Trim to what the frame declares. The test above is >=, so
+        # trailing bytes can be sitting in the buffer - and they are
+        # outside what the CRC covers, so checking them in would fail a
+        # sound frame.
+        full_packet = bytes(self._response_buffer[:expected_len])
+        leftover = bytes(self._response_buffer[expected_len:])
+        self._reset_reassembly()
+
+        if not frame_crc_valid(full_packet):
+            self.crc_failures += 1
+            logger.warning(
+                f"Dropping a frame whose CRC does not match "
+                f"(#{self.crc_failures}): {full_packet.hex()}"
+            )
+            return
+
+        logger.debug(f"Complete packet assembled: {full_packet.hex()}")
+
+        try:
+            self._response_queue.put_nowait(full_packet)
+        except asyncio.QueueFull:
+            logger.warning("Response queue full, dropping packet")
+
+        for handler in self._custom_handlers:
+            try:
+                handler(full_packet)
+            except Exception as e:  # noqa: BLE001
+                # Caller-supplied handler: isolate it so one bad handler
+                # cannot kill the notification callback.
+                logger.error(f"Error in custom handler: {e}")
+
+        if leftover:
+            # A second frame rode in behind the first. Feed it back rather
+            # than discarding it.
+            self._notification_callback(characteristic, bytearray(leftover))
 
     async def write(self, data: bytes, response: bool = False) -> None:
         """
