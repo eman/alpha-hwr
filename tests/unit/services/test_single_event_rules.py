@@ -13,14 +13,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from alpha_hwr import pump_time
+from alpha_hwr.pump_time import from_pump_time, to_pump_time
 from alpha_hwr.services import single_event as se
 from alpha_hwr.services.single_event import (
     ACTION_RUN,
     ACTION_STOP,
     SLOT_LIMIT,
     SingleEventService,
-    from_pump_time,
-    to_pump_time,
 )
 
 
@@ -139,7 +139,7 @@ class TestTimestampEncoding:
             to_pump_time(datetime(2107, 1, 1))
 
     def test_the_top_of_the_range_is_accepted(self) -> None:
-        assert to_pump_time(datetime(2106, 2, 7)) <= se.MAX_PUMP_TIME
+        assert to_pump_time(datetime(2106, 2, 7)) <= pump_time.MAX_PUMP_TIME
 
 
 class TestConfirm:

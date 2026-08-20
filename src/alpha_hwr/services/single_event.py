@@ -25,13 +25,15 @@ watching a window open with the motor at 0 RPM.
 from __future__ import annotations
 
 import asyncio
-import calendar
 import logging
-import time
 from dataclasses import dataclass
 from datetime import datetime
 
 from ..exceptions import READ_ERRORS
+from ..pump_time import (
+    from_pump_time,
+    to_pump_time,
+)
 from .base import BaseService
 
 logger = logging.getLogger(__name__)
@@ -71,39 +73,6 @@ STRUCT_LEN = 0x0A
 #: read", blaming the link for an argument that could never have been
 #: right whatever the link was doing.
 SLOT_LIMIT = 100
-
-#: The pump stores each timestamp as a 32-bit unsigned Unix time, so the
-#: representable range runs to 2106. The GENI profile declares
-#: ``ClockProgramSingleEvent``'s begin and end as uint32_t.
-MAX_PUMP_TIME = 0xFFFFFFFF
-
-
-def to_pump_time(when: datetime) -> int:
-    """
-    Encode a wall clock as the pump stores it.
-
-    The pump keeps local Unix time: the wall-clock fields stamped as though
-    they were UTC. A naive datetime is taken as local, which is the only
-    reading that makes sense for a schedule.
-    """
-    stamped = calendar.timegm(when.timetuple())
-    if not 0 <= stamped <= MAX_PUMP_TIME:
-        raise ValueError(
-            f"{when} is outside the range the pump can store "
-            f"(1970-01-01 to 2106-02-07); it encodes as {stamped}"
-        )
-    return stamped
-
-
-def from_pump_time(value: int) -> datetime:
-    """
-    Decode a stored timestamp back to the wall clock it denotes.
-
-    Naive by design, and the inverse of :func:`to_pump_time`: the pump
-    stores no offset, so attaching one here would invent information.
-    """
-    parts = time.gmtime(value)
-    return datetime(*parts[:6])  # noqa: DTZ001 - wall clock, no offset
 
 
 @dataclass(frozen=True)

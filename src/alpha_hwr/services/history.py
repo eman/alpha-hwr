@@ -52,10 +52,11 @@ from __future__ import annotations
 
 import logging
 import struct
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from ..exceptions import READ_ERRORS, ConnectionError
+from ..pump_time import from_pump_time
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -271,7 +272,7 @@ class HistoryService(BaseService):
                 if ts < 946684800:  # Jan 1, 2000
                     ts += 946684800
 
-                result.append(datetime.fromtimestamp(ts, tz=UTC))
+                result.append(from_pump_time(ts))
 
             return result
 
@@ -440,7 +441,7 @@ class HistoryService(BaseService):
 
                     points_10.append(
                         TrendDataPoint(
-                            timestamp=datetime.fromtimestamp(ts, tz=UTC),
+                            timestamp=from_pump_time(ts),
                             value=val_scaled,
                         )
                     )
@@ -459,7 +460,7 @@ class HistoryService(BaseService):
 
                     points_100.append(
                         TrendDataPoint(
-                            timestamp=datetime.fromtimestamp(ts, tz=UTC),
+                            timestamp=from_pump_time(ts),
                             value=val_scaled,
                         )
                     )

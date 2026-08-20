@@ -73,10 +73,11 @@ from __future__ import annotations
 import logging
 import struct
 import warnings
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ..exceptions import READ_ERRORS, ConnectionError
+from ..pump_time import from_pump_time
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -361,7 +362,7 @@ class EventLogService(BaseService):
 
             # Parse Unix timestamp (big-endian uint32)
             timestamp_raw = struct.unpack(">I", raw_data[10:14])[0]
-            timestamp = datetime.fromtimestamp(timestamp_raw, tz=UTC)
+            timestamp = from_pump_time(timestamp_raw)
 
             return EventLogEntry(
                 index=index,

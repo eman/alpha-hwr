@@ -110,6 +110,7 @@ exclude = ["src/alpha_hwr/*_baseline.py"]
 # port had to fix. The production code carries the same exemption as
 # per-line `noqa`s; these files are dense enough in them to say it once.
 "tests/unit/services/test_single_event_rules.py" = ["DTZ001", "DTZ005"]
+"tests/unit/test_pump_time.py" = ["DTZ001", "DTZ005"]
 
 [tool.ruff.lint.flake8-bugbear]
 # Typer's whole API is call-in-default (`typer.Option(...)` /

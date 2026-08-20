@@ -1,7 +1,9 @@
 """Event log decoder for ALPHA HWR historical data."""
 
 import struct
-from datetime import UTC, datetime
+from datetime import datetime
+
+from .pump_time import from_pump_time
 
 
 class EventLogEntry:
@@ -36,7 +38,7 @@ class EventLogEntry:
 
         # Parse Unix timestamp (big-endian uint32)
         timestamp_raw = struct.unpack(">I", raw_data[10:14])[0]
-        self.timestamp = datetime.fromtimestamp(timestamp_raw, tz=UTC)
+        self.timestamp = from_pump_time(timestamp_raw)
 
         self.trailing_data = struct.unpack(">H", raw_data[14:16])[0]
 
@@ -91,7 +93,7 @@ class CycleTimestampMap:
             timestamp_raw = struct.unpack(">I", raw_data[offset : offset + 4])[
                 0
             ]
-            dt = datetime.fromtimestamp(timestamp_raw, tz=UTC)
+            dt = from_pump_time(timestamp_raw)
             self.timestamps.append(dt)
 
     def __repr__(self) -> str:

@@ -38,6 +38,26 @@
   `_has_motor_state_stream` could never be set by a notification — so the
   polling it exists to suppress ran whether or not the pump was streaming.
 
+- **One time base, in `alpha_hwr.pump_time`.** The pump keeps local wall
+  clock and has no notion of UTC: its `DateTimeActual` carries a
+  `dst_status` that reads `SummerTime`, its `DaylightSavingTime` object is
+  enabled with the US rule and a 60-minute offset, and **no timezone or
+  UTC-offset field exists anywhere in its GENI profile**. So every
+  timestamp it stores is in its clock's base, which is local.
+
+  `set_clock` and the single-event encoding were already right. The event
+  log and the trend history were not: they decoded with
+  `datetime.fromtimestamp(ts, tz=UTC)`, which yields the correct digits
+  attached to the wrong instant - calling `.astimezone()` on one shifted it
+  by the local offset. Those surfaces now return naive datetimes carrying
+  the pump's wall clock, like the rest.
+
+  This is an interoperability rule rather than a preference: the GO app,
+  the ESPHome component and this library all write the same clock, and the
+  pump cannot say which base a value arrived in. Two clients disagreeing
+  sets the clock wrong by the local offset and misfires every stored
+  schedule.
+
 - **Every reason a frame is thrown away is now counted**
   (`transport.frame_drops`): bad CRC, an abandoned partial, bytes that
   start no frame, an impossible declared length, a reassembly overflow,

@@ -421,3 +421,60 @@ What it does establish is that the frame path is clean enough that a
 timeout on this bench is not a silently corrupted frame, which is what the
 counters exist to tell you. An earlier version of this note recorded 167
 frames, which could not distinguish zero from one in 5,900.
+
+## The pump keeps local wall clock, and has no idea UTC exists
+
+This decides how every client must write the pump's clock, so it matters
+beyond this codebase: the GO app, the ESPHome component and this library
+all write the same register, and the pump cannot say which time base a
+value arrived in.
+
+Read from the bench unit:
+
+    DateTimeActual  (94/101, type 322 v1)   07ea08140f221b0100040101
+      year 2026  month 8  day 20  hour 15  min 34  sec 27
+      day_w Thu   dst_status 1 = SummerTime
+      -> 2026-08-20 15:34:27, against a host local clock of 15:34:28
+
+    DaylightSavingTime (94/102, type 323 v1)  01030702020b0701023c
+      enabled                 1
+      start  Mar, Sunday, occurrence 2, hour 2
+      end    Nov, Sunday, occurrence 1, hour 2
+      time_offset             60
+
+Three things follow, and the third is the one that settles the timestamps:
+
+1. The clock is **local**. A device that reports whether it is currently in
+   summer time is not keeping UTC.
+2. The pump applies DST **itself** - enabled, with the US rule and a
+   60-minute offset - so it shifts its own clock twice a year.
+3. **There is no timezone or UTC-offset field anywhere in the GENI
+   profile.** Searching the whole of `geni_profile_52_7.xml` for timezone,
+   UTC, GMT or offset returns only electrical offsets and alarm names. The
+   pump therefore cannot convert between bases even in principle.
+
+So a 32-bit timestamp the pump stores - `ClockProgramSingleEvent`'s begin
+and end, the event log's entries, the cycle timestamps - must be in the
+same base as its clock, because the pump compares them against it and has
+no offset to relate the two. That base is local. The stored value is the
+local wall clock stamped as though it were UTC, which is what
+`calendar.timegm` on naive local fields produces.
+
+This agrees with the earlier behavioural measurement, where an event
+written under this encoding started four seconds from its intended wall
+clock - and it explains *why*, rather than leaving it as a lucky guess.
+
+### What this client had wrong
+
+`set_clock` and the single-event encoding were already right. The event log
+and the trend history decoded their timestamps with
+`datetime.fromtimestamp(ts, tz=UTC)`, which produces the correct digits
+attached to the wrong instant: calling `.astimezone()` on one shifted it by
+the local offset. All four surfaces now go through `alpha_hwr.pump_time`.
+
+### A consequence worth knowing
+
+Because the pump shifts its own clock at a DST transition, a stored event
+keeps its *wall clock* across the boundary - an 07:00 event stays at 07:00.
+That is almost certainly the intent, and it is another thing true-UTC
+storage would break.
