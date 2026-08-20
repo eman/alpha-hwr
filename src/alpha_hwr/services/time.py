@@ -161,7 +161,8 @@ class TimeService(BaseService):
             if data and len(data) >= 10:
                 logger.debug(f"Raw clock data: {data.hex()} (len={len(data)})")
 
-                # Parse Type 322 structure:
+                # Type 322 version 1 - the read's type, and the reason
+                # the write's constant above was mislabelled. Parse:
                 # `[Status(2)][Length(1)][Year(2)][Month(1)][Day(1)][Hour(1)][Minute(1)][Second(1)]`
                 status = (data[0] << 8) | data[1]
 
@@ -256,10 +257,31 @@ class TimeService(BaseService):
         try:
             from ..protocol import FrameBuilder
 
-            # Type 322 data payload (16 bytes):
-            # [header(6)][Year(2BE)][Month][Day][Hour][Min][Sec][pad(3)]
-            _TYPE_322_HEADER = bytes([0x41, 0x02, 0x00, 0x00, 0x0B, 0x01])
-            data = bytearray(_TYPE_322_HEADER)
+            # The write is Object 94 **Sub 100** (DateTimeConfig), type
+            # **321 version 2** - not type 322, which is the type the
+            # *read* of Sub 101 answers with and which was pasted onto
+            # this constant. Config and actual are two different objects.
+            #
+            # These six bytes are not an opaque header. Read against the
+            # frame the builder emits - 0A 94 5E 00 64 01 41 02 00 00 0B -
+            # they are the tail of the address and the object's own size
+            # field:
+            #
+            #     5E        object 94
+            #     00 64     sub-id 100
+            #     01 41     type 321
+            #     02        version
+            #     00 00 0B  size: 11 body bytes
+            #     01        constant leading struct byte
+            #
+            # The split between "address" and "data" here is an artifact
+            # of build_data_object_set's parameter names, which is why
+            # sub_id=0x5E00 and obj_id=0x6401 look transposed: they are
+            # byte pairs, not the object and sub-id they are named after.
+            _OBJECT_SIZE_AND_STRUCT_HEAD = bytes(
+                [0x41, 0x02, 0x00, 0x00, 0x0B, 0x01]
+            )
+            data = bytearray(_OBJECT_SIZE_AND_STRUCT_HEAD)
             data.extend(struct.pack(">H", dt.year))
             data.append(dt.month)
             data.append(dt.day)
@@ -274,7 +296,10 @@ class TimeService(BaseService):
                 f"{dt.hour:02d}:{dt.minute:02d}:{dt.second:02d})"
             )
 
-            # Class 10 SET: SubID 0x5E00 (Obj 94), ObjID 0x6401 (Sub 100)
+            # Object 94 Sub 100, type 321 v2. The parameter names are the
+            # builder's, and are misleading here: these are the byte pairs
+            # 5E 00 and 64 01, which read as object 94, sub-id 100, and
+            # the first half of the type word.
             frame = FrameBuilder.build_data_object_set(
                 sub_id=0x5E00,
                 obj_id=0x6401,
@@ -282,9 +307,10 @@ class TimeService(BaseService):
             )
             logger.debug(f"Clock SET frame: {frame.hex()} ({len(frame)} bytes)")
 
-            # The clock write is acknowledged by a bare Class 10 ack, which
-            # carries no identifiers - the operation specifier is the only
-            # thing that distinguishes it from a telemetry notification.
+            # Acknowledged by the bare nine-byte Class 10 ack
+            # 24 05 F8 E7 0A 01 00 AE A2, measured at 90-120 ms on this
+            # pump. It carries no identifiers, so it can only be
+            # attributed to the command in flight.
             response = await self.transport.send_command(
                 frame,
                 Command(
@@ -298,6 +324,17 @@ class TimeService(BaseService):
             if not response:
                 logger.warning("No ACK received for clock set")
                 return False
+
+            # The comparison below is deliberately generous, and
+            # deliberately not symmetric in what it is tolerating. `dt` was
+            # sampled before the frame went out, so by the time the pump
+            # answers a readback it legitimately reads *behind* it - the
+            # write takes about 0.64 s end to end here, and the pump's
+            # clock has one-second resolution. Measured over five runs, the
+            # pump landed exactly on the requested second every time and
+            # read 0.8-1.6 s behind the host by the time it was read back.
+            # Tightening this to a second or two would start failing on
+            # the client's own latency.
 
             # Give the pump time to apply
             if not getattr(self.session, "fast_mode", False):

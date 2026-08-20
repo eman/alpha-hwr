@@ -69,6 +69,46 @@
 
   Both rewrites are removed rather than retuned.
 
+- **Single-event writes declared a payload length they did not carry.**
+  The APDU head was `0xB3` - SET with 51 bytes - borrowed from the schedule
+  layer write, whose 53-byte APDU really does carry 51. A single event
+  carries 19, so the head is `0x93`. Every one of the 29 single-event
+  writes in the capture corpus uses `0x93`; the 8 layer writes use `0xB3`.
+  The pump accepts either, so nothing was visibly failing, but a firmware
+  that checked the field would have refused ours with no diagnostic.
+
+- **A single-event write never checked what the pump kept.** It now reads
+  the slot back and compares the window, the enabled flag and - the point
+  of the exercise - the ACTION byte. ACTION is half the meaning of a
+  single event: `0x01` holds the pump off across the window, which is what
+  a vacation *is*, and `0x02` runs it once. A confirm without it would
+  settle a vacation as written while the pump was scheduled to run.
+
+- **`clear_vacation()` ignored the clock.** It cleared the first enabled
+  Stop event in slot order, so a finished vacation in an early slot
+  shadowed a live one later: the call reported success and the pump stayed
+  off. It now prefers the vacation that is running, then the next one due,
+  and says so when it falls back to an expired one. `find_free_slot()` one
+  method up had always been clocked; the asymmetry was the bug.
+
+- **A wholly-past window is refused**, rather than spending one of five
+  slots on an event that can never run. A window already *underway* is
+  still accepted - starting part-way through is legitimate, so only the
+  end is compared.
+
+- **Slot bounds are checked in two stages, in that order.** The protocol
+  envelope first and without touching the pump - sub-id is `900 + slot`
+  and the schedule layers start at 1000, so slot 100 addresses layer 0
+  whatever the pump is doing. The pump's own count second, from the
+  overview. Deferring the first check made an impossible slot on a broken
+  link report "the overview could not be read", blaming the link for an
+  argument that could never have been right.
+
+- **Single-event timestamps are bounded to what the wire can hold**
+  (uint32, 1970 to 2106). `build_apdu` previously raised `OverflowError`
+  from inside a `try` that caught only read errors, so it escaped
+  uncaught.
+
 - **A read chain cut short by a disconnect reported itself as success.**
   `get_all_entries()` skipped entries it could not read - which is right,
   since a log with twelve entries reports the other eight as unreadable -
@@ -178,6 +218,13 @@
   so the failure mode cannot return as "skip everything".
 
 ### Documentation
+
+- **The clock write's frame layout is described correctly.** It is Object
+  94 **Sub 100**, type **321 version 2**; the constant carrying its first
+  six bytes was named `_TYPE_322_HEADER`, and 322 is the type the *read*
+  of Sub 101 answers with. Those six bytes are not an opaque header either
+  - they are the tail of the address, the object's size field and the
+  struct's leading byte. Verified against the frame the builder emits.
 
 - `docs/protocol/bench_findings.md` records the 2026-08-20 session: the
   Class 7 header, the response type table, the setpoint ranges, the
