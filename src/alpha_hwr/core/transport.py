@@ -85,6 +85,25 @@ MAX_TELEGRAM_LEN = MAX_PDU_LEN + 4
 #: second for an acknowledgement that was never coming, and a second is
 #: longer than 400 ms. Making it deliberate keeps the spacing and returns
 #: the second.
+#:
+#: **The window suppresses replies, not processing.** A SET sent inside it
+#: is still applied, so only a frame that expects an answer has to wait.
+#: Three things agree:
+#:
+#: * The GO app sends consecutive SETs back to back - 267 of the 289
+#:   consecutive SET-to-SET pairs in the capture corpus are under 200 ms,
+#:   median 62 ms, the tightest 43 ms - and those include the five-layer
+#:   schedule uploads and the five single-event slot writes, which work.
+#:   If a SET in the window were dropped, an upload would lose four of its
+#:   five layers every time.
+#: * The app's own scheduler arms the pause only on a SET followed by a
+#:   non-SET, and explicitly clears it otherwise
+#:   (``DongleHelper.handleOutgoingQueue``: ``noSentBefore = 0L``).
+#: * GENIbus itself only promises a reply per request; the pause is about
+#:   being able to read one, not about the write landing.
+#:
+#: So the hold is skipped when the next frame out is itself a Class 10
+#: SET, which is what :func:`Transport.write` does.
 POST_SET_QUIET = 0.4
 
 #: How long a partial frame may sit before it is abandoned.
@@ -252,17 +271,27 @@ class Transport:
 
         logger.debug("Transport initialized")
 
-    async def _pace(self) -> None:
+    async def _pace(self, outgoing: bytes | None = None) -> None:
         """
         Wait out the inter-write gap, and any quiet period a SET imposed.
 
         The two are separate constraints: SEND_PACING is about how fast the
         pump's radio will take bytes, POST_SET_QUIET is about it answering
-        nothing while it commits a write. A frame sent inside the quiet
-        period is still applied - the pump simply will not reply to
-        anything until it is over, so a read issued there is lost.
+        nothing while it commits a write.
+
+        A frame sent inside the quiet period is still *applied* - the pump
+        simply will not reply to anything until it is over. So the hold is
+        skipped when ``outgoing`` is itself a Class 10 SET, exactly as the
+        Grundfos GO app does: a write does not need an answer, and making
+        one wait would put 400 ms between every layer of a schedule upload
+        for nothing.
         """
         now = asyncio.get_event_loop().time()
+
+        if outgoing is not None and is_class10_set(outgoing):
+            # Consecutive writes go back to back. The window still stands
+            # for whatever comes after this one.
+            self._quiet_until = None
 
         if self._quiet_until is not None:
             remaining = self._quiet_until - now
@@ -517,8 +546,10 @@ class Transport:
             for i in range(0, len(data), BLE_MTU_LIMIT)
         ] or [data]
 
-        for chunk in chunks:
-            await self._pace()
+        for index, chunk in enumerate(chunks):
+            # Only the first chunk decides whether the quiet period applies;
+            # the rest are continuations of a frame already under way.
+            await self._pace(data if index == 0 else None)
             await self.client.write_gatt_char(
                 GENI_CHAR_UUID, chunk, response=response
             )

@@ -16,6 +16,30 @@ import pytest
 from alpha_hwr.constants import GENI_CHAR_UUID
 from alpha_hwr.core.transport import BLE_MTU_LIMIT, SEND_PACING, Transport
 
+#: A Class 10 SET (the no-op ClockProgramOverview write-back) and a Class
+#: 10 GET, as they go on the wire.
+_SET = bytes.fromhex("2717e7f80a9354000100da0100000a02050005010100000000b44e")
+_GET = bytes.fromhex("2707e7f80a03540001d5e8")
+
+
+def _transport_recording_sleeps(monkeypatch):
+    """A Transport whose BLE writes are stubbed and whose sleeps are logged."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from alpha_hwr.core import transport as tmod
+
+    client = MagicMock()
+    client.write_gatt_char = AsyncMock()
+    t = tmod.Transport(client)
+
+    slept: list[float] = []
+
+    async def fake_sleep(seconds: float) -> None:
+        slept.append(seconds)
+
+    monkeypatch.setattr(tmod.asyncio, "sleep", fake_sleep)
+    return t, slept
+
 
 @pytest.fixture
 def ble_client() -> MagicMock:
@@ -169,3 +193,79 @@ async def test_disconnect_clears_the_pacing_clock(
     await transport.write(bytes(4))
 
     assert slept == []
+
+
+class TestPostSetQuietPeriod:
+    """
+    The pump answers nothing for ~400 ms after a Class 10 SET.
+
+    Measured 2026-08-20: a read at +50, +100 or +200 ms goes unanswered
+    (0/3 each); the same read at +400 ms answers in ~55 ms (3/3). The write
+    itself is applied throughout - the window suppresses replies, not
+    processing - so only a frame expecting an answer has to wait for it.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_read_after_a_set_waits_out_the_window(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        transport, slept = _transport_recording_sleeps(monkeypatch)
+
+        await transport.write(_SET)
+        slept.clear()
+        await transport.write(_GET)
+
+        assert any(s >= 0.3 for s in slept), (
+            f"a read issued straight after a SET must wait out the pump's "
+            f"quiet period; slept {slept}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_second_set_does_not_wait(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Consecutive writes go back to back, as the GO app's do.
+
+        267 of the 289 consecutive SET-to-SET pairs in the capture corpus
+        are under 200 ms, and they include the five-layer schedule uploads
+        that demonstrably work. Holding here would put 400 ms between every
+        layer for nothing.
+        """
+        transport, slept = _transport_recording_sleeps(monkeypatch)
+
+        await transport.write(_SET)
+        slept.clear()
+        await transport.write(_SET)
+
+        assert all(s < 0.3 for s in slept), (
+            f"a write following a write must not wait; slept {slept}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_the_window_still_applies_after_the_second_set(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Skipping the hold for a SET must not cancel the next one's."""
+        transport, slept = _transport_recording_sleeps(monkeypatch)
+
+        await transport.write(_SET)
+        await transport.write(_SET)
+        slept.clear()
+        await transport.write(_GET)
+
+        assert any(s >= 0.3 for s in slept), (
+            f"the second SET arms its own quiet period; slept {slept}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_read_after_a_read_does_not_wait(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        transport, slept = _transport_recording_sleeps(monkeypatch)
+
+        await transport.write(_GET)
+        slept.clear()
+        await transport.write(_GET)
+
+        assert all(s < 0.3 for s in slept), f"slept {slept}"

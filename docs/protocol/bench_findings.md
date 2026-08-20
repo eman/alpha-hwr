@@ -331,6 +331,49 @@ A consequence worth stating, because it removes a failure mode rather than
 adding one: reading *too early* does not return a stale value, it returns
 nothing. The confirm already retries an unanswered read.
 
+## The quiet window suppresses replies, not processing
+
+A SET sent inside the 200-400 ms window is still applied; only a frame that
+expects an answer has to wait. This was left open when the window was first
+measured, because the obvious test - write, then write again 50 ms later,
+then read back - is confounded on Obj 91 by the mode request below. The
+captures and the vendor's own app settle it instead.
+
+**The GO app sends consecutive SETs back to back.** Across the corpus there
+are 289 consecutive SET-to-SET pairs:
+
+    min 43 ms   p50 62   p90 121
+    under 200 ms: 267 of 289
+
+The tightest include `84/1000 -> 84/1001` at 43 ms - a schedule layer
+upload - and `86/10 -> 91/430` at 54 ms, the mode-request-then-write pair.
+Those uploads write five layers and then commit, and they work: if a SET
+inside the window were dropped, every upload would lose four of its five
+layers, and every single-event save would lose four of its five slots.
+
+**The app arms its pause only before a non-SET.** From
+``DongleHelper.handleOutgoingQueue``:
+
+    } else if (isSetOperation(t) && !isSetOperation(peekNextTelegramInQueue())) {
+        this.noSentBefore = SystemClock.uptimeMillis() + getAfterSetPause();
+    } else {
+        this.noSentBefore = 0L;
+    }
+
+The ``else`` branch clears the pause outright, so consecutive writes are
+deliberately not spaced. The 2500 ms is a read guard, not a write guard.
+
+**GENIbus agrees in principle.** The Application Programming Manual
+promises a reply per request and says "the SET operation never returns
+anything but the APDU Head" - so the pause is about being able to read a
+reply, not about the write landing. Worth noting this pump returns not even
+the APDU head for a Class 10 SET, so it is more silent than the manual
+describes.
+
+The client therefore skips the hold when the next frame out is itself a
+Class 10 SET. A five-layer schedule upload would otherwise spend two
+seconds waiting for nothing.
+
 ## The raw Obj 91 write does not take on its own
 
 Writing Object 91 Sub 430 directly — with a correct frame, a valid CRC,
