@@ -13,6 +13,7 @@ GENI protocol packets.
 """
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import Callable
 
@@ -241,6 +242,11 @@ class Transport:
         # buffer forever.
         self._reassembly_started: float | None = None
 
+        # Set when the BLE link drops. Anything waiting on a reply checks
+        # it, so a caller learns immediately instead of sitting out its own
+        # timeout for a pump that is no longer there.
+        self._link_down = asyncio.Event()
+
         # Frames dropped because their CRC did not match. Until the CRC was
         # enforced this could not be counted, because nothing checked it.
         self.crc_failures = 0
@@ -341,6 +347,12 @@ class Transport:
         if handler:
             self._custom_handlers.append(handler)
             logger.debug("Custom notification handler registered")
+
+        # A fresh link. Clear the drop flag so waiters do not give up
+        # immediately on a connection that is up again, and drop any
+        # partial frame left over from the last one.
+        self._link_down.clear()
+        self._reset_reassembly()
 
         # Only start notifications once
         if not self._notifications_started:
@@ -595,15 +607,45 @@ class Transport:
         >>> if response:  # doctest: +SKIP
         ...     data = protocol.parse(response)
         """
+        if self._link_down.is_set():
+            logger.debug("Not waiting for a reply: the link is down")
+            return None
+
+        # Race the reply against the link dropping. A dropped link is not a
+        # timeout: nothing in GENIbus cancels a request, but a dead link
+        # cannot deliver one either, so waiting the full timeout only
+        # delays the caller learning what already happened. A chain of
+        # reads used to sit out three seconds each, in series, after the
+        # pump had gone.
+        get = asyncio.ensure_future(self._response_queue.get())
+        dropped = asyncio.ensure_future(self._link_down.wait())
         try:
-            response = await asyncio.wait_for(
-                self._response_queue.get(), timeout=timeout
+            done, _ = await asyncio.wait(
+                (get, dropped),
+                timeout=timeout,
+                return_when=asyncio.FIRST_COMPLETED,
             )
+        finally:
+            dropped.cancel()
+
+        if get in done:
+            response = get.result()
             logger.debug(f"Read response: {len(response)} bytes")
             return response
-        except TimeoutError:
+
+        # Either the link went or the timeout expired. In both cases a
+        # frame may have landed in the gap between the wait ending and
+        # this line; keep it rather than losing it with the task.
+        get.cancel()
+        if get.done() and not get.cancelled() and get.exception() is None:
+            with contextlib.suppress(asyncio.QueueFull):
+                self._response_queue.put_nowait(get.result())
+
+        if dropped in done:
+            logger.debug("Gave up waiting for a reply: the link dropped")
+        else:
             logger.debug(f"Response timeout after {timeout}s")
-            return None
+        return None
 
     def transaction(self) -> asyncio.Lock:
         """
@@ -958,6 +1000,15 @@ class Transport:
         """
         logger.info("BLE link dropped")
         self._last_write = None
+        self._quiet_until = None
+
+        # Wake every waiter before the handlers run. A reply that has not
+        # arrived by now is not going to: nothing in GENIbus cancels a
+        # request, but a dead link cannot deliver one either. Without this
+        # each caller sat out its full timeout - up to three seconds each,
+        # in series, for a chain of reads that could not possibly complete.
+        self._link_down.set()
+
         for handler in self._disconnect_handlers:
             try:
                 handler()

@@ -1,4 +1,5 @@
 import asyncio
+import builtins
 import struct
 
 from bleak.exc import BleakError
@@ -8,8 +9,22 @@ class AlphaHWRError(Exception):
     """Base exception for Alpha HWR errors."""
 
 
-class ConnectionError(AlphaHWRError):
-    """Raised when connection fails."""
+class ConnectionError(AlphaHWRError, builtins.ConnectionError):
+    """
+    Raised when the link is not there, or goes while something is using it.
+
+    Deliberately a subclass of the builtin ``ConnectionError`` as well as
+    of :class:`AlphaHWRError`, because this package shadows the builtin
+    name and modules disagreed about which one they were raising. Whether
+    ``raise ConnectionError(...)`` produced this class or the builtin came
+    down to whether that particular file happened to import this one -
+    ``base.py`` and ``client.py`` raised this, ``session.py`` and
+    ``time.py`` the builtin - and a caller had no way to catch both with
+    one clause.
+
+    Inheriting from both means ``except ConnectionError`` does the right
+    thing under either import, which is what anybody writing it expects.
+    """
 
 
 class ProtocolError(AlphaHWRError):

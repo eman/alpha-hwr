@@ -55,7 +55,7 @@ import struct
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from ..exceptions import READ_ERRORS
+from ..exceptions import READ_ERRORS, ConnectionError
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -218,6 +218,13 @@ class HistoryService(BaseService):
                 power_on_time_series=power_time_series,
             )
 
+        except ConnectionError:
+            # A half-built collection is not a result. Three of the four
+            # series are legitimately None on a pump that does not keep
+            # them, so a caller cannot tell a dropped link from a sparse
+            # trend once the object is handed back.
+            raise
+
         except READ_ERRORS as e:
             logger.error(f"Error fetching trend data: {e}")
             import traceback
@@ -268,6 +275,9 @@ class HistoryService(BaseService):
 
             return result
 
+        except ConnectionError:
+            raise
+
         except READ_ERRORS as e:
             logger.error(f"Error fetching cycle timestamps: {e}")
             return None
@@ -314,6 +324,12 @@ class HistoryService(BaseService):
                 "timestamps": timestamps,
                 "cycle_type": 10 if subid == 13300 else 100,
             }
+
+        except ConnectionError:
+            # Not "this map is unreadable" - every read after it will fail
+            # the same way, and a trend series missing because the link
+            # went looks exactly like one the pump does not keep.
+            raise
 
         except READ_ERRORS as e:
             logger.error(f"Error reading timestamp map {subid}: {e}")
@@ -370,6 +386,11 @@ class HistoryService(BaseService):
                     f"Unexpected payload size for trend data: {len(payload)} bytes"
                 )
                 return None
+
+        except ConnectionError:
+            # See _read_timestamp_map: a dropped link is not "this trend
+            # is empty".
+            raise
 
         except READ_ERRORS as e:
             logger.error(

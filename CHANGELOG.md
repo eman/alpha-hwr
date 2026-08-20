@@ -69,6 +69,35 @@
 
   Both rewrites are removed rather than retuned.
 
+- **A read chain cut short by a disconnect reported itself as success.**
+  `get_all_entries()` skipped entries it could not read - which is right,
+  since a log with twelve entries reports the other eight as unreadable -
+  and a dropped link went down the same path. The result was a short list
+  and `Retrieved 5/20`, which is exactly what a five-entry log looks like.
+  `get_trend_data()` had the same shape: three of its four series are
+  legitimately `None` on some pumps, so a half-built collection did not
+  look wrong.
+
+  Both now raise `ConnectionError` and say how far they got, rather than
+  handing back something indistinguishable from less data. Measured on the
+  pump: dropping the link 0.35 s into a full event-log read now raises
+  *"disconnected while reading the event log after 4 of 20 entries"*
+  instead of returning four entries.
+
+- **A waiter sat out its own timeout after the link had gone.** Nothing
+  woke a pending read when the BLE link dropped, so each one waited its
+  full three seconds for a pump that was no longer there. `read_response`
+  now races the reply against the disconnect, and a dropped link is
+  reported as such rather than as a timeout - 0.1 s instead of 3.0 s in
+  the unit test that pins it.
+
+- **`alpha_hwr.exceptions.ConnectionError` now subclasses the builtin.**
+  The package shadows the builtin name, and which one a module raised came
+  down to whether that file happened to import this one - `base.py` and
+  `client.py` raised the package's, `session.py` and `time.py` the
+  builtin - so no single `except` clause caught both. It now inherits from
+  both, which is what anyone writing `except ConnectionError` expects.
+
 - **Class 10 writes waited a second for an acknowledgement that never
   comes.** A Class 10 SET draws no reply from this pump at all — zero
   frames in a six-second listen, three runs, on two different objects.
