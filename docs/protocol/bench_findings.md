@@ -385,3 +385,39 @@ same value written through the client's sequence, which sends the Object
 So the mode request is not optional dressing around the temperature-range
 write; it is load-bearing. What exactly it enables was not established
 here — only that the write does not persist without it.
+
+## Frame-drop baseline: 23,579 frames, none dropped
+
+Twenty-five minutes reading Object 84 Sub 1 as fast as the transport's
+pacing allows, 15.7 frames per second. Sustained polling is normal for this
+device - the GO app issues 2,516 GETs of Object 86 Sub 6 in the capture
+corpus.
+
+    duration        25.0 min
+    reads issued    23,579
+    unanswered      0
+    frames received 23,579
+    errors          0
+
+    crc_failures           0
+    stale_partials         0
+    unsolicited_fragments  0
+    runt_length_drops      0
+    overflow_drops         0
+    queue_full_drops       0
+
+With zero events in 23,579 frames the 95% upper bound on the drop rate is
+3/23,579 - better than **one in 7,860**. If the true rate were the one in
+5,900 the ESPHome port saw, four drops would have been expected here and
+seeing none has probability 0.018.
+
+Two things this does *not* say. The ESPHome figure counts one occurrence
+per 5,900 **log lines**, not per frame, so the two are not directly
+comparable and the comparison above is indicative rather than a
+contradiction. And this bounds *this* link - a macOS host a few metres from
+the pump - not an ESP32's. A radio result does not travel between radios.
+
+What it does establish is that the frame path is clean enough that a
+timeout on this bench is not a silently corrupted frame, which is what the
+counters exist to tell you. An earlier version of this note recorded 167
+frames, which could not distinguish zero from one in 5,900.
