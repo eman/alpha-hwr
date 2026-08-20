@@ -485,7 +485,7 @@ Connection active. Press Ctrl+C to disconnect...
 **Fix**:
 1. Verify the GENI characteristic UUID is correct
 2. Ensure notifications enabled before sending commands
-3. Send authentication packets to unlock telemetry
+3. Check bonding — an unbonded link is dropped at about 1.8 s
 4. Check handler is `async` if required by library
 
 ---

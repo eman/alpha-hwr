@@ -32,10 +32,10 @@ consistency.
 
 | Frame | CRC over `frame[1:-2]` | What it is |
 | :--- | :--- | :--- |
-| `27 07 E7 F8 02 03 94 95 96 EB 47` | `0xEB47` | Legacy magic (handshake stage 1) |
-| `27 07 E7 F8 0A 03 56 00 06 C5 5A` | `0xC55A` | Class 10 unlock (handshake stage 2) |
-| `27 05 E7 F8 05 C1 4B C3 82` | `0xC382` | Extend 1 (handshake stage 3) |
-| `27 05 E7 F8 0B C1 0F D0 C3` | `0xD0C3` | Extend 2 (handshake stage 3) |
+| `27 07 E7 F8 02 03 94 95 96 EB 47` | `0xEB47` | Class 2 GET of unit family/type/version |
+| `27 07 E7 F8 0A 03 56 00 06 C5 5A` | `0xC55A` | Class 10 GET of Object 86 Sub 6 |
+| `27 05 E7 F8 05 C1 4B C3 82` | `0xC382` | INFO query, Class 5 item 0x4B |
+| `27 05 E7 F8 0B C1 0F D0 C3` | `0xD0C3` | INFO query, Class 11 item 0x0F |
 | `27 05 E7 F8 03 81 06 E5 87` | `0xE587` | Class 3 START |
 | `27 05 E7 F8 03 81 05 D5 E4` | `0xD5E4` | Class 3 STOP |
 
@@ -83,7 +83,7 @@ assert calc_crc16(bytes.fromhex("05e7f8038105")) == 0xD5E4
 
 ## 5. Frame Building
 
-The handshake packets are built from their APDUs and must reproduce
+The opening packets are built from their APDUs and must reproduce
 the captured constants byte for byte:
 
 | APDU | Frame | Matches capture |

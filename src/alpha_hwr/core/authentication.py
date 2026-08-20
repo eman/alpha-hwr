@@ -1,19 +1,37 @@
 """
-Authentication module for Grundfos ALPHA HWR pumps.
+Opening a session with the pump.
 
-This module implements the multi-stage authentication handshake required
-to establish a trusted connection with the pump. The handshake consists
-of three stages:
+There is no authentication handshake, and this module no longer sends one.
 
-1. Legacy Magic Packet (compatibility with nested proxies)
-2. Class 10 Unlock Sequence (primary authentication)
-3. Extension Packets (handshake completion)
+Ten packets used to go out here, documented as a three-stage unlock: a
+"Class 2 SET of unlock register 0x9495 carrying unlock code 0x96", a
+"Class 10 unlock", and two "extension" packets. Decoded properly, the
+``0x03`` in the first is an APDU head - a GET declaring three payload bytes
+- so "register 0x9495, unlock code 0x96" was a misreading of a length
+field. All four distinct packets are **reads**:
 
-Protocol Reference
-------------------
-The authentication uses the GENI protocol's Class 10 DataObject operations
-and legacy Class 2/3 commands. All packets use CRC-16-CCITT for integrity.
+* a Class 2 GET of ``unit_family`` / ``unit_type`` / ``unit_version``,
+  which this pump answers 52 / 7 / 2 - the same values it puts in its
+  advertisement;
+* a Class 10 GET of Object 86 Sub 6, the operation status the telemetry
+  path already decodes;
+* two INFO queries for scaling metadata, both answered "unscaled".
 
+A read cannot change device state, so an unlock was never something these
+bytes could do - and every reply was discarded unread in any case.
+
+Measured 2026-08-20: with none of them sent, a bare connect-subscribe link
+answered all five Class 7 string reads, every Class 10 object read this
+client makes, and the telemetry registers. ``docs/protocol/connection.md``
+reached the same conclusion from the captures; this is that conclusion
+applied to the code.
+
+The 750 ms of inter-stage delays went with them. They were transcribed
+from an early version of this client's own ``sleep()`` calls and then
+written up as pump timing requirements; nothing ever measured them.
+
+What remains is the settle wait before the first command, which is about
+the BLE link coming up rather than about GENI.
 """
 
 import asyncio
@@ -26,13 +44,13 @@ from ..exceptions import READ_ERRORS
 
 logger = logging.getLogger(__name__)
 
-# Handshake timing, matching the C++ port's auth.cpp (which is the
-# implementation currently validated against hardware). Every packet is
-# followed by INTER_PACKET_DELAY; the stage boundaries add their own gap
-# on top of that.
-INTER_PACKET_DELAY = 0.05
-STAGE_1_TO_2_DELAY = 0.10
-STAGE_2_TO_3_DELAY = 0.20
+#: How long to let the BLE link settle before the first command.
+#:
+#: This is the one wait that survived the handshake's removal, and it is
+#: about the radio rather than about GENI. The 750 ms of inter-stage delays
+#: that used to sit alongside it were transcribed from this client's own
+#: sleep() calls and then documented as pump timing requirements; nothing
+#: ever measured them.
 STABILIZE_DELAY = 0.5
 
 
@@ -132,6 +150,14 @@ class AuthenticationHandler:
     #   Poly:   0x1021 (CRC-16-CCITT)
     #   Init:   0xFFFF
     #   Result: 0xEB47
+    #: A Class 2 GET of unit_family / unit_type / unit_version.
+    #:
+    #: Kept as a captured frame, not as something to send. It was called a
+    #: "legacy magic" unlock and read as a SET of register 0x9495 carrying
+    #: unlock code 0x96; byte 5 is 0x03, an APDU head declaring a GET with
+    #: three payload bytes, and 94 95 96 are the three item IDs. This pump
+    #: answers 52 / 7 / 2 - the same family, type and version it puts in
+    #: its advertisement.
     LEGACY_MAGIC = bytes.fromhex("2707e7f80203949596eb47")
 
     # ==========================================================================
@@ -158,6 +184,8 @@ class AuthenticationHandler:
     # CRC Calculation:
     #   Input:  07 E7 F8 0A 03 56 00 06
     #   Result: 0xC55A
+    #: A Class 10 GET of Object 86 Sub 6 - the operation status the
+    #: telemetry path already decodes. Not an unlock; a read.
     CLASS10_UNLOCK = bytes.fromhex("2707e7f80a03560006c55a")
 
     # ==========================================================================
@@ -177,6 +205,8 @@ class AuthenticationHandler:
     #
     # Note: Must be sent before EXTEND_2. Order documented in
     # docs/protocol/connection.md Step C, observed from Grundfos app.
+    #: An INFO query for scaling metadata on Class 5 item 0x4B. Answered
+    #: "unscaled". Byte 5 is 0xC1: operation 0b11 (INFO), one payload byte.
     EXTEND_1 = bytes.fromhex("2705e7f805c14bc382")
 
     # ==========================================================================
@@ -193,6 +223,7 @@ class AuthenticationHandler:
     #   0B          - Class 11 (session extension)
     #   C1 0F       - Command/data sequence
     #   D0 C3       - CRC-16-CCITT
+    #: The same INFO query for Class 11 item 0x0F. Also "unscaled".
     EXTEND_2 = bytes.fromhex("2705e7f80bc10fd0c3")
 
     # GENI characteristic UUID (where packets are written)
@@ -240,161 +271,32 @@ class AuthenticationHandler:
 
     async def authenticate(self, fast_mode: bool = False) -> bool:
         """
-        Perform complete authentication handshake.
+        Settle the link so the first command is not sent into a dead radio.
 
-        This method executes the three-stage authentication sequence:
-        1. Legacy magic burst (3x repeats, 50ms intervals)
-        2. Class 10 unlock burst (5x repeats, 50ms intervals)
-        3. Extension packets (EXTEND_1 then EXTEND_2, 50ms apart)
+        Nothing is sent to the pump. The opening sequence this used to
+        write was ten packets of reads whose replies were discarded - see
+        the module docstring - and removing it took connect-to-first-answer
+        down by the time those packets and their 750 ms of delays took.
 
-        Timing Considerations
-        ---------------------
-        - Inter-packet delay: 50ms (allows pump processing)
-        - Stage delay: 100ms after stage 1, 200ms after stage 2
-        - Total sequence time: ~1.5 seconds
-
-        Every packet is written sequentially, and the whole sequence runs
-        under the transport's transaction lock when one was supplied. The
-        pump drops the link when packets arrive out of order or interleaved
-        with other traffic (issues #24, #31), so neither the ordering nor
-        the exclusivity is optional.
+        The name is kept because callers and `client.authenticate()` use
+        it, and because the session still has a state to move through.
 
         Args:
-            fast_mode: If True, skips all delays (inter-packet and
-                inter-stage). Intended for unit tests only; do not use
-                against real hardware as the pump requires the timing
-                gaps to process each stage.
+            fast_mode: Skip the settle wait. For tests.
 
         Returns:
-            bool
-                True if authentication sequence completed without errors.
-                Note: No explicit ACK is received, so True indicates the
-                sequence was sent successfully, not that authentication
-                was explicitly confirmed by the pump.
+            True. There is no handshake to fail; a pump that will not
+            answer shows up as an unanswered read, which is where it can
+            actually be diagnosed.
         """
-        logger.info("Starting authentication handshake (3-stage sequence)...")
-
-        packet_delay = 0.0 if fast_mode else INTER_PACKET_DELAY
+        logger.debug("Opening a session (no handshake is sent)")
 
         try:
             async with self._exclusive():
-                # Stage 1: Legacy Magic Burst (backward compatibility)
-                logger.debug(
-                    "Stage 1: Sending legacy magic burst (3x repeats)..."
-                )
-                await self.send_legacy_burst(repeats=3, delay=packet_delay)
-                if not fast_mode:
-                    await asyncio.sleep(STAGE_1_TO_2_DELAY)
-
-                # Stage 2: Class 10 Unlock (required for DataObjects)
-                logger.debug(
-                    "Stage 2: Sending Class 10 unlock burst (5x repeats)..."
-                )
-                await self.send_class10_burst(repeats=5, delay=packet_delay)
-                if not fast_mode:
-                    await asyncio.sleep(STAGE_2_TO_3_DELAY)
-
-                # Stage 3: Extension Packets (session establishment)
-                logger.debug("Stage 3: Sending extension packets...")
-                await self.send_extension_packets(delay=packet_delay)
-
                 if not fast_mode:
                     await asyncio.sleep(STABILIZE_DELAY)
-
-            logger.info("Authentication handshake complete")
-            return True
-
         except READ_ERRORS as e:
-            logger.error(f"Authentication handshake failed: {e}")
+            logger.error(f"Failed to settle the link: {e}")
             return False
 
-    async def _send_burst(
-        self, packet: bytes, repeats: int, delay: float
-    ) -> None:
-        """
-        Write ``packet`` ``repeats`` times, sequentially, pacing each write.
-
-        Sequential is load-bearing: an earlier revision spawned the writes
-        as concurrent tasks, which let them reach the pump out of order and
-        caused it to drop the link about a second after the handshake
-        (issues #24, #31).
-        """
-        for _ in range(repeats):
-            await self.ble_writer.write_gatt_char(
-                self.GENI_CHAR_UUID, packet, response=False
-            )
-            if delay > 0:
-                await asyncio.sleep(delay)
-
-    async def send_legacy_burst(
-        self, repeats: int = 7, delay: float = 0.05
-    ) -> None:
-        """
-        Send legacy magic packet burst.
-
-        Stage 1 of authentication. Sends legacy Class 2 unlock command
-        multiple times to ensure compatibility with older firmware and
-        nested proxy architectures.
-
-        Parameters
-        ----------
-        repeats : int, default=3
-            Number of times to send the packet. Default of 3 provides
-            good reliability without excessive BLE traffic.
-        delay : float, default=0.05
-            Delay between packets in seconds.
-        """
-        await self._send_burst(self.LEGACY_MAGIC, repeats, delay)
-
-    async def send_class10_burst(
-        self, repeats: int = 5, delay: float = 0.05
-    ) -> None:
-        """
-        Send Class 10 unlock burst.
-
-        Stage 2 of authentication. Sends primary unlock command using
-        modern Class 10 DataObject protocol. This is the critical
-        authentication step.
-
-        Parameters
-        ----------
-        repeats : int, default=5
-            Number of times to send the packet. Default of 5 ensures
-            reliable delivery even in noisy BLE environments.
-        delay : float, default=0.05
-            Delay between packets in seconds.
-        """
-        await self._send_burst(self.CLASS10_UNLOCK, repeats, delay)
-
-    async def send_extension_packets(self, delay: float = 0.05) -> None:
-        """
-        Send authentication extension packets.
-
-        Stage 3 of authentication. Sends two extension packets that
-        complete the handshake and establish the session. These packets
-        may negotiate capabilities or extend the authentication timeout.
-
-        Parameters
-        ----------
-        delay : float, default=0.05
-            Delay in seconds between EXTEND_1 and EXTEND_2. Required for
-            the pump to process each packet before the next arrives.
-            Pass 0 only in unit tests (via fast_mode=True on authenticate()).
-
-        Notes
-        -----
-        - Packets MUST be sent sequentially: EXTEND_1 then EXTEND_2.
-        - A 50ms gap between them is required for the pump to process
-          EXTEND_1 before EXTEND_2 arrives. Sending them in parallel
-          causes premature disconnection (issue #24).
-        - Order is empirically established from packet captures; see
-          docs/protocol/packet_traces/02_authentication.md.
-        """
-        await self.ble_writer.write_gatt_char(
-            self.GENI_CHAR_UUID, self.EXTEND_1, response=False
-        )
-        if delay > 0:
-            await asyncio.sleep(delay)
-        await self.ble_writer.write_gatt_char(
-            self.GENI_CHAR_UUID, self.EXTEND_2, response=False
-        )
+        return True

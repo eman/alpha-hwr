@@ -28,10 +28,17 @@ sequence.
 > entered in the initial documentation commit, hedged as "may ignore" and "may
 > return ... or fail", which is not how an observation gets written down.
 >
-> The packets are documented below because this client still sends them and
-> because knowing what they are has value. They are described as what they are.
-> See esphome-alpha-hwr issue #174 for the decode, the captures, and the
-> removal.
+> **Update, 2026-08-20.** The client no longer sends them. Verified on the
+> bench: a bare connect-and-subscribe link, with none of the four packets
+> written, answered all five Class 7 string reads, every Class 10 object read
+> this client makes, and the three telemetry registers. The 750 ms of
+> inter-stage delays went with them — they were transcribed from this client's
+> own `sleep()` calls and then written up as pump timing requirements.
+>
+> The packets are still documented below, and kept as constants in
+> `alpha_hwr.core.authentication`, because they are real captures and make
+> good frame-assembly vectors. See esphome-alpha-hwr issue #174 for the decode
+> and the captures.
 
 ## 1. BLE Connection
 
