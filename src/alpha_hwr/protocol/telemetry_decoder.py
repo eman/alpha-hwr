@@ -164,8 +164,8 @@ class TelemetryDecoder:
 
         Examples:
             >>> # Parse frame first
-            >>> frame = FrameParser.parse_frame(notification_data)
-            >>> if frame.obj_id == 87 and frame.sub_id == 69:
+            >>> frame = FrameParser.parse_frame(notification_data)  # doctest: +SKIP
+            >>> if frame.obj_id == 87 and frame.sub_id == 69:  # doctest: +SKIP
             ...     motor_data = TelemetryDecoder.decode_motor_state(frame.payload)
             ...     print(f"Voltage: {motor_data.get('voltage_ac_v')}V")
             ...     print(f"Current: {motor_data.get('current_a')}A")
@@ -236,8 +236,8 @@ class TelemetryDecoder:
             Dictionary with decoded values (only includes valid fields)
 
         Examples:
-            >>> frame = FrameParser.parse_frame(notification_data)
-            >>> if frame.obj_id == 93 and frame.sub_id == 290:
+            >>> frame = FrameParser.parse_frame(notification_data)  # doctest: +SKIP
+            >>> if frame.obj_id == 93 and frame.sub_id == 290:  # doctest: +SKIP
             ...     flow_data = TelemetryDecoder.decode_flow_pressure(frame.payload)
             ...     print(f"Flow: {flow_data.get('flow_m3h')} m³/h")
             ...     print(f"Head: {flow_data.get('head_m')} m")
@@ -300,8 +300,8 @@ class TelemetryDecoder:
             Dictionary with decoded values (only includes valid fields)
 
         Examples:
-            >>> frame = FrameParser.parse_frame(notification_data)
-            >>> if frame.obj_id == 93 and frame.sub_id == 300:
+            >>> frame = FrameParser.parse_frame(notification_data)  # doctest: +SKIP
+            >>> if frame.obj_id == 93 and frame.sub_id == 300:  # doctest: +SKIP
             ...     temp_data = TelemetryDecoder.decode_temperature(frame.payload)
             ...     print(f"Media: {temp_data.get('media_temperature_c')}°C")
             ...     print(f"PCB: {temp_data.get('pcb_temperature_c')}°C")
@@ -358,8 +358,8 @@ class TelemetryDecoder:
             List of active alarm/warning codes (non-zero values only)
 
         Examples:
-            >>> frame = FrameParser.parse_frame(notification_data)
-            >>> if frame.obj_id == 88:
+            >>> frame = FrameParser.parse_frame(notification_data)  # doctest: +SKIP
+            >>> if frame.obj_id == 88:  # doctest: +SKIP
             ...     if frame.sub_id == 0:  # Alarms
             ...         codes = TelemetryDecoder.decode_alarms_warnings(frame.payload)
             ...         if codes:
@@ -531,16 +531,16 @@ class TelemetryDecoder:
 
         Examples:
             >>> # Motor state response (OpSpec 0x30)
-            >>> data = TelemetryDecoder.decode_register_read_response(motor_packet)
-            >>> print(data['power_w'], data['speed_rpm'])
+            >>> data = TelemetryDecoder.decode_register_read_response(motor_packet)  # doctest: +SKIP
+            >>> print(data['power_w'], data['speed_rpm'])  # doctest: +SKIP
 
             >>> # Flow response (OpSpec 0x2b)
-            >>> data = TelemetryDecoder.decode_register_read_response(flow_packet)
-            >>> print(data['flow_m3h'], data['head_m'])
+            >>> data = TelemetryDecoder.decode_register_read_response(flow_packet)  # doctest: +SKIP
+            >>> print(data['flow_m3h'], data['head_m'])  # doctest: +SKIP
 
             >>> # Alarm response (OpSpec 0x09)
-            >>> data = TelemetryDecoder.decode_register_read_response(alarm_packet)
-            >>> print(data['active_alarms'])
+            >>> data = TelemetryDecoder.decode_register_read_response(alarm_packet)  # doctest: +SKIP
+            >>> print(data['active_alarms'])  # doctest: +SKIP
         """
         data: dict[str, Any] = {}
 
@@ -676,9 +676,9 @@ class TelemetryDecoder:
 
         Examples:
             >>> # Decode any telemetry frame automatically
-            >>> frame = FrameParser.parse_frame(notification_data)
-            >>> telemetry = TelemetryDecoder.decode(frame)
-            >>> if telemetry:
+            >>> frame = FrameParser.parse_frame(notification_data)  # doctest: +SKIP
+            >>> telemetry = TelemetryDecoder.decode(frame)  # doctest: +SKIP
+            >>> if telemetry:  # doctest: +SKIP
             ...     print(f"Received telemetry: {telemetry}")
 
         Raises:

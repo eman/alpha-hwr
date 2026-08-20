@@ -94,15 +94,22 @@ async def test_set_constant_pressure(control_service, mock_transport):
     success = await control_service.set_constant_pressure(1.5)
 
     assert success is True
-    # Verify set mode called (Class 10)
-    mock_transport.send_command.assert_called()
+
+    # The fused control request is a Class 10 SET, and a Class 10 SET is
+    # never acknowledged - so it goes out through transport.write() rather
+    # than through send_command(), which would otherwise sit waiting a full
+    # second for a frame the pump does not send.
+    from alpha_hwr.core.transport import is_class10_set
+
+    sent = [c[0][0] for c in mock_transport.write.call_args_list]
+    sets = [f for f in sent if is_class10_set(f)]
+    assert sets, "the control request should have been written"
 
     # Check conversion
     from alpha_hwr.protocol.codec import decode_float_be
 
-    call_args = mock_transport.send_command.call_args_list[0][0][0]
     # Setpoint is at offset 10 (APDU) + 8 (Header) = 18
-    actual_pa = decode_float_be(call_args, 18)
+    actual_pa = decode_float_be(sets[0], 18)
     assert actual_pa is not None
     expected_pa = 1.5 * 9806.65
     assert abs(actual_pa - expected_pa) < 1.0

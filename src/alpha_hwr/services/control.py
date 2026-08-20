@@ -80,6 +80,7 @@ import logging
 from typing import TYPE_CHECKING, ClassVar
 
 from ..constants import ControlMode
+from ..core.transport import is_class10_set
 from ..exceptions import READ_ERRORS, ConnectionError
 from ..models import SetpointInfo, WriteCommand, WriteResult
 from ..protocol import FrameBuilder
@@ -116,21 +117,21 @@ class ControlService(BaseService):
         _CLASS10_CONTROL_MAP: Mapping of modes to Class 10 parameters
 
     Example:
-        >>> from alpha_hwr.core import Transport, Session
-        >>> from alpha_hwr.services import ControlService
-        >>> from alpha_hwr.constants import ControlMode
+        >>> from alpha_hwr.core import Transport, Session  # doctest: +SKIP
+        >>> from alpha_hwr.services import ControlService  # doctest: +SKIP
+        >>> from alpha_hwr.constants import ControlMode  # doctest: +SKIP
         >>>
         >>> # Initialize
-        >>> control = ControlService(transport, session)
+        >>> control = ControlService(transport, session)  # doctest: +SKIP
         >>>
         >>> # Start pump
-        >>> await control.start()
+        >>> await control.start()  # doctest: +SKIP
         >>>
         >>> # Set constant pressure mode
-        >>> await control.set_constant_pressure(1.5)  # 1.5 meters
+        >>> await control.set_constant_pressure(1.5)  # 1.5 meters  # doctest: +SKIP
         >>>
         >>> # Stop pump
-        >>> await control.stop()
+        >>> await control.stop()  # doctest: +SKIP
     """
 
     # Control Object Identifiers (from trace)
@@ -524,8 +525,8 @@ class ControlService(BaseService):
                 waiting for the response.
 
         Example:
-            >>> info = await control.get_mode()
-            >>> if info and info.control_mode == ControlMode.CONSTANT_PRESSURE:
+            >>> info = await control.get_mode()  # doctest: +SKIP
+            >>> if info and info.control_mode == ControlMode.CONSTANT_PRESSURE:  # doctest: +SKIP
             ...     value, unit = info.get_display_value()
             ...     print(f"Running in constant pressure mode: {value} {unit}")
 
@@ -862,8 +863,8 @@ class ControlService(BaseService):
             True if successful, False otherwise
 
         Example:
-            >>> await control.set_temperature_control(35.0, 39.0)  # Radiator system
-            >>> await control.set_temperature_control(35.0, 39.0, "underfloor")
+            >>> await control.set_temperature_control(35.0, 39.0)  # Radiator system  # doctest: +SKIP
+            >>> await control.set_temperature_control(35.0, 39.0, "underfloor")  # doctest: +SKIP
 
         Note:
             For ALPHA HWR pumps, all heating_type variants likely behave the same
@@ -1032,7 +1033,7 @@ class ControlService(BaseService):
             (modes 13-15) instead for better compatibility.
 
         Example:
-            >>> await control.set_autoadapt(1.5)  # 1.5 meters
+            >>> await control.set_autoadapt(1.5)  # 1.5 meters  # doctest: +SKIP
         """
         self.session.ensure_authenticated()
 
@@ -1143,7 +1144,7 @@ class ControlService(BaseService):
             True if successful, False otherwise
 
         Example:
-            >>> await control.set_temperature_range_control(35.0, 45.0, autoadapt=True)
+            >>> await control.set_temperature_range_control(35.0, 45.0, autoadapt=True)  # doctest: +SKIP
         """
         self.session.ensure_authenticated()
 
@@ -1248,8 +1249,8 @@ class ControlService(BaseService):
             ``limiting`` for each limiter that answered.
 
         Examples:
-            >>> limiters = await client.control.read_limiters()
-            >>> limiters["MaxFlow"]["enabled"]
+            >>> limiters = await client.control.read_limiters()  # doctest: +SKIP
+            >>> limiters["MaxFlow"]["enabled"]  # doctest: +SKIP
             False
         """
         out: dict[str, dict[str, float | bool]] = {}
@@ -1528,8 +1529,8 @@ class ControlService(BaseService):
             setpoint for the rest of the connection.
 
         Examples:
-            >>> ranges = await client.control.read_setpoint_ranges()
-            >>> ranges[ControlMode.CONSTANT_SPEED]
+            >>> ranges = await client.control.read_setpoint_ranges()  # doctest: +SKIP
+            >>> ranges[ControlMode.CONSTANT_SPEED]  # doctest: +SKIP
             (1650.0, 3671.0)
         """
         ranges: dict[int, tuple[float, float]] = {}
@@ -1613,11 +1614,33 @@ class ControlService(BaseService):
         For control commands, we attempt to verify success by waiting for a response.
         If no response is received, we still consider it successful (fire-and-forget).
         """
-        # A reply only counts if it comes back on the class the command was
-        # sent on. This matters most for the Class 3 commands: their
-        # acknowledgement is a bare two-byte frame with nothing to match on
-        # but the class, so without this gate a Class 10 telemetry
-        # notification arriving first would be read as the answer.
+        # A Class 10 SET is never acknowledged. Measured 2026-08-20 against
+        # an ALPHA HWR: no-op writes to Object 84 Sub 1 and Object 91 Sub
+        # 430 drew zero replies in six seconds, three runs each. Waiting
+        # for one spent a full second per write on a frame that was never
+        # coming - and the client depended on that second without knowing
+        # it, because the pump answers nothing at all for 200-400 ms after
+        # a SET, and one second is longer than 400 ms.
+        #
+        # The transport now holds that quiet period deliberately (see
+        # POST_SET_QUIET), so the wait can go. The write still has to be
+        # read back to know what the pump stored; that is what the verified
+        # write path is for.
+        if is_class10_set(packet):
+            try:
+                await self.transport.write(packet)
+            except READ_ERRORS as e:
+                logger.warning(f"{description} failed: {e}")
+                return False
+            logger.debug(f"{description}: sent (Class 10 SETs are not acked)")
+            return True
+
+        # Everything else may be answered, and a reply only counts if it
+        # comes back on the class the command was sent on. This matters
+        # most for the Class 3 run commands: their acknowledgement is a
+        # bare two-byte frame with nothing to match on but the class, so
+        # without this gate a Class 10 telemetry notification arriving
+        # first would be read as the answer.
         command = Command.for_request(
             packet,
             expect_short_ack=True,

@@ -39,19 +39,19 @@ class ConfigurationService:
     pump configuration including control mode, setpoint, and schedule.
 
     Example:
-        >>> config_service = ConfigurationService(
+        >>> config_service = ConfigurationService(  # doctest: +SKIP
         ...     device_info_service,
         ...     control_service,
         ...     schedule_service
         ... )
         >>>
         >>> # Backup configuration
-        >>> success = await config_service.backup("pump_backup.json")
-        >>> if success:
+        >>> success = await config_service.backup("pump_backup.json")  # doctest: +SKIP
+        >>> if success:  # doctest: +SKIP
         ...     print("Configuration backed up successfully")
         >>>
         >>> # Restore configuration
-        >>> success = await config_service.restore(
+        >>> success = await config_service.restore(  # doctest: +SKIP
         ...     "pump_backup.json",
         ...     restore_mode=True,
         ...     restore_schedule=True,
@@ -98,8 +98,8 @@ class ConfigurationService:
             IOError: If file cannot be written
 
         Example:
-            >>> success = await service.backup("pump_backup.json")
-            >>> if success:
+            >>> success = await service.backup("pump_backup.json")  # doctest: +SKIP
+            >>> if success:  # doctest: +SKIP
             ...     print("Backup saved")
 
         Implementation Notes:
@@ -240,10 +240,10 @@ class ConfigurationService:
 
         Example:
             >>> # Restore everything
-            >>> success = await service.restore("pump_backup.json")
+            >>> success = await service.restore("pump_backup.json")  # doctest: +SKIP
             >>>
             >>> # Restore only schedule
-            >>> success = await service.restore(
+            >>> success = await service.restore(  # doctest: +SKIP
             ...     "pump_backup.json",
             ...     restore_mode=False,
             ...     verify_device=False
@@ -332,7 +332,7 @@ class ConfigurationService:
             True if successful, False otherwise
 
         Example:
-            >>> await service.export_json("config.json")
+            >>> await service.export_json("config.json")  # doctest: +SKIP
         """
         return await self.backup(filepath)
 
@@ -358,7 +358,7 @@ class ConfigurationService:
             True if successful, False otherwise
 
         Example:
-            >>> await service.import_json("config.json")
+            >>> await service.import_json("config.json")  # doctest: +SKIP
         """
         return await self.restore(
             filepath,

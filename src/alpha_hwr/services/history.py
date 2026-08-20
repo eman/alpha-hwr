@@ -82,16 +82,16 @@ class HistoryService(BaseService):
         >>> from alpha_hwr.services import HistoryService
         >>>
         >>> # Initialize
-        >>> history = HistoryService(transport, session)
+        >>> history = HistoryService(transport, session)  # doctest: +SKIP
         >>>
         >>> # Get all trend data
-        >>> trends = await history.get_trend_data()
-        >>> if trends.flow_series:
+        >>> trends = await history.get_trend_data()  # doctest: +SKIP
+        >>> if trends.flow_series:  # doctest: +SKIP
         ...     print(f"Current flow: {trends.flow_series.cycle_10_points[0].value} m³/h")
         >>>
         >>> # Get cycle timestamps
-        >>> timestamps = await history.get_cycle_timestamps(count=10)
-        >>> print(f"Last cycle: {timestamps[0]}")
+        >>> timestamps = await history.get_cycle_timestamps(count=10)  # doctest: +SKIP
+        >>> print(f"Last cycle: {timestamps[0]}")  # doctest: +SKIP
     """
 
     def __init__(self, transport: Transport, session: Session) -> None:
@@ -119,8 +119,8 @@ class HistoryService(BaseService):
             TrendDataCollection with all series, or None if retrieval failed.
 
         Example:
-            >>> trends = await history.get_trend_data()
-            >>> if trends and trends.flow_series:
+            >>> trends = await history.get_trend_data()  # doctest: +SKIP
+            >>> if trends and trends.flow_series:  # doctest: +SKIP
             ...     for point in trends.flow_series.cycle_10_points:
             ...         print(f"{point.timestamp}: {point.value} m³/h")
         """
@@ -239,8 +239,8 @@ class HistoryService(BaseService):
             Most recent cycle is first in list.
 
         Example:
-            >>> timestamps = await history.get_cycle_timestamps(count=10)
-            >>> if timestamps:
+            >>> timestamps = await history.get_cycle_timestamps(count=10)  # doctest: +SKIP
+            >>> if timestamps:  # doctest: +SKIP
             ...     print(f"Last cycle: {timestamps[0]}")
             ...     print(f"Cycle 10 ago: {timestamps[-1]}")
         """

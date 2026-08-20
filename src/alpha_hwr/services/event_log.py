@@ -99,16 +99,16 @@ class EventLogService(BaseService):
         >>> from alpha_hwr.services import EventLogService
         >>>
         >>> # Initialize
-        >>> event_log = EventLogService(transport, session)
+        >>> event_log = EventLogService(transport, session)  # doctest: +SKIP
         >>>
         >>> # Get all entries
-        >>> entries = await event_log.get_all_entries()
-        >>> for entry in entries:
+        >>> entries = await event_log.get_all_entries()  # doctest: +SKIP
+        >>> for entry in entries:  # doctest: +SKIP
         ...     print(f"{entry.timestamp}: Cycle {entry.cycle_counter}")
         >>>
         >>> # Get single entry
-        >>> newest = await event_log.get_entry(0)
-        >>> oldest = await event_log.get_entry(19)
+        >>> newest = await event_log.get_entry(0)  # doctest: +SKIP
+        >>> oldest = await event_log.get_entry(19)  # doctest: +SKIP
     """
 
     def __init__(self, transport: Transport, session: Session) -> None:
@@ -137,8 +137,8 @@ class EventLogService(BaseService):
 
         Example:
             >>> # Get newest entry
-            >>> entry = await event_log.get_entry(0)
-            >>> if entry:
+            >>> entry = await event_log.get_entry(0)  # doctest: +SKIP
+            >>> if entry:  # doctest: +SKIP
             ...     print(f"Last event: {entry.timestamp}")
         """
         if not 0 <= index <= 19:
@@ -183,9 +183,9 @@ class EventLogService(BaseService):
             Entries that fail to read will be skipped.
 
         Example:
-            >>> entries = await event_log.get_all_entries()
-            >>> print(f"Retrieved {len(entries)} event log entries")
-            >>> for entry in entries[:5]:  # Show 5 most recent
+            >>> entries = await event_log.get_all_entries()  # doctest: +SKIP
+            >>> print(f"Retrieved {len(entries)} event log entries")  # doctest: +SKIP
+            >>> for entry in entries[:5]:  # Show 5 most recent  # doctest: +SKIP
             ...     print(f"  {entry.timestamp}: Cycle {entry.cycle_counter}")
         """
         if not self.session.is_connected():
@@ -221,8 +221,8 @@ class EventLogService(BaseService):
             EventLogMetadata object with decoded fields, or None if read failed
 
         Example:
-            >>> metadata = await event_log.get_metadata()
-            >>> if metadata:
+            >>> metadata = await event_log.get_metadata()  # doctest: +SKIP
+            >>> if metadata:  # doctest: +SKIP
             ...     print(f"Current cycle: {metadata.current_cycle}")
             ...     print(f"Available entries: {metadata.available_entries}")
         """

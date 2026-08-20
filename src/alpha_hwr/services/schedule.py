@@ -50,15 +50,15 @@ class ScheduleService(BaseService):
     one time interval per day of the week.
 
     Example:
-        >>> service = ScheduleService(session, transport)
+        >>> service = ScheduleService(session, transport)  # doctest: +SKIP
         >>>
         >>> # Check if schedule is enabled
-        >>> enabled = await service.get_state()
-        >>> print(f"Schedule enabled: {enabled}")
+        >>> enabled = await service.get_state()  # doctest: +SKIP
+        >>> print(f"Schedule enabled: {enabled}")  # doctest: +SKIP
         >>>
         >>> # Read current schedule
-        >>> entries = await service.read_entries()
-        >>> for entry in entries:
+        >>> entries = await service.read_entries()  # doctest: +SKIP
+        >>> for entry in entries:  # doctest: +SKIP
         ...     print(f"{entry.day}: {entry.begin_time}-{entry.end_time}")
         >>>
         >>> # Write new schedule
@@ -68,10 +68,10 @@ class ScheduleService(BaseService):
         ...     ScheduleEntry(day="Tuesday", begin_hour=6, begin_minute=0,
         ...                   end_hour=8, end_minute=0),
         ... ]
-        >>> success = await service.write_entries(new_entries, layer=0)
+        >>> success = await service.write_entries(new_entries, layer=0)  # doctest: +SKIP
         >>>
         >>> # Enable schedule
-        >>> await service.enable()
+        >>> await service.enable()  # doctest: +SKIP
     """
 
     #: ClockProgramOverview byte 5: what the pump does outside every
@@ -115,8 +115,8 @@ class ScheduleService(BaseService):
             ConnectionError: If not connected or not authenticated
 
         Example:
-            >>> enabled = await service.get_state()
-            >>> if enabled:
+            >>> enabled = await service.get_state()  # doctest: +SKIP
+            >>> if enabled:  # doctest: +SKIP
             ...     print("Schedule is active")
             ... else:
             ...     print("Schedule is disabled")
@@ -157,8 +157,8 @@ class ScheduleService(BaseService):
             ConnectionError: If not connected or not authenticated
 
         Example:
-            >>> success = await service.enable()
-            >>> if success:
+            >>> success = await service.enable()  # doctest: +SKIP
+            >>> if success:  # doctest: +SKIP
             ...     print("Schedule enabled")
 
         Implementation Notes:
@@ -187,8 +187,8 @@ class ScheduleService(BaseService):
             ConnectionError: If not connected or not authenticated
 
         Example:
-            >>> success = await service.disable()
-            >>> if success:
+            >>> success = await service.disable()  # doctest: +SKIP
+            >>> if success:  # doctest: +SKIP
             ...     print("Schedule disabled")
 
         Implementation Notes:
@@ -216,13 +216,13 @@ class ScheduleService(BaseService):
 
         Example:
             >>> # Read all layers
-            >>> all_entries = await service.read_entries()
+            >>> all_entries = await service.read_entries()  # doctest: +SKIP
             >>>
             >>> # Read specific layer
-            >>> layer0 = await service.read_entries(layer=0)
+            >>> layer0 = await service.read_entries(layer=0)  # doctest: +SKIP
             >>>
             >>> # Display entries
-            >>> for entry in all_entries:
+            >>> for entry in all_entries:  # doctest: +SKIP
             ...     print(f"Layer {entry.layer}, {entry.day}: "
             ...           f"{entry.begin_time}-{entry.end_time}")
 
@@ -336,8 +336,8 @@ class ScheduleService(BaseService):
             ...     ScheduleEntry(day="Tuesday", begin_hour=6, begin_minute=0,
             ...                   end_hour=8, end_minute=0, layer=0),
             ... ]
-            >>> success = await service.write_entries(entries, layer=0)
-            >>> if success:
+            >>> success = await service.write_entries(entries, layer=0)  # doctest: +SKIP
+            >>> if success:  # doctest: +SKIP
             ...     print("Schedule written successfully")
 
         Implementation Notes:
@@ -480,8 +480,8 @@ class ScheduleService(BaseService):
 
         Example:
             >>> # Clear Monday's schedule on layer 0
-            >>> success = await service.clear_entry("Monday", layer=0)
-            >>> if success:
+            >>> success = await service.clear_entry("Monday", layer=0)  # doctest: +SKIP
+            >>> if success:  # doctest: +SKIP
             ...     print("Monday schedule cleared")
 
         Implementation Notes:
@@ -553,9 +553,9 @@ class ScheduleService(BaseService):
             ...     ScheduleEntry(day="Monday", begin_hour=7, begin_minute=0,
             ...                   end_hour=9, end_minute=0),  # Overlaps!
             ... ]
-            >>> is_valid, errors = service.validate_entries(entries)
-            >>> print(is_valid)  # False
-            >>> print(errors)
+            >>> is_valid, errors = service.validate_entries(entries)  # doctest: +SKIP
+            >>> print(is_valid)  # False  # doctest: +SKIP
+            >>> print(errors)  # doctest: +SKIP
             ['Overlap detected: Monday layer 0: 06:00-08:00 overlaps with 07:00-09:00']
 
         Implementation Notes:
@@ -819,26 +819,19 @@ class ScheduleService(BaseService):
 
             logger.debug(f"Writing Class 10 command: {frame.hex()}")
 
-            # A timeout here is the expected case, not a fault: the pump
-            # uses a two-phase commit for flash-backed writes and its
-            # acknowledgement usually lands after the response window has
-            # closed. That is why the return value cannot mean "the pump
-            # took it" - only a readback can establish that.
-            response = await self.transport.send_command(
-                frame,
-                Command(
-                    expect_short_ack=True,
-                    quiet_timeout=True,
-                    description="Class 10 write",
-                ),
-                timeout=3.0,
-            )
-
-            if response is not None:
-                logger.debug(
-                    f"Got response to Class 10 write: {response.hex()}"
-                )
-
+            # A Class 10 SET draws no acknowledgement - not a late one, no
+            # acknowledgement at all. This used to wait three seconds for
+            # it, with a comment explaining the silence as a two-phase
+            # commit whose ack "usually lands after the response window has
+            # closed". Measured 2026-08-20: a no-op write to Object 84 Sub
+            # 1 drew zero frames in six seconds, three runs, and the same
+            # for Object 91 Sub 430.
+            #
+            # What is real is the quiet period afterwards - the pump
+            # answers nothing for 200-400 ms while it commits - and the
+            # transport now holds that itself. Only a readback can say
+            # whether the pump took the write.
+            await self.transport.write(frame)
             return True
 
         except READ_ERRORS as e:

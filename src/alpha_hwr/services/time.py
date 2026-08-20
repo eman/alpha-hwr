@@ -95,21 +95,21 @@ class TimeService(BaseService):
         >>> from alpha_hwr.services import TimeService
         >>>
         >>> # Initialize
-        >>> time_service = TimeService(transport, session)
+        >>> time_service = TimeService(transport, session)  # doctest: +SKIP
         >>>
         >>> # Read pump time
-        >>> pump_time = await time_service.get_clock()
-        >>> print(f"Pump time: {pump_time}")
+        >>> pump_time = await time_service.get_clock()  # doctest: +SKIP
+        >>> print(f"Pump time: {pump_time}")  # doctest: +SKIP
         >>>
         >>> # Sync with system time
-        >>> success = await time_service.set_clock()
-        >>> if success:
+        >>> success = await time_service.set_clock()  # doctest: +SKIP
+        >>> if success:  # doctest: +SKIP
         ...     print("Clock synchronized")
         >>>
         >>> # Set to specific time
         >>> from datetime import datetime
         >>> dt = datetime(2026, 12, 25, 10, 0, 0)
-        >>> await time_service.set_clock(dt)
+        >>> await time_service.set_clock(dt)  # doctest: +SKIP
     """
 
     def __init__(self, transport: Transport, session: Session) -> None:
@@ -137,8 +137,8 @@ class TimeService(BaseService):
             ConnectionError: If not connected
 
         Example:
-            >>> pump_time = await time_service.get_clock()
-            >>> if pump_time:
+            >>> pump_time = await time_service.get_clock()  # doctest: +SKIP
+            >>> if pump_time:  # doctest: +SKIP
             ...     if pump_time.year < 1980:
             ...         print("Clock is unset, needs sync")
             ...     else:
@@ -225,12 +225,12 @@ class TimeService(BaseService):
 
         Example:
             >>> # Sync with system time
-            >>> await time_service.set_clock()
+            >>> await time_service.set_clock()  # doctest: +SKIP
             >>>
             >>> # Set to specific time
             >>> from datetime import datetime
             >>> dt = datetime(2026, 1, 30, 11, 35, 0)
-            >>> await time_service.set_clock(dt)
+            >>> await time_service.set_clock(dt)  # doctest: +SKIP
 
         Implementation Notes:
             - Uses ``build_data_object_set(0x5E00, 0x6401, data)``

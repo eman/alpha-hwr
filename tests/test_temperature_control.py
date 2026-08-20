@@ -104,6 +104,16 @@ async def test_commit_is_skipped_when_the_overview_cannot_be_read(
     result = await mock_client_simple.control.set_constant_speed(2000.0)
 
     assert result is True, "the setpoint write itself still succeeds"
-    assert mock_client_simple.transport.write.call_count == 0, (
-        "no commit may be sent when the overview is unknown"
-    )
+
+    # The control request itself is written, so counting every write no
+    # longer isolates the commit. Count the commits: an Object 84 Sub 1
+    # Class 10 SET, which is what would overwrite the schedule state.
+    commits = [
+        frame
+        for (frame, *_), _ in mock_client_simple.transport.write.call_args_list
+        if len(frame) > 7
+        and frame[4] == 0x0A
+        and frame[6] == 84
+        and frame[7:9] == b"\x00\x01"
+    ]
+    assert commits == [], "no commit may be sent when the overview is unknown"

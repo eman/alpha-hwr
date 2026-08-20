@@ -253,9 +253,9 @@ class AuthenticationHandler:
         --------
         >>> from bleak import BleakClient
         >>> client = BleakClient("device_address")
-        >>> await client.connect()
+        >>> await client.connect()  # doctest: +SKIP
         >>> auth = AuthenticationHandler(client)
-        >>> await auth.authenticate()
+        >>> await auth.authenticate()  # doctest: +SKIP
         """
         self.ble_writer = ble_writer
         self._transaction = transaction

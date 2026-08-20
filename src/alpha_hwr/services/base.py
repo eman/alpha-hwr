@@ -88,8 +88,8 @@ class BaseService:
                 error instead of reporting "no data".
 
         Example:
-            >>> data = await self._read_class10_object(93, 1)  # Read statistics
-            >>> data = await self._read_class10_object(86, 6)  # Read control mode
+            >>> data = await self._read_class10_object(93, 1)  # Read statistics  # doctest: +SKIP
+            >>> data = await self._read_class10_object(86, 6)  # Read control mode  # doctest: +SKIP
 
         Implementation Notes:
             - Builds APDU: [0x0A][0x03][ObjID][SubID_H][SubID_L]
@@ -197,8 +197,8 @@ class BaseService:
             String value, or None if read failed
 
         Example:
-            >>> serial = await self._read_class7_string(1)  # Serial number
-            >>> sw_ver = await self._read_class7_string(2)  # Software version
+            >>> serial = await self._read_class7_string(1)  # Serial number  # doctest: +SKIP
+            >>> sw_ver = await self._read_class7_string(2)  # Software version  # doctest: +SKIP
 
         Implementation Notes:
             - APDU: [0x07][0x01][StringID]
@@ -304,7 +304,7 @@ class BaseService:
 
         Example:
             >>> apdu = bytes([0x0A, 0x03, 93, 0x00, 0x01])  # Class 10 read
-            >>> packet = self._build_geni_packet(0xF8, 0xE7, apdu)
+            >>> packet = self._build_geni_packet(0xF8, 0xE7, apdu)  # doctest: +SKIP
 
         Implementation Notes:
             - Frame format: [STX][LEN][ServiceID][Source][APDU][CRC_H][CRC_L]

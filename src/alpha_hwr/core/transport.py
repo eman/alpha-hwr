@@ -19,8 +19,9 @@ from collections.abc import Callable
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
-from ..constants import GENI_CHAR_UUID
+from ..constants import CLASS_10, GENI_CHAR_UUID
 from ..exceptions import READ_ERRORS
+from ..protocol.apdu import apdu_is_set
 from ..protocol.frame_parser import frame_crc_valid
 from ..protocol.matcher import Command as MatcherCommand
 from ..protocol.matcher import matches as matcher_matches
@@ -61,12 +62,54 @@ MIN_LENGTH_BYTE = 5
 MAX_PDU_LEN = 253
 MAX_TELEGRAM_LEN = MAX_PDU_LEN + 4
 
+#: How long the pump answers nothing after a Class 10 SET.
+#:
+#: Measured 2026-08-20 on an ALPHA HWR, twice over, with a no-op write to
+#: Object 84 Sub 1 and another to Object 91 Sub 430. Two things came out of
+#: it, and both contradict what this client believed:
+#:
+#: * **A Class 10 SET is never acknowledged.** Not late, not at all - 0
+#:   replies in 6 seconds, three runs, both objects. The comments here and
+#:   in the schedule service said the acknowledgement "usually lands after
+#:   the response window has closed"; nothing lands.
+#: * **Nothing else is answered either, for 200-400 ms afterwards.** A read
+#:   issued at +50, +100 or +200 ms goes unanswered (0/3 each); the same
+#:   read at +400 ms and beyond answers normally in ~55 ms (3/3 each). The
+#:   link stays up throughout and the write itself is applied.
+#:
+#: That is why the Grundfos GO app holds the bus quiet for 2500 ms after
+#: any SET before reading (``DongleHelper.afterSetSendPause``) - a
+#: conservative version of this same rule.
+#:
+#: The client used to clear the window by accident: every SET waited a full
+#: second for an acknowledgement that was never coming, and a second is
+#: longer than 400 ms. Making it deliberate keeps the spacing and returns
+#: the second.
+POST_SET_QUIET = 0.4
+
 #: How long a partial frame may sit before it is abandoned.
 #:
 #: The pump paces fragments about 50 ms apart, so a gap of a full second
 #: means the rest is not coming. Without this a truncated frame wedges
 #: reassembly for the life of the connection.
 REASSEMBLY_TIMEOUT = 1.0
+
+
+def is_class10_set(frame: bytes) -> bool:
+    """
+    True for a Class 10 SET, which the pump neither answers nor talks over.
+
+    Reads the class byte and the operation bits of the APDU head, so it is
+    the frame itself that decides rather than a list of addresses kept in
+    step by hand.
+
+    Examples:
+        >>> is_class10_set(bytes.fromhex("2717e7f80a9354000100da01"))
+        True
+        >>> is_class10_set(bytes.fromhex("2707e7f80a03540001d5e8"))
+        False
+    """
+    return len(frame) > 5 and frame[4] == CLASS_10 and apdu_is_set(frame[5])
 
 
 class Transport:
@@ -134,13 +177,13 @@ class Transport:
     --------
     >>> from bleak import BleakClient
     >>> client = BleakClient("device_address")
-    >>> await client.connect()
+    >>> await client.connect()  # doctest: +SKIP
     >>>
     >>> transport = Transport(client)
-    >>> await transport.start_notifications(my_handler)
+    >>> await transport.start_notifications(my_handler)  # doctest: +SKIP
     >>>
     >>> # Send a packet with transaction lock
-    >>> async with transport.transaction():
+    >>> async with transport.transaction():  # doctest: +SKIP
     ...     await transport.write(packet_bytes)
     ...     response = await transport.wait_for_response(timeout=3.0)
 
@@ -203,13 +246,38 @@ class Transport:
         # between chunks of one frame and between separate commands alike.
         self._last_write: float | None = None
 
+        # Event-loop time before which the pump will answer nothing,
+        # because a Class 10 SET has just gone out. See POST_SET_QUIET.
+        self._quiet_until: float | None = None
+
         logger.debug("Transport initialized")
 
     async def _pace(self) -> None:
-        """Wait out the remainder of the inter-write gap, if any."""
+        """
+        Wait out the inter-write gap, and any quiet period a SET imposed.
+
+        The two are separate constraints: SEND_PACING is about how fast the
+        pump's radio will take bytes, POST_SET_QUIET is about it answering
+        nothing while it commits a write. A frame sent inside the quiet
+        period is still applied - the pump simply will not reply to
+        anything until it is over, so a read issued there is lost.
+        """
+        now = asyncio.get_event_loop().time()
+
+        if self._quiet_until is not None:
+            remaining = self._quiet_until - now
+            if remaining > 0:
+                logger.debug(
+                    f"Holding {remaining * 1000:.0f} ms for the pump to "
+                    f"finish committing a write"
+                )
+                await asyncio.sleep(remaining)
+                now = asyncio.get_event_loop().time()
+            self._quiet_until = None
+
         if self._last_write is None:
             return
-        elapsed = asyncio.get_event_loop().time() - self._last_write
+        elapsed = now - self._last_write
         if elapsed < SEND_PACING:
             await asyncio.sleep(SEND_PACING - elapsed)
 
@@ -232,7 +300,7 @@ class Transport:
         --------
         >>> async def my_handler(data):
         ...     print(f"Received {len(data)} bytes")
-        >>> await transport.start_notifications(my_handler)
+        >>> await transport.start_notifications(my_handler)  # doctest: +SKIP
 
         Notes
         -----
@@ -441,8 +509,8 @@ class Transport:
 
         Examples
         --------
-        >>> packet = protocol.build_command(...)
-        >>> await transport.write(packet)
+        >>> packet = protocol.build_command(...)  # doctest: +SKIP
+        >>> await transport.write(packet)  # doctest: +SKIP
         """
         chunks = [
             data[i : i + BLE_MTU_LIMIT]
@@ -455,6 +523,14 @@ class Transport:
                 GENI_CHAR_UUID, chunk, response=response
             )
             self._last_write = asyncio.get_event_loop().time()
+
+        # A Class 10 SET puts the pump to work, and it answers nothing -
+        # not even an unrelated read - until it is finished. Arm the quiet
+        # period here rather than at the call sites, so nothing can forget
+        # it: the whole frame is on the wire by this point, and every path
+        # that talks to the pump comes through _pace().
+        if is_class10_set(data):
+            self._quiet_until = asyncio.get_event_loop().time() + POST_SET_QUIET
 
         if len(chunks) > 1:
             sizes = " + ".join(str(len(c)) for c in chunks)
@@ -483,9 +559,9 @@ class Transport:
 
         Examples
         --------
-        >>> await transport.write(request_packet)
-        >>> response = await transport.read_response(timeout=5.0)
-        >>> if response:
+        >>> await transport.write(request_packet)  # doctest: +SKIP
+        >>> response = await transport.read_response(timeout=5.0)  # doctest: +SKIP
+        >>> if response:  # doctest: +SKIP
         ...     data = protocol.parse(response)
         """
         try:
@@ -511,7 +587,7 @@ class Transport:
 
         Examples
         --------
-        >>> async with transport.transaction():
+        >>> async with transport.transaction():  # doctest: +SKIP
         ...     await transport.write(command1)
         ...     response1 = await transport.read_response()
         ...     # Next command waits for this to complete
@@ -548,9 +624,9 @@ class Transport:
 
         Examples
         --------
-        >>> command = protocol.build_read_request(register)
-        >>> response = await transport.send_with_response(command)
-        >>> if response:
+        >>> command = protocol.build_read_request(register)  # doctest: +SKIP
+        >>> response = await transport.send_with_response(command)  # doctest: +SKIP
+        >>> if response:  # doctest: +SKIP
         ...     value = protocol.parse_response(response)
         """
         async with self._transaction_lock:
@@ -591,7 +667,7 @@ class Transport:
         >>> # Filter out telemetry stream notifications
         >>> def not_telemetry(data):
         ...     return not (len(data) > 5 and data[4] == 0x0A and data[5] == 0x0E)
-        >>> response = await transport.query(request, match_func=not_telemetry)
+        >>> response = await transport.query(request, match_func=not_telemetry)  # doctest: +SKIP
         """
         async with self._transaction_lock:
             # Drain the queue first to avoid stale responses
