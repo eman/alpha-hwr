@@ -77,6 +77,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from typing import TYPE_CHECKING, ClassVar
 
 from ..constants import ControlMode
@@ -1473,24 +1474,43 @@ class ControlService(BaseService):
         self, mode: int, value: float, unit: str, fallback: tuple[float, float]
     ) -> bool:
         """
-        Is this setpoint within bounds the pump will accept?
+        Is this a setpoint the pump could store at all?
 
-        Uses the range the pump published for the mode when it has been
-        read, and the inherited constant otherwise. Those constants are
-        wrong in both directions on every scalar mode - the pump will not
-        go below 1650 RPM against a 500 floor, and tops out at 2.5 m3/h
-        against a 10.0 ceiling - so they are a last resort, deliberately
-        wide, not a specification.
+        Only rejects what is not a number. An out-of-range value is *not*
+        rejected: this pump does not refuse a setpoint it dislikes, it
+        takes it and clamps it, and reports what it stored. Letting it
+        answer tells the caller more than a refusal does, and the answer is
+        the pump's to give.
+
+        It also has to be. The range the pump publishes is the *factory*
+        range, and with a flow limiter enabled the pump manages actual
+        speed to hold the flow bound - where it settles is a property of
+        the installation's hydraulics rather than of the pump. On one
+        reported loop a 3000 RPM request delivered 1885. There is no number
+        that is the maximum speed there, so there is no bound to check
+        against, and a check that looked authoritative would be worse than
+        none. See esphome-alpha-hwr #276.
+
+        The published range is still worth having: it goes in the settle
+        detail when the pump does clamp, so the caller learns why.
         """
-        low, high = self.get_setpoint_range(mode) or fallback
-        if low <= value <= high:
-            return True
-        source = "the pump" if self.get_setpoint_range(mode) else "a fallback"
-        logger.error(
-            f"Setpoint {value} {unit} is outside {source} range "
-            f"({low:.4g}-{high:.4g} {unit})"
-        )
-        return False
+        if not math.isfinite(value):
+            # The all-ones float is the SETPOINT_KEEP sentinel, so a NaN on
+            # the wire reads as "leave the setpoint alone" - a write that
+            # silently does nothing rather than one that fails.
+            logger.error(f"{value} is not a setpoint the pump can store")
+            return False
+
+        published = self.get_setpoint_range(mode)
+        low, high = published or fallback
+        if not low <= value <= high:
+            logger.info(
+                f"Setpoint {value} {unit} is outside the "
+                f"{low:.4g}-{high:.4g} {unit} "
+                + ("range the pump reports" if published else "assumed range")
+                + "; sending it anyway - the pump clamps rather than refusing"
+            )
+        return True
 
     async def _commit_setpoint(self) -> bool:
         """

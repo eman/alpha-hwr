@@ -26,6 +26,7 @@ import asyncio
 import contextlib
 import dataclasses
 import logging
+import math
 from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -416,19 +417,42 @@ class WriteOperationService:
             mode, (fallback_low, fallback_high)
         )
 
-        if not low <= value <= high:
-            source = (
-                "the pump reports for this mode"
-                if from_pump
-                else "this mode is assumed to accept"
-            )
+        if not math.isfinite(value):
+            # Not a bound the pump can clamp to - there is no number here
+            # to store. The all-ones float is also the SETPOINT_KEEP
+            # sentinel, so a NaN would read as "leave the setpoint alone".
             op.settle(
                 WriteStatus.INVALID,
-                f"{value:g} {unit} is outside the {low:.4g}-{high:.4g} "
-                f"{unit} {source}",
+                f"{value} is not a setpoint the pump can store",
                 mode=mode,
             )
             return
+
+        # An out-of-range value is deliberately *not* refused here. The
+        # pump does not reject a setpoint it dislikes - it takes it and
+        # clamps it, and reports what it stored - so letting it answer
+        # tells the caller more than a refusal would, and it is the pump's
+        # judgement rather than ours.
+        #
+        # It also has to be the pump's, because our bound can be wrong in
+        # a way we cannot detect. The type-301 range is the *factory*
+        # range: with a flow limiter enabled the pump manages actual speed
+        # to hold the flow bound, and where it settles is a property of the
+        # installation's hydraulics, not of the pump. On one reported loop
+        # a 3000 RPM request delivered 1885. No number is the maximum
+        # speed there, so no bound could be narrowed to. See
+        # esphome-alpha-hwr #276.
+        if not low <= value <= high:
+            logger.info(
+                f"{value:g} {unit} is outside the {low:.4g}-{high:.4g} "
+                f"{unit} "
+                + (
+                    "the pump reports for this mode"
+                    if from_pump
+                    else "this mode is assumed to accept"
+                )
+                + "; sending it anyway, and reporting what the pump stores"
+            )
 
         # What the pump held before, so "it kept its old value" can be told
         # apart from "it clamped to something else".
@@ -478,7 +502,14 @@ class WriteOperationService:
         elif previous is not None and abs(stored - previous) <= eps:
             status, detail = WriteStatus.REJECTED, f"pump kept {stored:g}"
         else:
-            status, detail = WriteStatus.CLAMPED, f"pump stored {stored:g}"
+            status = WriteStatus.CLAMPED
+            detail = f"pump stored {stored:g}"
+            if from_pump and not low <= value <= high:
+                # Say why, when we know why. The range is the pump's own,
+                # so this is an explanation rather than a guess.
+                detail += (
+                    f"; its range for this mode is {low:.4g}-{high:.4g} {unit}"
+                )
 
         op.settle(
             status,

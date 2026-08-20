@@ -38,6 +38,29 @@
   `_has_motor_state_stream` could never be set by a notification — so the
   polling it exists to suppress ran whether or not the pump was streaming.
 
+- **An out-of-range setpoint is no longer refused before the wire.** This
+  pump does not reject a setpoint it dislikes - it takes it and clamps it,
+  and reports what it stored - so the write now goes out and settles
+  `clamped` with the pump's value. Measured: 4000 RPM stores 3671, 600 RPM
+  stores 1650, against a published range of 1650-3671.
+
+  The published range becomes the explanation rather than the gate. It is
+  quoted in the settle detail when a clamp happens, and only when it came
+  from the pump rather than from a fallback constant.
+
+  There is a second reason the client must not pre-refuse, and it is not
+  recoverable from the range: **with a flow limiter enabled there is no
+  maximum speed.** The pump accepts the setpoint and manages actual speed
+  to hold the flow bound, and where it settles is a property of the
+  installation's hydraulics - one reported loop delivered 1885 RPM for a
+  3000 RPM request. Any check that looked authoritative would be wrong in
+  a way the client cannot detect. Raised by @jfriend00 on
+  esphome-alpha-hwr #276.
+
+  A value that is not a number is still refused: there is nothing for the
+  pump to clamp to, and the all-ones float doubles as the `SETPOINT_KEEP`
+  sentinel, so a NaN would read as "leave the setpoint alone".
+
 - **One time base, in `alpha_hwr.pump_time`.** The pump keeps local wall
   clock and has no notion of UTC: its `DateTimeActual` carries a
   `dst_status` that reads `SummerTime`, its `DaylightSavingTime` object is

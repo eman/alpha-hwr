@@ -478,3 +478,40 @@ Because the pump shifts its own clock at a DST transition, a stored event
 keeps its *wall clock* across the boundary - an 07:00 event stays at 07:00.
 That is almost certainly the intent, and it is another thing true-UTC
 storage would break.
+
+## The pump clamps a setpoint rather than refusing it
+
+Measured through the client, constant speed, whose published range is
+1650-3671 RPM:
+
+    4000 RPM -> clamped   stored 3671
+    2000 RPM -> accepted  stored 2000
+     600 RPM -> clamped   stored 1650
+
+Which reproduces the 0.7.0 note ("600 RPM is stored as 1650 and 4400
+stores 3671") from a separate run, and settles how the client should
+behave: it does not pre-refuse a value outside the published range. The
+pump answers with what it stored, and that answer is more informative than
+a refusal.
+
+There is a second reason it must not, raised by @jfriend00 on
+esphome-alpha-hwr #276 and worth recording here because it is not
+recoverable from the range alone. **With a flow limiter enabled there is
+no maximum speed.** The pump accepts a speed setpoint and then manages the
+actual run speed to hold the flow bound, and where it settles is a property
+of the installation's hydraulics rather than of the pump - on one reported
+loop a 3000 RPM request delivered 1885 RPM. No number is the bound there,
+so any check that looked authoritative would be wrong in a way the client
+cannot detect.
+
+So the published range is an *explanation*, not a gate. It goes in the
+settle detail when the pump clamps, and only when it came from the pump:
+
+    4000 RPM -> clamped: pump stored 3671; its range for this mode is
+                         1650-3671 RPM
+
+The one thing still refused before the wire is a value that is not a
+number. There is nothing there for the pump to clamp to, and the all-ones
+float doubles as the SETPOINT_KEEP sentinel, so a NaN would read as "leave
+the setpoint alone" - a write that silently does nothing rather than one
+that fails.
