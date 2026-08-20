@@ -29,6 +29,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 
+from .. import pump_time
 from ..exceptions import READ_ERRORS
 from ..pump_time import (
     from_pump_time,
@@ -189,7 +190,7 @@ class SingleEventService(BaseService):
             if not event.enabled:
                 return event.slot
 
-        now = datetime.now()  # noqa: DTZ005 - wall clock, to match the pump
+        now = pump_time.now()
         for event in events:
             if event.end < now:
                 logger.info(
@@ -332,7 +333,7 @@ class SingleEventService(BaseService):
         # spends one of the pump's five slots on an event that will never
         # run. A window that has already *started* is legitimate - it just
         # begins part-way through - so only the end is compared.
-        now = datetime.now()  # noqa: DTZ005 - wall clock, to match the pump
+        now = pump_time.now()
         if end <= now:
             logger.error(
                 f"That window closed at {end:%Y-%m-%d %H:%M}, before the "
@@ -456,7 +457,7 @@ class SingleEventService(BaseService):
         if events is None:
             return False
 
-        now = datetime.now()  # noqa: DTZ005 - wall clock, to match the pump
+        now = pump_time.now()
         vacations = [e for e in events if e.enabled and e.is_vacation]
 
         live = [e for e in vacations if e.begin <= now < e.end]

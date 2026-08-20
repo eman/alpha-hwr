@@ -58,6 +58,33 @@ from datetime import datetime
 MAX_PUMP_TIME = 0xFFFFFFFF
 
 
+def now() -> datetime:
+    """
+    The wall clock the pump runs on, as this host sees it.
+
+    One accessor, so "what time is it" has a single answer for every
+    decision that is about the *pump's* clock: which single-event slots
+    have expired, whether a window has already closed, what to write to the
+    pump's own clock.
+
+    That is deliberately not the same question as "when did this host
+    event happen", which telemetry stamps and session timings ask and which
+    is correctly UTC-aware. Mixing the two is how the ESPHome port acquired
+    a bug where one caller substituted the wrong timestamp for "now"
+    (esphome-alpha-hwr #262), and four independent notions of now is the
+    condition that makes that class of bug easy to reintroduce (#270).
+
+    There is no "clock not set" sentinel here, and there does not need to
+    be: a host always has a clock. The ESPHome port needs one because an
+    ESP32 may genuinely not know the time, and its rule - a picker that
+    cannot tell the time refuses to guess - has no analogue here.
+
+    Returns:
+        A naive datetime in local time, matching the pump's own base.
+    """
+    return datetime.now()  # noqa: DTZ005 - wall clock, to match the pump
+
+
 def to_pump_time(when: datetime) -> int:
     """
     Encode a wall clock the way the pump stores it.

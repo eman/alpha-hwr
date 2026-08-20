@@ -6,8 +6,6 @@ Commands:
   - sync: Synchronize pump clock with system time
 """
 
-from datetime import datetime
-
 import typer
 
 from ..app import console
@@ -121,7 +119,7 @@ async def _clock_view(device: str | None) -> None:
             # Naive local, to match the pump's naive wall clock: this is
             # compared against pump_time below, and mixing naive and
             # aware datetimes raises.
-            system_time = datetime.now()  # noqa: DTZ005
+            system_time = pump_time.now()
 
             if pump_time is None:
                 console.print(

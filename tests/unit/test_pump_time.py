@@ -91,6 +91,41 @@ class TestTheEncoding:
         assert to_pump_time(datetime(2106, 2, 7)) <= MAX_PUMP_TIME
 
 
+class TestOneAccessorForNow:
+    """
+    "What time is it" has one answer for pump decisions.
+
+    Five independent ``datetime.now()`` calls decided slot expiry, window
+    validity and what to write to the pump's clock. Nothing was wrong with
+    any of them, but the ESPHome port's #262 was caused by one caller
+    substituting the wrong timestamp for "now", and independent notions of
+    now are what make that easy to reintroduce.
+    """
+
+    def test_the_pump_clock_is_naive_local(self) -> None:
+        assert pump_time.now().tzinfo is None
+
+    @pytest.mark.parametrize(
+        "module",
+        [single_event, __import__("alpha_hwr.services.time", fromlist=["x"])],
+        ids=["single_event", "time"],
+    )
+    def test_no_service_calls_now_itself_for_pump_decisions(
+        self, module
+    ) -> None:
+        """
+        ``datetime.now()`` here would be a second answer to the same
+        question. Host-event stamps are a *different* question and are
+        correctly ``datetime.now(UTC)`` - which is why this checks for the
+        naive call specifically.
+        """
+        source = inspect.getsource(module)
+        assert "datetime.now()" not in source, (
+            f"{module.__name__} answers 'what time is it' itself; it should "
+            f"use pump_time.now() so every pump decision shares one clock"
+        )
+
+
 class TestOneTimeBase:
     """No surface may decode a pump timestamp as an aware datetime."""
 

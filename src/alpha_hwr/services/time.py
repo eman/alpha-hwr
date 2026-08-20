@@ -72,6 +72,7 @@ import struct
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from .. import pump_time
 from ..exceptions import READ_ERRORS
 from ..protocol.matcher import Command
 from .base import BaseService
@@ -248,7 +249,7 @@ class TimeService(BaseService):
             # offset, and its schedules run against that wall clock. A
             # UTC-aware value here would shift the pump's clock by the
             # local offset.
-            dt = datetime.now()  # noqa: DTZ005
+            dt = pump_time.now()
 
         logger.info(
             f"Synchronizing pump clock to {dt.isoformat()} (local time)..."
