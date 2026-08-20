@@ -3,6 +3,137 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **The APDU head is a length, not an opcode.** Byte 5 of a GENI frame is
+  `0booLLLLLL`: an operation (GET/SET/INFO) or an acknowledgement in the
+  top two bits, and the payload's byte count in the low six. There is no
+  "OpSpec". `byte5 == len(frame) - 8` held for every reply measured
+  against the pump.
+
+  Two mistakes followed from reading it as an opcode. The set `{0x30,
+  0x2B, 0x14, 0x2E, 0x2D, 0x09}`, carried as "register-read operation
+  specifiers" and used to select a payload offset, is really the payload
+  lengths 48, 43, 20, 46, 45 and 9 — it worked because 48, 43 and 20 are
+  exactly the three telemetry replies, and mis-sliced anything else that
+  size. And `0x81` was read as an acknowledgement carrying an error code:
+  it is Unknown Data Item with one payload byte, and that byte names the
+  item the pump did not recognise, so a refused write read as accepted
+  whenever the item was `0x00` — the case this pump produces.
+
+- **A response carries no Object ID and no Sub-ID.** Bytes 6-9 are
+  `[00][TypeH][TypeL][Version]`, the type of the object answered. Matching
+  therefore discriminates types, not instances: Object 86 sub-ids 13, 15,
+  17 and 39 all answer `00 01 2d 01`, and alarms and warnings answer
+  identically to each other.
+
+  The rule that accepted the two fields in either order is gone — they are
+  one type field, every measured reply matches in wire order, and
+  accepting a transpose let unrelated objects answer each other's reads.
+
+- **Telemetry routed on the address it asked for.** The decoder's table,
+  the frame parser's telemetry set and the stream-detection flags all
+  compared against `(87, 69)`, `(93, 290)` and `(93, 300)`. No reply
+  carries those, so every case fell through to a raw-frame fallback, and
+  `_has_motor_state_stream` could never be set by a notification — so the
+  polling it exists to suppress ran whether or not the pump was streaming.
+
+- **Inbound CRC is now enforced.** It was computed and never read:
+  `validate_frame_integrity()` was its only consumer and had no call site,
+  so every write verdict was decided by reading unverified bytes back.
+  Frames are trimmed to their declared length first, since the completion
+  test is `>=` and trailing bytes sit outside what the CRC covers. Bad
+  frames are dropped and counted (`transport.crc_failures`).
+
+- **Reassembly.** `0x27` was accepted as an inbound start byte; the pump
+  never sends it. A frame start now begins a new packet only when
+  reassembly is not already under way — a mid-frame fragment can perfectly
+  well begin `0x24`, and treating it as a start discarded the frame in
+  progress. A partial frame is abandoned after a second rather than
+  wedging the buffer. The declared length is bounded at both ends: there
+  was no minimum, so a length byte of `0x00` completed a four-byte
+  "frame" instantly, and the maximum was 256 against a real 257. A second
+  frame arriving in the same notification is now delivered instead of
+  being swallowed into the first one's payload.
+
+- **Every device-info string was a character short.** The Class 7 header
+  is six bytes, not seven: byte 5 is the string's byte count and the text
+  starts at offset 6, with no echoed string ID. Two strings were patched
+  up afterwards and so looked right — an `"A"` prepended to `LPHA HWR`,
+  and a `"1"` prepended to a serial reading `0000479`, which was correct
+  for this unit only by coincidence. The versions had no such patch:
+
+      software  2601618V04.02.01.02539  ->  92601618V04.02.01.02539
+      hardware  2601617V01.03.00.00469  ->  92601617V01.03.00.00469
+      BLE       2811431V06.00.01.00001  ->  92811431V06.00.01.00001
+
+  Both rewrites are removed rather than retuned.
+
+- **The dedicated Class 10 setpoint write was refused, always.** It
+  addressed sub-id first where every Class 10 SET this pump accepts is
+  object first, so it named object `0x00` and the pump answered Unknown
+  Data Item quoting `0x00` back — on every setpoint write since the method
+  existed, invisibly, because the send was fire-and-forget and the retry
+  helper reports success even on a timeout. It is deleted: the fused
+  Object 86 Sub 6 request already carries the setpoint, which is how the
+  Grundfos GO app sets one.
+
+### Added
+
+- **Setpoint bounds read from the pump** (`read_setpoint_ranges()`,
+  `get_setpoint_range()`). The pump publishes them in the type 301
+  objects at Object 86 sub 13, 15, 17 and 39. Every constant this client
+  validated against was wrong in both directions:
+
+  | mode | pump | was |
+  |---|---|---|
+  | constant speed | 1650 – 3671 RPM | 500 – 4500 |
+  | constant pressure | 1.000 – 2.450 m | 0.5 – 10.0 |
+  | proportional pressure | 2.599 – 4.569 m | 0.5 – 10.0 |
+  | constant flow | 0.114 – 2.498 m³/h | 0.1 – 10.0 |
+
+  Proportional pressure was the worst: a 0.5 m floor against a real 2.6 m,
+  in a range that does not overlap constant pressure's — and the two
+  shared one constant. The read runs once per connection during cache
+  sync, sequentially, and stops at the first failure, because all four
+  objects answer with the same type code and carrying on would shift every
+  remaining range by one slot. The old constants remain as a deliberately
+  wide fallback: refusing a setpoint the pump would have taken is worse
+  than letting it clamp one it dislikes.
+
+- **`read_limiters()` and `alpha-hwr control limiters`.** An enabled flow
+  limiter caps delivered flow whatever the setpoint says, and nothing in
+  the setpoint range reveals it — so a setpoint can settle accepted, read
+  back correct, and still not be delivered.
+
+### Removed
+
+- **The authentication handshake.** Ten packets went out on every
+  connection as a three-stage "unlock". All four distinct packets are
+  reads — two GETs and two INFO queries — and their replies were
+  discarded. A read cannot change device state. With none of them sent, a
+  bare connect-and-subscribe link answers every read this client makes.
+  The 750 ms of inter-stage delays went too; they were transcribed from
+  this client's own `sleep()` calls and then documented as pump timing
+  requirements. `authenticate()` keeps its name and now only waits for the
+  radio to settle.
+
+- **`set_flow_limit()` and `alpha-hwr control set-flow-limit`**, along
+  with the `--flow-limit` options on `set-speed` and `set-temperature`.
+  They wrote Object 86 Sub 39 — the constant-flow *setpoint range*, not a
+  limiter — through the refused frame above. The real limiters are at
+  Object 86 Sub 600 (MaxFlow) and Sub 601 (MinFlow); `read_limiters()`
+  reads them. The write is not reimplemented, because enabling a limiter
+  silently caps the pump and that is not a change to make as a side effect
+  of a protocol sync.
+
+### Documentation
+
+- `docs/protocol/bench_findings.md` records the 2026-08-20 session: the
+  Class 7 header, the response type table, the setpoint ranges, the
+  second Class 10 acknowledgement, and the limiter survey.
+
+
 ## [0.7.0] - 2026-08-05
 
 ### Added
