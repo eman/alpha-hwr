@@ -20,6 +20,7 @@ from alpha_hwr.services.single_event import (
     ACTION_RUN,
     ACTION_STOP,
     SLOT_LIMIT,
+    SUB_FIRST_SLOT,
     SingleEventService,
 )
 
@@ -164,3 +165,80 @@ class TestConfirm:
 
         assert not await service.confirm(0, begin, end, ACTION_STOP)
         assert await service.confirm(0, begin, end, ACTION_RUN)
+
+
+class TestTheSlotCountIsBounded:
+    """
+    A number off the wire is not a loop bound.
+
+    ``read_all()`` and ``find_free_slot()`` turn ``slot_count()`` straight
+    into one Class 10 read per slot, so an overlarge count is minutes of
+    link time spent on sub-ids that cannot hold a single event.
+
+    The ceiling is not a judgement about what is reasonable. The sub-id is
+    ``900 + slot`` and the weekly schedule's layers begin at 1000, so slot
+    100 addresses layer 0 - anything past 99 is a different object however
+    the pump counts. Same shape as esphome-alpha-hwr#284, which has two
+    bytes behind it and can ask for 65,535 reads.
+    """
+
+    @pytest.mark.asyncio
+    async def test_the_pump_s_own_count_is_used_when_it_is_sane(
+        self, service: SingleEventService
+    ) -> None:
+        """5 on the bench unit, and nothing here should round that up."""
+        service.slot_count = SingleEventService.slot_count.__get__(service)  # type: ignore[method-assign]
+        service._read_class10_object = AsyncMock(  # type: ignore[method-assign]
+            return_value=bytes([0, 0, 10, 2, 5, 0, 0, 0, 0, 0])
+        )
+
+        assert await service.slot_count() == 5
+
+    @pytest.mark.asyncio
+    async def test_a_count_past_the_addressable_range_is_clamped(
+        self, service: SingleEventService
+    ) -> None:
+        service.slot_count = SingleEventService.slot_count.__get__(service)  # type: ignore[method-assign]
+        service._read_class10_object = AsyncMock(  # type: ignore[method-assign]
+            return_value=bytes([0, 0, 10, 2, 255, 0, 0, 0, 0, 0])
+        )
+
+        assert await service.slot_count() == SLOT_LIMIT
+
+    @pytest.mark.asyncio
+    async def test_the_clamp_bounds_how_many_slots_are_read(
+        self, service: SingleEventService
+    ) -> None:
+        """
+        The point of the clamp is the read loop, not the number.
+
+        Without it a pump reporting 255 issues 255 Class 10 reads.
+        """
+        reads: list[int] = []
+
+        async def read(obj: int, sub: int, *_a: object, **_kw: object):
+            reads.append(sub)
+            if (obj, sub) == (84, 1):
+                return bytes([0, 0, 10, 2, 255, 0, 0, 0, 0, 0])
+            return None  # every slot unreadable, so read_all bails
+
+        service.slot_count = SingleEventService.slot_count.__get__(service)  # type: ignore[method-assign]
+        service._read_class10_object = AsyncMock(side_effect=read)  # type: ignore[method-assign]
+
+        await service.read_all()
+
+        slot_reads = [s for s in reads if s >= SUB_FIRST_SLOT]
+        assert all(s < SUB_FIRST_SLOT + SLOT_LIMIT for s in slot_reads), (
+            "a slot read must never reach the schedule layers at "
+            f"{SUB_FIRST_SLOT + SLOT_LIMIT}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_an_unreadable_overview_is_still_none(
+        self, service: SingleEventService
+    ) -> None:
+        """Not zero: 'we do not know' is not 'the pump has no slots'."""
+        service.slot_count = SingleEventService.slot_count.__get__(service)  # type: ignore[method-assign]
+        service._read_class10_object = AsyncMock(return_value=None)  # type: ignore[method-assign]
+
+        assert await service.slot_count() is None

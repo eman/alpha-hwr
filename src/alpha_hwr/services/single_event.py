@@ -113,13 +113,35 @@ class SingleEventService(BaseService):
         """
         How many single-event slots this pump has.
 
-        Read from ``ClockProgramOverview``, because it varies by model.
+        Read from ``ClockProgramOverview``, because it varies by model -
+        the unit this was written against reports 5 - and clamped to
+        :data:`SLOT_LIMIT`, because a wire-supplied number should not be a
+        loop bound with no ceiling.
+
+        Callers turn this straight into one Class 10 read per slot, so a
+        pump reporting 255 would spend minutes walking sub-ids that cannot
+        hold a single event. The ceiling is not a judgement about what is
+        reasonable: the sub-id is ``900 + slot`` and the weekly schedule's
+        layer records begin at 1000, so slot 100 addresses layer 0 and
+        anything past 99 is a different object however the pump counts.
+
+        See esphome-alpha-hwr#284, where the same shape has two bytes
+        behind it rather than one and can ask for 65,535 reads.
         """
         overview = await self._read_class10_object(84, 1)
         if not overview or len(overview) < 5:
             logger.warning("Could not read the schedule overview")
             return None
-        return overview[4]
+
+        reported = overview[4]
+        if reported > SLOT_LIMIT:
+            logger.warning(
+                f"The pump reports {reported} single-event slots, but only "
+                f"{SLOT_LIMIT} can be addressed before the sub-ids run into "
+                f"the schedule layers; reading {SLOT_LIMIT}"
+            )
+            return SLOT_LIMIT
+        return reported
 
     async def read(self, slot: int) -> SingleEvent | None:
         """
