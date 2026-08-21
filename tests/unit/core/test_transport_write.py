@@ -9,13 +9,22 @@ chunk still exceeded the 20-byte MTU.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from wire import CAPTURED
 
 from alpha_hwr.constants import GENI_CHAR_UUID
-from alpha_hwr.core.transport import BLE_MTU_LIMIT, SEND_PACING, Transport
+from alpha_hwr.core import transport as tmod
+from alpha_hwr.core.transport import (
+    BLE_MTU_LIMIT,
+    SEND_PACING,
+    Transport,
+)
+
+if TYPE_CHECKING:
+    from bleak.backends.characteristic import BleakGATTCharacteristic
 
 #: A Class 10 SET (the no-op ClockProgramOverview write-back) and a Class
 #: 10 GET, as they go on the wire.
@@ -23,23 +32,30 @@ _SET = bytes.fromhex("2717e7f80a9354000100da0100000a02050005010100000000b44e")
 _GET = bytes.fromhex("2707e7f80a03540001d5e8")
 
 
-def _transport_recording_sleeps(monkeypatch):
-    """A Transport whose BLE writes are stubbed and whose sleeps are logged."""
-    from unittest.mock import AsyncMock, MagicMock
+def notify(transport: Transport, data: bytes) -> None:
+    """
+    Feed one BLE notification in, the way bleak would.
 
-    from alpha_hwr.core import transport as tmod
+    bleak passes the characteristic and the callback ignores it, so a test
+    has nothing meaningful to supply; building a real
+    BleakGATTCharacteristic to be discarded would be theatre. The cast says
+    so rather than hiding it.
+    """
+    transport._notification_callback(
+        cast("BleakGATTCharacteristic", None), bytearray(data)
+    )
 
-    client = MagicMock()
-    client.write_gatt_char = AsyncMock()
-    t = tmod.Transport(client)
 
-    slept: list[float] = []
+@pytest.fixture
+def slept(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Every sleep the transport asks for, in order."""
+    recorded: list[float] = []
 
     async def fake_sleep(seconds: float) -> None:
-        slept.append(seconds)
+        recorded.append(seconds)
 
     monkeypatch.setattr(tmod.asyncio, "sleep", fake_sleep)
-    return t, slept
+    return recorded
 
 
 @pytest.fixture
@@ -213,39 +229,28 @@ class TestFramesAreChunkedForThePump:
 
     @pytest.mark.asyncio
     async def test_a_frame_over_the_limit_is_split(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, transport: Transport, ble_client: MagicMock
     ) -> None:
-        transport, _ = _transport_recording_sleeps(monkeypatch)
-
         await transport.write(_SET)
 
-        written = [
-            c[0][1] for c in transport.client.write_gatt_char.call_args_list
-        ]
+        written = written_chunks(ble_client)
         assert len(written) > 1, "a 27-byte frame must not go out whole"
-        assert all(len(chunk) <= 20 for chunk in written)
+        assert all(len(chunk) <= BLE_MTU_LIMIT for chunk in written)
         assert b"".join(written) == _SET
 
     @pytest.mark.asyncio
     async def test_a_frame_within_the_limit_goes_in_one_write(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, transport: Transport, ble_client: MagicMock
     ) -> None:
-        transport, _ = _transport_recording_sleeps(monkeypatch)
-
         await transport.write(_GET)
 
-        written = [
-            c[0][1] for c in transport.client.write_gatt_char.call_args_list
-        ]
-        assert written == [_GET]
+        assert written_chunks(ble_client) == [_GET]
 
     @pytest.mark.asyncio
     async def test_chunks_are_paced(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, transport: Transport, slept: list[float]
     ) -> None:
         """The pump drops traffic that arrives faster than SEND_PACING."""
-        transport, slept = _transport_recording_sleeps(monkeypatch)
-
         await transport.write(_SET)
 
         assert slept, "chunks of one frame must be paced apart"
@@ -263,23 +268,20 @@ class TestFrameDropCounters:
     """
 
     @pytest.mark.asyncio
-    async def test_a_bad_crc_is_counted(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        transport, _ = _transport_recording_sleeps(monkeypatch)
+    async def test_a_bad_crc_is_counted(self, transport: Transport) -> None:
         delivered: list[bytes] = []
         transport._custom_handlers.append(delivered.append)
 
         corrupt = bytearray(CAPTURED["mode_read"])
         corrupt[-1] ^= 0xFF
-        transport._notification_callback(None, corrupt)
+        notify(transport, bytes(corrupt))
 
         assert delivered == []
         assert transport.frame_drops["crc_failures"] == 1
 
     @pytest.mark.asyncio
     async def test_an_impossible_length_is_counted_separately(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, transport: Transport
     ) -> None:
         """
         A runt length is a peer talking nonsense, not a corrupted link.
@@ -287,35 +289,28 @@ class TestFrameDropCounters:
         Counting it as a CRC failure would make a framing bug look like
         radio interference.
         """
-        transport, _ = _transport_recording_sleeps(monkeypatch)
-
-        transport._notification_callback(
-            None, bytearray([0x24, 0x00, 0xF8, 0xE7, 0x0A, 0x00])
-        )
+        notify(transport, bytes([0x24, 0x00, 0xF8, 0xE7, 0x0A, 0x00]))
 
         assert transport.frame_drops["runt_length_drops"] == 1
         assert transport.frame_drops["crc_failures"] == 0
 
     @pytest.mark.asyncio
     async def test_bytes_that_start_no_frame_are_counted(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, transport: Transport
     ) -> None:
         """Usually means sync was lost, not that the radio is bad."""
-        transport, _ = _transport_recording_sleeps(monkeypatch)
-
-        transport._notification_callback(None, bytearray(b"\xde\xad\xbe\xef"))
+        notify(transport, b"\xde\xad\xbe\xef")
 
         assert transport.frame_drops["unsolicited_fragments"] == 1
 
     @pytest.mark.asyncio
     async def test_a_clean_frame_counts_nothing(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, transport: Transport
     ) -> None:
-        transport, _ = _transport_recording_sleeps(monkeypatch)
         delivered: list[bytes] = []
         transport._custom_handlers.append(delivered.append)
 
-        transport._notification_callback(None, bytearray(CAPTURED["mode_read"]))
+        notify(transport, CAPTURED["mode_read"])
 
         assert len(delivered) == 1
         assert not any(transport.frame_drops.values())
