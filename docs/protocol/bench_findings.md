@@ -193,6 +193,36 @@ Five string reads answered on a link that had sent **no** opening packets —
 connect, subscribe, read. This is the same conclusion `connection.md`
 reached from the captures, now confirmed by not sending them.
 
+## The type numbers, and a naming trap in this client
+
+Bytes 6-9 of a reply are `[00][TypeH][TypeL][Version]`, so the type spans
+bytes 7-8 and the version is byte 9. Decoded that way, and confirmed
+against `geni_profile_52_7.xml`:
+
+| bytes 6-9 | type / version | profile name |
+|---|---|---|
+| `00 01 00 03` | 256 v3 | `ProtectedMotorStateDetails` |
+| `00 02 35 02` | 565 v2 | `PumpedMediaRelatedProcessValuesExtended` |
+| `00 02 16 02` | 534 v2 | `MediaTemperatureInfo` |
+| `00 02 3a 01` | 570 v1 | `FaultsByArrayExtended` |
+| `00 01 2f 01` | 303 v1 | operation status |
+| `00 01 2d 01` | 301 v1 | setpoint factory config |
+| `00 00 da 01` | 218 v1 | `ClockProgramOverview` |
+| `00 01 42 01` | 322 v1 | `DateTimeActual` |
+| `00 03 f4 02` | 1012 v2 | temperature range config |
+
+**The trap.** This client's `type_high` and `type_low_ver` split those same
+four bytes into two 16-bit halves *one byte off* the real boundary - a
+convention inherited from the ESPHome port, which kept it deliberately
+because comparing both halves is equivalent to comparing type and version
+together. That is true, and the matcher relies on it. But the names read as
+though they were the type's own halves, and they are not: "type_low_ver
+0x2F01" is not a type, it is the second byte of type 303 and its version.
+
+Quote `object_type` / `object_version` in prose, and leave the pair form to
+the matcher. The table above is the vocabulary the vendor's own profile
+uses.
+
 ## A response's bytes 6-9 are `[00][TypeH][TypeL][Version]`
 
 Measured by reading each object and recording the answer:

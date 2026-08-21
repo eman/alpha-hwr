@@ -104,6 +104,51 @@ class ParsedFrame:
     raw_data: bytes
 
     @property
+    def object_type(self) -> int | None:
+        """
+        The object's type number, decoded at its real field boundary.
+
+        Bytes 6-9 are ``[00][TypeH][TypeL][Version]``, so the type spans
+        bytes 7-8 and the version is byte 9. :attr:`type_high` and
+        :attr:`type_low_ver` split the same four bytes into two 16-bit
+        halves *one byte off* that boundary - a convention inherited from
+        the ESPHome port, which kept it deliberately because comparing
+        both halves is equivalent to comparing type and version together,
+        and it is what the matcher does.
+
+        Equivalent for matching, misleading for reading. This is the
+        number to quote:
+
+        =====================  ==========  ==========================
+        bytes 6-9              type/ver    profile name
+        =====================  ==========  ==========================
+        ``00 01 00 03``        256 v3      ProtectedMotorStateDetails
+        ``00 02 35 02``        565 v2      PumpedMediaRelated…Extended
+        ``00 02 16 02``        534 v2      MediaTemperatureInfo
+        ``00 02 3a 01``        570 v1      FaultsByArrayExtended
+        ``00 01 2f 01``        303 v1      operation status
+        ``00 01 2d 01``        301 v1      setpoint factory config
+        ``00 00 da 01``        218 v1      ClockProgramOverview
+        =====================  ==========  ==========================
+
+        Examples:
+            >>> f = FrameParser.parse_frame(
+            ...     bytes.fromhex('2412f8e70a0e00012f0100000701001b39678ac3f7dd'))
+            >>> f.object_type, f.object_version
+            (303, 1)
+        """
+        if self.type_high is None or self.type_low_ver is None:
+            return None
+        return ((self.type_high & 0xFF) << 8) | (self.type_low_ver >> 8)
+
+    @property
+    def object_version(self) -> int | None:
+        """Version byte of the object type. See :attr:`object_type`."""
+        if self.type_low_ver is None:
+            return None
+        return self.type_low_ver & 0xFF
+
+    @property
     def object_body(self) -> bytes:
         """
         Payload with the object's three-byte size header removed.

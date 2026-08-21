@@ -8,17 +8,28 @@ Telemetry Objects
 -----------------
 The Alpha HWR pump sends telemetry using Class 10 DataObjects:
 
-1. **Motor State** (Obj 87, Sub 69) - Type 256
+The object numbers below are what a caller *reads*; the type is what the
+pump *answers with*, and the type is what routes here - a reply carries no
+Object ID and no Sub-ID at all. Types confirmed against
+``geni_profile_52_7.xml``.
+
+1. **Motor State** - read Obj 87 Sub 69, answers **type 256 v3**
+   (``ProtectedMotorStateDetails``)
    - Grid voltage, current, power, speed, converter temperature
 
-2. **Flow/Pressure** (Obj 93, Sub 290) - Type 565
+2. **Flow/Pressure** - read Obj 93 Sub 290, answers **type 565 v2**
+   (``PumpedMediaRelatedProcessValuesExtended``)
    - Flow rate, head, inlet pressure, outlet pressure
 
-3. **Temperature** (Obj 93, Sub 300) - Type 534
+3. **Temperature** - read Obj 93 Sub 300, answers **type 534 v2**
+   (``MediaTemperatureInfo``)
    - Media temperature, PCB temperature, control box temperature
 
-4. **Alarms/Warnings** (Obj 88, Sub 0/11) - Type 570
-   - Active alarm codes and warning codes
+4. **Alarms/Warnings** - read Obj 88 Sub 0 or Sub 11, both answer
+   **type 570 v1** (``FaultsByArrayExtended``)
+   - Active alarm codes and warning codes. Both reads answer with the same
+     type, so a reply cannot say which list it holds; only the caller that
+     issued it knows, which is why these are not routed automatically.
 
 Payload Format
 --------------
@@ -163,10 +174,12 @@ class TelemetryDecoder:
             Dictionary with decoded values (only includes valid fields)
 
         Examples:
-            >>> # Parse frame first
+            >>> # Route on the type the reply carries, not the address
+            >>> # that was requested - a reply carries no address at all.
+            >>> # Motor state answers as type 3 version 1.
             >>> frame = FrameParser.parse_frame(notification_data)  # doctest: +SKIP
-            >>> if frame.obj_id == 87 and frame.sub_id == 69:  # doctest: +SKIP
-            ...     motor_data = TelemetryDecoder.decode_motor_state(frame.payload)
+            >>> if (frame.type_low_ver, frame.type_high) == (0x0003, 0x0001):  # doctest: +SKIP
+            ...     motor_data = TelemetryDecoder.decode_motor_state(frame.object_body)
             ...     print(f"Voltage: {motor_data.get('voltage_ac_v')}V")
             ...     print(f"Current: {motor_data.get('current_a')}A")
             ...     print(f"Power: {motor_data.get('power_w')}W")
@@ -236,9 +249,10 @@ class TelemetryDecoder:
             Dictionary with decoded values (only includes valid fields)
 
         Examples:
+            >>> # Flow and head answer as type 0x3502 version 2.
             >>> frame = FrameParser.parse_frame(notification_data)  # doctest: +SKIP
-            >>> if frame.obj_id == 93 and frame.sub_id == 290:  # doctest: +SKIP
-            ...     flow_data = TelemetryDecoder.decode_flow_pressure(frame.payload)
+            >>> if (frame.type_low_ver, frame.type_high) == (0x3502, 0x0002):  # doctest: +SKIP
+            ...     flow_data = TelemetryDecoder.decode_flow_pressure(frame.object_body)
             ...     print(f"Flow: {flow_data.get('flow_m3h')} m³/h")
             ...     print(f"Head: {flow_data.get('head_m')} m")
             ...     print(f"Inlet: {flow_data.get('inlet_pressure_bar')} bar")
@@ -300,9 +314,10 @@ class TelemetryDecoder:
             Dictionary with decoded values (only includes valid fields)
 
         Examples:
+            >>> # Temperatures answer as type 0x1602 version 2.
             >>> frame = FrameParser.parse_frame(notification_data)  # doctest: +SKIP
-            >>> if frame.obj_id == 93 and frame.sub_id == 300:  # doctest: +SKIP
-            ...     temp_data = TelemetryDecoder.decode_temperature(frame.payload)
+            >>> if (frame.type_low_ver, frame.type_high) == (0x1602, 0x0002):  # doctest: +SKIP
+            ...     temp_data = TelemetryDecoder.decode_temperature(frame.object_body)
             ...     print(f"Media: {temp_data.get('media_temperature_c')}°C")
             ...     print(f"PCB: {temp_data.get('pcb_temperature_c')}°C")
             ...     print(f"Box: {temp_data.get('control_box_temperature_c')}°C")
@@ -358,16 +373,14 @@ class TelemetryDecoder:
             List of active alarm/warning codes (non-zero values only)
 
         Examples:
-            >>> frame = FrameParser.parse_frame(notification_data)  # doctest: +SKIP
-            >>> if frame.obj_id == 88:  # doctest: +SKIP
-            ...     if frame.sub_id == 0:  # Alarms
-            ...         codes = TelemetryDecoder.decode_alarms_warnings(frame.payload)
-            ...         if codes:
-            ...             print(f"Active alarms: {codes}")
-            ...     elif frame.sub_id == 11:  # Warnings
-            ...         codes = TelemetryDecoder.decode_alarms_warnings(frame.payload, False)
-            ...         if codes:
-            ...             print(f"Active warnings: {codes}")
+            >>> # Alarms and warnings answer with the *same* type, so the
+            >>> # reply cannot say which list it holds. Only the caller
+            >>> # that issued the read knows - which is why this is decoded
+            >>> # at the call site rather than by TelemetryDecoder.decode().
+            >>> data = await service._read_class10_object(88, 0)  # doctest: +SKIP
+            >>> codes = TelemetryDecoder.decode_alarms_warnings(data[3:])  # doctest: +SKIP
+            >>> if codes:  # doctest: +SKIP
+            ...     print(f"Active alarms: {codes}")
 
         Implementation Notes:
             - Payload is an array of uint16 (2 bytes each)
@@ -662,17 +675,23 @@ class TelemetryDecoder:
     @staticmethod
     def decode(frame: ParsedFrame) -> dict[str, Any]:
         """
-        Auto-detect and decode telemetry based on Sub-ID and Object ID.
+        Decode a telemetry reply, routing on the object type it carries.
 
-        This is a convenience method that routes to the appropriate decoder
-        based on the frame's identifiers. If the standard decoders don't
-        recognize the object, it falls back to legacy pattern matching.
+        A reply carries no Object ID and no Sub-ID - bytes 6-9 are
+        ``[00][TypeH][TypeL][Version]`` - so the routing key is the type
+        the pump answered with, not the address that was requested. See
+        :mod:`alpha_hwr.protocol.frame_parser`.
 
         Args:
             frame: Parsed frame from FrameParser.parse_frame()
 
         Returns:
-            Dictionary with decoded telemetry data, or empty dict if unknown type
+            Decoded telemetry, or an empty dict when the frame is not
+            Class 10, carries no type fields, or has a type this does not
+            route. Alarms and warnings are deliberately in that last
+            category: both answer with type 0x3A01 version 2, so a reply
+            cannot say which list it holds and only the caller that issued
+            the read knows.
 
         Examples:
             >>> # Decode any telemetry frame automatically
@@ -681,14 +700,17 @@ class TelemetryDecoder:
             >>> if telemetry:  # doctest: +SKIP
             ...     print(f"Received telemetry: {telemetry}")
 
-        Raises:
-            ValueError: If frame is not a valid Class 10 frame
+        Note:
+            Nothing is raised. An unrecognised frame is an empty dict, so a
+            notification stream carrying objects this does not know does
+            not have to be filtered before it gets here.
         """
         if frame.class_byte != 0x0A:  # CLASS_10
             return {}  # Not a Class 10 frame, nothing to decode here
 
-        if frame.obj_id is None or frame.sub_id is None:
-            return {}  # Missing identifiers, can't decode as telemetry
+        if frame.type_low_ver is None or frame.type_high is None:
+            # A short acknowledgement or a refusal: no type, no telemetry.
+            return {}
 
         # Route on the object *type* the pump answered with. A reply
         # carries no Object ID and no Sub-ID (see frame_parser), so the
@@ -701,7 +723,7 @@ class TelemetryDecoder:
         # those, so every case fell through to the register-read fallback
         # below, which parsed the raw frame instead. The fallback still
         # exists, but it is now a fallback rather than the only live path.
-        match (frame.obj_id, frame.sub_id):
+        match (frame.type_low_ver, frame.type_high):
             case (0x0003, 0x0001):  # Motor state, 48-byte reply
                 return TelemetryDecoder.decode_motor_state(frame.object_body)
 
@@ -722,7 +744,8 @@ class TelemetryDecoder:
             case _:
                 # Unknown standard object - try register-read response decoder first
                 logger.debug(
-                    f"Unknown telemetry object ({frame.obj_id}, {frame.sub_id}), "
+                    f"Unrouted object type "
+                    f"({frame.type_low_ver:#06x}, {frame.type_high:#06x}), "
                     f"trying register-read response decoder"
                 )
 

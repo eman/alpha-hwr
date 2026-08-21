@@ -4,6 +4,9 @@ Unit tests for frame_parser.py
 Tests the GENI protocol frame parser with various frame types and edge cases.
 """
 
+import pytest
+from wire import CAPTURED
+
 from alpha_hwr.constants import CLASS_10, FRAME_START, RESPONSE_START
 from alpha_hwr.protocol.frame_parser import (
     TEST_VECTORS,
@@ -357,3 +360,52 @@ class TestParsingConsistency:
         FrameParser.parse_frame(bytes(data))
 
         assert bytes(data) == original
+
+
+class TestTheObjectTypeIsDecodedAtItsRealBoundary:
+    """
+    Bytes 6-9 are ``[00][TypeH][TypeL][Version]``.
+
+    ``type_high`` and ``type_low_ver`` split those same four bytes into two
+    16-bit halves *one byte off* that boundary. That is fine for matching -
+    comparing both halves is equivalent to comparing type and version - and
+    it is what the matcher does. It is not fine for reading, and every
+    number quoted in prose should be the real type.
+
+    Each expectation below is confirmed against ``geni_profile_52_7.xml``,
+    so this is checking the decode against the vendor's own definitions
+    rather than against itself.
+    """
+
+    @pytest.mark.parametrize(
+        ("name", "type_number", "version", "profile_name"),
+        [
+            ("motor_state", 256, 3, "ProtectedMotorStateDetails"),
+            (
+                "flow_pressure",
+                565,
+                2,
+                "PumpedMediaRelatedProcessValuesExtended",
+            ),
+            ("temperature", 534, 2, "MediaTemperatureInfo"),
+            ("mode_read", 303, 1, "operation status"),
+            ("setpoint_range_speed", 301, 1, "setpoint factory config"),
+            ("schedule_overview", 218, 1, "ClockProgramOverview"),
+            ("clock", 322, 1, "DateTimeActual"),
+            ("temp_range_config", 1012, 2, "temperature range config"),
+        ],
+    )
+    def test_captured_frames_decode_to_the_profile_s_types(
+        self, name: str, type_number: int, version: int, profile_name: str
+    ) -> None:
+        frame = FrameParser.parse_frame(CAPTURED[name])
+
+        assert frame.object_type == type_number, profile_name
+        assert frame.object_version == version, profile_name
+
+    def test_a_frame_without_type_fields_has_no_type(self) -> None:
+        """A short acknowledgement carries neither."""
+        frame = FrameParser.parse_frame(bytes.fromhex("2405f8e70a0100aea2"))
+
+        assert frame.object_type is None
+        assert frame.object_version is None
