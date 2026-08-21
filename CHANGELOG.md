@@ -121,6 +121,23 @@
 
   Both rewrites are removed rather than retuned.
 
+- **The single-event slot count is bounded.** `slot_count()` returned
+  `ClockProgramOverview` byte 4 straight off the wire, and `read_all()` and
+  `find_free_slot()` turn that into one Class 10 read per slot - so a pump
+  reporting 255 would spend minutes walking sub-ids that cannot hold a
+  single event.
+
+  The ceiling is not a judgement about what is reasonable: the sub-id is
+  `900 + slot` and the weekly schedule's layers begin at 1000, so slot 100
+  addresses layer 0 and anything past 99 is a different object however the
+  pump counts. `SLOT_LIMIT` was already enforced on the write path; the
+  read path had been missed.
+
+  Nobody has seen a pump report a wrong count. This is the shape - a
+  wire-supplied number used as a loop bound with no ceiling - filed as
+  esphome-alpha-hwr#284, where the same field is two bytes wide and can
+  ask for 65,535 reads.
+
 - **Single-event writes declared a payload length they did not carry.**
   The APDU head was `0xB3` - SET with 51 bytes - borrowed from the schedule
   layer write, whose 53-byte APDU really does carry 51. A single event
