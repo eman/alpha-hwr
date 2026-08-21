@@ -129,7 +129,7 @@ class AlphaHWRClient:
         auth: Authentication handler
 
     Example:
-        >>> async with AlphaHWRClient("DEVICE_ADDRESS") as client:
+        >>> async with AlphaHWRClient("DEVICE_ADDRESS") as client:  # doctest: +SKIP
         ...     # Telemetry
         ...     data = await client.telemetry.read_once()
         ...     print(f"Flow: {data.flow_m3h} m³/h")
@@ -279,11 +279,11 @@ class AlphaHWRClient:
         Example:
             >>> # Connect to specific address
             >>> client = AlphaHWRClient("DEVICE_ADDRESS")
-            >>> await client.connect()
+            >>> await client.connect()  # doctest: +SKIP
             >>>
             >>> # Connect using automatic discovery
             >>> client = AlphaHWRClient()
-            >>> await client.connect()
+            >>> await client.connect()  # doctest: +SKIP
 
         Implementation Notes:
             Connection sequence:
@@ -435,8 +435,8 @@ class AlphaHWRClient:
         disconnects from the device.
 
         Example:
-            >>> await client.disconnect()
-            >>> print(f"Connected: {client.is_connected}")  # False
+            >>> await client.disconnect()  # doctest: +SKIP
+            >>> print(f"Connected: {client.is_connected}")  # False  # doctest: +SKIP
 
         Implementation Notes:
             Disconnect sequence:
@@ -466,8 +466,8 @@ class AlphaHWRClient:
             True if authentication successful, False otherwise
 
         Example:
-            >>> success = await client.authenticate()
-            >>> if success:
+            >>> success = await client.authenticate()  # doctest: +SKIP
+            >>> if success:  # doctest: +SKIP
             ...     print("Authenticated successfully")
             ...     await client.control.start()
         """
@@ -525,12 +525,12 @@ class AlphaHWRClient:
             List of DeviceInfo objects for discovered pumps
 
         Example:
-            >>> devices = await AlphaHWRClient.discover()
-            >>> for device in devices:
+            >>> devices = await AlphaHWRClient.discover()  # doctest: +SKIP
+            >>> for device in devices:  # doctest: +SKIP
             ...     print(f"Found: {device.product_name} at {device.address}")
             >>>
             >>> # Connect to first device
-            >>> if devices:
+            >>> if devices:  # doctest: +SKIP
             ...     client = AlphaHWRClient(devices[0].address)
             ...     await client.connect()
 
@@ -863,13 +863,13 @@ async def discover_devices(timeout: float = 10.0) -> list[str]:
         List of device addresses (UUIDs on macOS, MACs on Linux/Windows)
 
     Example:
-        >>> devices = await discover_devices()
-        >>> print(f"Found {len(devices)} device(s)")
-        >>> for address in devices:
+        >>> devices = await discover_devices()  # doctest: +SKIP
+        >>> print(f"Found {len(devices)} device(s)")  # doctest: +SKIP
+        >>> for address in devices:  # doctest: +SKIP
         ...     print(f"  {address}")
         >>>
         >>> # Connect to first device
-        >>> if devices:
+        >>> if devices:  # doctest: +SKIP
         ...     client = AlphaHWRClient(devices[0])
         ...     await client.connect()
 

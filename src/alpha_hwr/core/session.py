@@ -59,10 +59,11 @@ class SessionState(IntEnum):
     --------
     >>> state = SessionState.DISCONNECTED
     >>> print(state.name)
-    'DISCONNECTED'
+    DISCONNECTED
     >>> state = SessionState.AUTHENTICATED
     >>> if state >= SessionState.AUTHENTICATED:
     ...     print("Can send control commands")
+    Can send control commands
     """
 
     DISCONNECTED = 0
@@ -131,7 +132,9 @@ class Session:
 
      >>> session.ensure_connected()  # No error
      >>> session.ensure_authenticated()  # Raises error
-     ConnectionError: Not authenticated. Current state: CONNECTED
+     Traceback (most recent call last):
+         ...
+     ConnectionError: Not authenticated. Current state: CONNECTED. Call authenticate() first.
 
      Notes for Reimplementation
      --------------------------
@@ -294,6 +297,8 @@ class Session:
 
         Examples
         --------
+        >>> session = Session()
+        >>> session.on_connected()
         >>> session.ensure_connected()
         >>> # Safe to read notifications now
         """
@@ -317,6 +322,10 @@ class Session:
 
         Examples
         --------
+        >>> session = Session()
+        >>> session.on_connected()
+        >>> session.on_authenticating()
+        >>> session.on_authenticated()
         >>> session.ensure_authenticated()
         >>> # Safe to send control commands now
         """

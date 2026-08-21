@@ -26,6 +26,7 @@ import asyncio
 import contextlib
 import dataclasses
 import logging
+import math
 from collections import deque
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -341,13 +342,30 @@ class WriteOperationService:
 
     # -- setpoints -------------------------------------------------------
 
-    #: Which setter writes which mode's setpoint, and the range that
-    #: setter accepts. The range is repeated here deliberately: the setters
-    #: return a bare False for an out-of-range value *and* for a transport
-    #: failure, and those are opposite answers to "should this be retried".
-    #: Checking here lets an out-of-range request settle INVALID before
-    #: anything reaches the wire, leaving a False from the setter to mean
-    #: what it should - the pump or the link refused.
+    #: Which setter writes which mode's setpoint, and a fallback range.
+    #:
+    #: The range is repeated here deliberately: the setters return a bare
+    #: False for an out-of-range value *and* for a transport failure, and
+    #: those are opposite answers to "should this be retried". Checking
+    #: here lets an out-of-range request settle INVALID before anything
+    #: reaches the wire, leaving a False from the setter to mean what it
+    #: should - the pump or the link refused.
+    #:
+    #: These bounds are a **fallback**, used only until the pump's own have
+    #: been read. They are wrong in both directions on every scalar mode.
+    #: Measured 2026-08-20:
+    #:
+    #:     constant speed          1650   - 3671   RPM   (not 500 - 4500)
+    #:     constant pressure       1.000  - 2.450  m     (not 0.5 - 10.0)
+    #:     proportional pressure   2.599  - 4.569  m     (not 0.5 - 10.0)
+    #:     constant flow           0.114  - 2.498  m³/h  (not 0.1 - 10.0)
+    #:
+    #: Proportional pressure is the worst of them: a 0.5 m floor against a
+    #: real one of 2.6 m, in a range that does not even overlap constant
+    #: pressure's - which is what the two shared here until they were
+    #: measured. They are kept deliberately wide, because refusing a
+    #: setpoint the pump would have taken is worse than letting it clamp
+    #: one it dislikes.
     _SETTERS: ClassVar[dict[ControlMode, tuple[str, float, float, str]]] = {
         ControlMode.CONSTANT_PRESSURE: (
             "set_constant_pressure",
@@ -370,6 +388,19 @@ class WriteOperationService:
         ControlMode.CONSTANT_FLOW: ("set_constant_flow", 0.1, 10.0, "m3/h"),
     }
 
+    def _bounds_for(
+        self, mode: ControlMode, fallback: tuple[float, float]
+    ) -> tuple[tuple[float, float], bool]:
+        """
+        The bounds to judge a setpoint by, and whether they are the pump's.
+
+        Returns ``((low, high), from_pump)``.
+        """
+        published = self._control.get_setpoint_range(mode)
+        if published is not None:
+            return published, True
+        return fallback, False
+
     async def _run_set_setpoint(self, op: _Operation) -> None:
         mode = op.args["mode"]
         value = float(op.args["value"])
@@ -381,16 +412,47 @@ class WriteOperationService:
                 f"{mode!r} has no scalar setpoint to write",
             )
             return
-        setter_name, low, high, unit = spec
+        setter_name, fallback_low, fallback_high, unit = spec
+        (low, high), from_pump = self._bounds_for(
+            mode, (fallback_low, fallback_high)
+        )
 
-        if not low <= value <= high:
+        if not math.isfinite(value):
+            # Not a bound the pump can clamp to - there is no number here
+            # to store. The all-ones float is also the SETPOINT_KEEP
+            # sentinel, so a NaN would read as "leave the setpoint alone".
             op.settle(
                 WriteStatus.INVALID,
-                f"{value:g} {unit} is outside the {low:g}-{high:g} {unit} "
-                f"this mode accepts",
+                f"{value} is not a setpoint the pump can store",
                 mode=mode,
             )
             return
+
+        # An out-of-range value is deliberately *not* refused here. The
+        # pump does not reject a setpoint it dislikes - it takes it and
+        # clamps it, and reports what it stored - so letting it answer
+        # tells the caller more than a refusal would, and it is the pump's
+        # judgement rather than ours.
+        #
+        # It also has to be the pump's, because our bound can be wrong in
+        # a way we cannot detect. The type-301 range is the *factory*
+        # range: with a flow limiter enabled the pump manages actual speed
+        # to hold the flow bound, and where it settles is a property of the
+        # installation's hydraulics, not of the pump. On one reported loop
+        # a 3000 RPM request delivered 1885. No number is the maximum
+        # speed there, so no bound could be narrowed to. See
+        # esphome-alpha-hwr #276.
+        if not low <= value <= high:
+            logger.info(
+                f"{value:g} {unit} is outside the {low:.4g}-{high:.4g} "
+                f"{unit} "
+                + (
+                    "the pump reports for this mode"
+                    if from_pump
+                    else "this mode is assumed to accept"
+                )
+                + "; sending it anyway, and reporting what the pump stores"
+            )
 
         # What the pump held before, so "it kept its old value" can be told
         # apart from "it clamped to something else".
@@ -440,7 +502,14 @@ class WriteOperationService:
         elif previous is not None and abs(stored - previous) <= eps:
             status, detail = WriteStatus.REJECTED, f"pump kept {stored:g}"
         else:
-            status, detail = WriteStatus.CLAMPED, f"pump stored {stored:g}"
+            status = WriteStatus.CLAMPED
+            detail = f"pump stored {stored:g}"
+            if from_pump and not low <= value <= high:
+                # Say why, when we know why. The range is the pump's own,
+                # so this is an explanation rather than a guess.
+                detail += (
+                    f"; its range for this mode is {low:.4g}-{high:.4g} {unit}"
+                )
 
         op.settle(
             status,

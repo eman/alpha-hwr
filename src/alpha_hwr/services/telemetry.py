@@ -66,16 +66,16 @@ class TelemetryService:
         >>> from alpha_hwr.services import TelemetryService
         >>>
         >>> # Initialize
-        >>> transport = Transport(bleak_client)
-        >>> session = Session(transport)
-        >>> telemetry_service = TelemetryService(transport, session)
+        >>> transport = Transport(bleak_client)  # doctest: +SKIP
+        >>> session = Session(transport)  # doctest: +SKIP
+        >>> telemetry_service = TelemetryService(transport, session)  # doctest: +SKIP
         >>>
         >>> # Read once
-        >>> data = await telemetry_service.read_once()
-        >>> print(f"Flow: {data.flow_m3h} m³/h")
+        >>> data = await telemetry_service.read_once()  # doctest: +SKIP
+        >>> print(f"Flow: {data.flow_m3h} m³/h")  # doctest: +SKIP
         >>>
         >>> # Stream continuously
-        >>> async for data in telemetry_service.stream():
+        >>> async for data in telemetry_service.stream():  # doctest: +SKIP
         ...     print(f"Power: {data.power_w} W")
     """
 
@@ -113,8 +113,8 @@ class TelemetryService:
             Current TelemetryData
 
         Example:
-            >>> telemetry = service.current
-            >>> print(f"Voltage: {telemetry.voltage_ac_v}V")
+            >>> telemetry = service.current  # doctest: +SKIP
+            >>> print(f"Voltage: {telemetry.voltage_ac_v}V")  # doctest: +SKIP
         """
         return self._telemetry
 
@@ -130,8 +130,8 @@ class TelemetryService:
             Current AdvancedTelemetry
 
         Example:
-            >>> adv = service.advanced
-            >>> print(f"Converter temp: {adv.converter_temperature_c}°C")
+            >>> adv = service.advanced  # doctest: +SKIP
+            >>> print(f"Converter temp: {adv.converter_temperature_c}°C")  # doctest: +SKIP
         """
         return self._advanced_telemetry
 
@@ -149,9 +149,9 @@ class TelemetryService:
             TelemetryData with current values
 
         Example:
-            >>> data = await service.read_once()
-            >>> print(f"Flow: {data.flow_m3h} m³/h")
-            >>> print(f"Power: {data.power_w} W")
+            >>> data = await service.read_once()  # doctest: +SKIP
+            >>> print(f"Flow: {data.flow_m3h} m³/h")  # doctest: +SKIP
+            >>> print(f"Power: {data.power_w} W")  # doctest: +SKIP
 
         Implementation Notes:
             - Uses Class 10 INFO commands (OpSpec 0x00)
@@ -304,7 +304,7 @@ class TelemetryService:
             TelemetryData as it's updated
 
         Example:
-            >>> async for data in service.stream(interval=0.2):
+            >>> async for data in service.stream(interval=0.2):  # doctest: +SKIP
             ...     print(f"Flow: {data.flow_m3h} m³/h, Power: {data.power_w} W")
             ...     if data.power_w > 100:
             ...         break  # Stop streaming
@@ -380,10 +380,12 @@ class TelemetryService:
                 logger.debug("Not a Class 10 frame, ignoring")
                 return
 
-            # Validate Class 10 identifiers
-            if frame.sub_id is None or frame.obj_id is None:
+            # A frame with no type fields is an acknowledgement, a refusal
+            # or a runt - never telemetry.
+            if frame.type_high is None or frame.type_low_ver is None:
                 logger.debug(
-                    "Class 10 frame missing identifiers (likely an ACK or partial), ignoring"
+                    "Class 10 frame carries no object type "
+                    "(an ack, a refusal or a partial), ignoring"
                 )
                 return
 
@@ -431,10 +433,16 @@ class TelemetryService:
                     update=advanced_updates
                 )
 
-            # Set stream detection flags based on object type
-            if frame.obj_id == 87 and frame.sub_id == 69:  # Motor state
+            # Set stream detection flags from the object type the pump
+            # answered with. This used to compare against Object 87 /
+            # Sub-ID 69 and Object 93 / Sub-ID 290 - the addresses that
+            # were *requested*. A reply carries neither, so neither flag
+            # could ever be set by a real notification, and the polling
+            # path this exists to suppress ran regardless of whether the
+            # pump was already streaming.
+            if (frame.type_low_ver, frame.type_high) == (0x0003, 0x0001):
                 self._has_motor_state_stream = True
-            elif frame.obj_id == 93 and frame.sub_id == 290:  # Flow/pressure
+            elif (frame.type_low_ver, frame.type_high) == (0x3502, 0x0002):
                 self._has_flow_stream = True
 
             logger.debug(

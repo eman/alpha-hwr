@@ -56,7 +56,7 @@ async def get_client(
         Connected and authenticated AlphaHWRClient
 
     Example:
-        >>> async with get_client() as client:
+        >>> async with get_client() as client:  # doctest: +SKIP
         ...     data = await client.telemetry.read_once()
     """
     settings = get_settings()

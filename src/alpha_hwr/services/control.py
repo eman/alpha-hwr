@@ -77,13 +77,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from typing import TYPE_CHECKING, ClassVar
 
 from ..constants import ControlMode
 from ..exceptions import READ_ERRORS, ConnectionError
 from ..models import SetpointInfo, WriteCommand, WriteResult
 from ..protocol import FrameBuilder
-from ..protocol.codec import encode_float_be, encode_uint16_be
+from ..protocol.codec import (
+    decode_float_be,
+    encode_float_be,
+    encode_uint16_be,
+)
 from ..protocol.matcher import Command
 from .base import BaseService
 
@@ -112,21 +117,21 @@ class ControlService(BaseService):
         _CLASS10_CONTROL_MAP: Mapping of modes to Class 10 parameters
 
     Example:
-        >>> from alpha_hwr.core import Transport, Session
-        >>> from alpha_hwr.services import ControlService
-        >>> from alpha_hwr.constants import ControlMode
+        >>> from alpha_hwr.core import Transport, Session  # doctest: +SKIP
+        >>> from alpha_hwr.services import ControlService  # doctest: +SKIP
+        >>> from alpha_hwr.constants import ControlMode  # doctest: +SKIP
         >>>
         >>> # Initialize
-        >>> control = ControlService(transport, session)
+        >>> control = ControlService(transport, session)  # doctest: +SKIP
         >>>
         >>> # Start pump
-        >>> await control.start()
+        >>> await control.start()  # doctest: +SKIP
         >>>
         >>> # Set constant pressure mode
-        >>> await control.set_constant_pressure(1.5)  # 1.5 meters
+        >>> await control.set_constant_pressure(1.5)  # 1.5 meters  # doctest: +SKIP
         >>>
         >>> # Stop pump
-        >>> await control.stop()
+        >>> await control.stop()  # doctest: +SKIP
     """
 
     # Control Object Identifiers (from trace)
@@ -187,8 +192,36 @@ class ControlService(BaseService):
     SUB_SPEED_SETPOINT = 13
     SUB_PRESSURE_SETPOINT = 15
     SUB_FLOW_SETPOINT = 39
-    SUB_FLOW_LIMIT = 39
     PUMP_OBJ = 86
+
+    #: Where the pump publishes each scalar mode's setpoint range.
+    #:
+    #: These are the type 301 version 1 "factory config" objects - the same
+    #: ones the Grundfos GO app's setpoint slider binds to. Each carries a
+    #: 28-byte struct of seven floats, of which the first three are
+    #: default, minimum and maximum.
+    #:
+    #: All four answer with the *same* type code, so a reply cannot say
+    #: which sub-id it came from. See :meth:`read_setpoint_ranges` for what
+    #: that forces.
+    _RANGE_SUB_IDS: ClassVar[dict[int, int]] = {
+        ControlMode.CONSTANT_SPEED: 13,
+        ControlMode.CONSTANT_PRESSURE: 15,
+        ControlMode.PROPORTIONAL_PRESSURE: 17,
+        ControlMode.CONSTANT_FLOW: 39,
+    }
+
+    #: What to divide or multiply the pump's native units by to reach the
+    #: units this client speaks, per mode.
+    #:
+    #: Pressure is stored in Pascals and reported in metres of head; flow
+    #: is stored in SI m3/s and reported in m3/h. Speed is native RPM.
+    _RANGE_SCALE: ClassVar[dict[int, float]] = {
+        ControlMode.CONSTANT_SPEED: 1.0,
+        ControlMode.CONSTANT_PRESSURE: 1.0 / 9806.65,
+        ControlMode.PROPORTIONAL_PRESSURE: 1.0 / 9806.65,
+        ControlMode.CONSTANT_FLOW: 3600.0,
+    }
 
     # Control Mode Mapping for ALPHA HWR
     # Value -> Mode Byte used in control payload
@@ -249,6 +282,12 @@ class ControlService(BaseService):
         self._cached_temp_range: tuple[float, float, bool] | None = None
         self._cached_cycle: tuple[int, int] | None = None
         self._cached_setpoints: dict[int, float] = {}
+
+        # Per-mode setpoint bounds as the pump publishes them, filled in by
+        # read_setpoint_ranges(). Empty until then, and callers fall back
+        # to the wider inherited constants rather than refusing a value the
+        # pump might well accept.
+        self._setpoint_ranges: dict[int, tuple[float, float]] = {}
 
     #: Class 3 command IDs. START/STOP change the run state and nothing
     #: else - no mode, no setpoint - which is why they replaced the fused
@@ -486,8 +525,8 @@ class ControlService(BaseService):
                 waiting for the response.
 
         Example:
-            >>> info = await control.get_mode()
-            >>> if info and info.control_mode == ControlMode.CONSTANT_PRESSURE:
+            >>> info = await control.get_mode()  # doctest: +SKIP
+            >>> if info and info.control_mode == ControlMode.CONSTANT_PRESSURE:  # doctest: +SKIP
             ...     value, unit = info.get_display_value()
             ...     print(f"Running in constant pressure mode: {value} {unit}")
 
@@ -680,11 +719,9 @@ class ControlService(BaseService):
 
         logger.info(f"Setting constant pressure to {value_m} m...")
 
-        # Validate setpoint against reasonable limits (0.5m to 10m)
-        if not (0.5 <= value_m <= 10.0):
-            logger.error(
-                f"Setpoint {value_m} m is outside valid range (0.5-10.0 m)"
-            )
+        if not self._check_setpoint(
+            ControlMode.CONSTANT_PRESSURE, value_m, "m", (0.5, 10.0)
+        ):
             return False
 
         # Convert meters to Pascals
@@ -696,10 +733,10 @@ class ControlService(BaseService):
         ):
             return False
 
-        # 2. Update specific pressure setpoint (Sub 15)
-        return await self._set_class10_setpoint(
-            value_pa, self.SUB_PRESSURE_SETPOINT
-        )
+        # The pump takes the setpoint from the fused control request
+        # above. There is no second write; see the note on
+        # _set_class10_setpoint's removal below.
+        return await self._commit_setpoint()
 
     async def set_constant_speed(self, value_rpm: float) -> bool:
         """
@@ -715,11 +752,9 @@ class ControlService(BaseService):
 
         logger.info(f"Setting constant speed to {value_rpm} RPM...")
 
-        # Validate setpoint against reasonable limits (500 to 4500 RPM)
-        if not (500 <= value_rpm <= 4500):
-            logger.error(
-                f"Setpoint {value_rpm} RPM is outside valid range (500-4500 RPM)"
-            )
+        if not self._check_setpoint(
+            ControlMode.CONSTANT_SPEED, value_rpm, "RPM", (500.0, 4500.0)
+        ):
             return False
 
         # 1. Update overall operation request (Sub 6)
@@ -728,10 +763,10 @@ class ControlService(BaseService):
         ):
             return False
 
-        # 2. Update specific speed setpoint (Sub 13)
-        return await self._set_class10_setpoint(
-            value_rpm, self.SUB_SPEED_SETPOINT
-        )
+        # The pump takes the setpoint from the fused control request
+        # above. There is no second write; see the note on
+        # _set_class10_setpoint's removal below.
+        return await self._commit_setpoint()
 
     async def set_constant_flow(self, value_m3h: float) -> bool:
         """
@@ -748,10 +783,9 @@ class ControlService(BaseService):
         logger.info(f"Setting constant flow to {value_m3h} m³/h...")
 
         # Validate setpoint against reasonable limits (0.1 to 10.0 m³/h)
-        if not (0.1 <= value_m3h <= 10.0):
-            logger.error(
-                f"Setpoint {value_m3h} m³/h is outside valid range (0.1-10.0 m³/h)"
-            )
+        if not self._check_setpoint(
+            ControlMode.CONSTANT_FLOW, value_m3h, "m³/h", (0.1, 10.0)
+        ):
             return False
 
         # The pump stores this setpoint in SI m3/s, so convert before it
@@ -764,10 +798,10 @@ class ControlService(BaseService):
         ):
             return False
 
-        # 2. Update specific flow setpoint (Sub 39)
-        return await self._set_class10_setpoint(
-            value_m3s, self.SUB_FLOW_SETPOINT
-        )
+        # The pump takes the setpoint from the fused control request
+        # above. There is no second write; see the note on
+        # _set_class10_setpoint's removal below.
+        return await self._commit_setpoint()
 
     async def set_proportional_pressure(self, value_m: float) -> bool:
         """
@@ -783,11 +817,13 @@ class ControlService(BaseService):
 
         logger.info(f"Setting proportional pressure to {value_m} m...")
 
-        # Validate setpoint against reasonable limits (0.5m to 10m)
-        if not (0.5 <= value_m <= 10.0):
-            logger.error(
-                f"Setpoint {value_m} m is outside valid range (0.5-10.0 m)"
-            )
+        # Proportional pressure has its own range, and it is not constant
+        # pressure's: the pump reports 2.599-4.569 m here against
+        # 1.000-2.450 m there. The two do not overlap, so borrowing one for
+        # the other refuses every setpoint the mode actually accepts.
+        if not self._check_setpoint(
+            ControlMode.PROPORTIONAL_PRESSURE, value_m, "m", (0.5, 10.0)
+        ):
             return False
 
         # Convert meters to Pascals
@@ -799,10 +835,10 @@ class ControlService(BaseService):
         ):
             return False
 
-        # 2. Update specific pressure setpoint (Sub 15)
-        return await self._set_class10_setpoint(
-            value_pa, self.SUB_PRESSURE_SETPOINT
-        )
+        # The pump takes the setpoint from the fused control request
+        # above. There is no second write; see the note on
+        # _set_class10_setpoint's removal below.
+        return await self._commit_setpoint()
 
     async def set_temperature_control(
         self,
@@ -827,8 +863,8 @@ class ControlService(BaseService):
             True if successful, False otherwise
 
         Example:
-            >>> await control.set_temperature_control(35.0, 39.0)  # Radiator system
-            >>> await control.set_temperature_control(35.0, 39.0, "underfloor")
+            >>> await control.set_temperature_control(35.0, 39.0)  # Radiator system  # doctest: +SKIP
+            >>> await control.set_temperature_control(35.0, 39.0, "underfloor")  # doctest: +SKIP
 
         Note:
             For ALPHA HWR pumps, all heating_type variants likely behave the same
@@ -997,7 +1033,7 @@ class ControlService(BaseService):
             (modes 13-15) instead for better compatibility.
 
         Example:
-            >>> await control.set_autoadapt(1.5)  # 1.5 meters
+            >>> await control.set_autoadapt(1.5)  # 1.5 meters  # doctest: +SKIP
         """
         self.session.ensure_authenticated()
 
@@ -1108,7 +1144,7 @@ class ControlService(BaseService):
             True if successful, False otherwise
 
         Example:
-            >>> await control.set_temperature_range_control(35.0, 45.0, autoadapt=True)
+            >>> await control.set_temperature_range_control(35.0, 45.0, autoadapt=True)  # doctest: +SKIP
         """
         self.session.ensure_authenticated()
 
@@ -1183,30 +1219,87 @@ class ControlService(BaseService):
             return True
         return False
 
-    async def set_flow_limit(self, value_gpm: float) -> bool:
-        """
-        Set the maximum flow limit to prevent noise and corrosion.
+    #: The pump's flow limiters, as ``limiter_user_config`` (type 895),
+    #: ``limiter_factory_config`` (897) and ``limiter_status`` (896).
+    #:
+    #: Only two exist. Object 86 sub-ids 600-619, 620-639 and 640-659 are
+    #: declared as twenty instances each in the GENI profile, but every
+    #: sub-id past the second answers ``OPERATION_FAILED`` - measured
+    #: 2026-08-20 by reading all sixty. The name enum in
+    #: ``geni_profile_52_7.xml`` gives MaxFlow = 1, MinFlow = 2, so the
+    #: instances are per limiter rather than per mode.
+    LIMITER_NAMES: ClassVar[dict[int, str]] = {1: "MaxFlow", 2: "MinFlow"}
+    SUB_LIMITER_USER_CONFIG = 600
+    SUB_LIMITER_FACTORY_CONFIG = 620
+    SUB_LIMITER_STATUS = 640
 
-        Args:
-            value_gpm: Maximum flow limit in GPM.
+    async def read_limiters(self) -> dict[str, dict[str, float | bool]]:
+        """
+        Read the pump's flow limiters and whether either is limiting.
+
+        A limiter that is enabled caps delivered flow regardless of the
+        setpoint, and nothing in the setpoint range says so: the type 301
+        range is the *factory* range. So a setpoint can be accepted, read
+        back correct, and still not be delivered. This is the only way to
+        see that.
 
         Returns:
-            True if successful, False otherwise
+            ``{"MaxFlow": {...}, "MinFlow": {...}}`` with ``enabled``,
+            ``limit_m3h``, ``factory_min_m3h``, ``factory_max_m3h`` and
+            ``limiting`` for each limiter that answered.
+
+        Examples:
+            >>> limiters = await client.control.read_limiters()  # doctest: +SKIP
+            >>> limiters["MaxFlow"]["enabled"]  # doctest: +SKIP
+            False
         """
-        self.session.ensure_authenticated()
+        out: dict[str, dict[str, float | bool]] = {}
 
-        from ..constants import FACTOR_M3H_TO_GPM
+        for index, name in self.LIMITER_NAMES.items():
+            offset = index - 1
+            entry: dict[str, float | bool] = {}
 
-        value_m3h = value_gpm * FACTOR_M3H_TO_GPM
+            user = await self._read_limiter_struct(
+                self.SUB_LIMITER_USER_CONFIG + offset, minimum=6
+            )
+            if user is not None:
+                entry["enabled"] = bool(user[1])
+                limit = decode_float_be(user, 2)
+                if limit is not None:
+                    entry["limit_m3h"] = limit * 3600.0
 
-        logger.info(
-            f"Setting flow limit to {value_gpm} GPM ({value_m3h:.3f} m³/h)..."
-        )
+            factory = await self._read_limiter_struct(
+                self.SUB_LIMITER_FACTORY_CONFIG + offset, minimum=9
+            )
+            if factory is not None:
+                low = decode_float_be(factory, 1)
+                high = decode_float_be(factory, 5)
+                if low is not None and high is not None:
+                    entry["factory_min_m3h"] = low * 3600.0
+                    entry["factory_max_m3h"] = high * 3600.0
 
-        # Set flow limit using Object 86, Sub 39 (Max Flow Limit)
-        return await self._set_class10_setpoint(
-            value_m3h, self.SUB_FLOW_LIMIT, self.PUMP_OBJ
-        )
+            status = await self._read_limiter_struct(
+                self.SUB_LIMITER_STATUS + offset, minimum=6
+            )
+            if status is not None:
+                entry["limiting"] = bool(status[1])
+
+            if entry:
+                out[name] = entry
+
+        return out
+
+    async def _read_limiter_struct(
+        self, sub_id: int, minimum: int
+    ) -> bytes | None:
+        """Read one limiter object, past its three-byte size header."""
+        data = await self._read_class10_object(self.PUMP_OBJ, sub_id)
+        if not data:
+            return None
+        body = data
+        if len(body) >= 3 and body[0] == 0 and body[1] == 0:
+            body = body[3:]
+        return body if len(body) >= minimum else None
 
     #: Object 91 Sub 421, ``dhw_on_off_control_configuration_obj``. Holds
     #: the live cycle configuration: ``[flow setpoint f32 (m3/s)][on][off]``.
@@ -1377,39 +1470,159 @@ class ControlService(BaseService):
 
     # Helper methods
 
-    async def _set_class10_setpoint(
-        self, value: float, sub_id: int, obj_id: int = 86
+    def _check_setpoint(
+        self, mode: int, value: float, unit: str, fallback: tuple[float, float]
     ) -> bool:
         """
-        Set the setpoint value using Class 10 DataObject method (SET).
+        Is this a setpoint the pump could store at all?
 
-        Args:
-            value: Setpoint value (float)
-            sub_id: Sub-ID to write to
-            obj_id: Object ID to write to (default 86)
+        Only rejects what is not a number. An out-of-range value is *not*
+        rejected: this pump does not refuse a setpoint it dislikes, it
+        takes it and clamps it, and reports what it stored. Letting it
+        answer tells the caller more than a refusal does, and the answer is
+        the pump's to give.
+
+        It also has to be. The range the pump publishes is the *factory*
+        range, and with a flow limiter enabled the pump manages actual
+        speed to hold the flow bound - where it settles is a property of
+        the installation's hydraulics rather than of the pump. On one
+        reported loop a 3000 RPM request delivered 1885. There is no number
+        that is the maximum speed there, so there is no bound to check
+        against, and a check that looked authoritative would be worse than
+        none. See esphome-alpha-hwr #276.
+
+        The published range is still worth having: it goes in the settle
+        detail when the pump does clamp, so the caller learns why.
+        """
+        if not math.isfinite(value):
+            # The all-ones float is the SETPOINT_KEEP sentinel, so a NaN on
+            # the wire reads as "leave the setpoint alone" - a write that
+            # silently does nothing rather than one that fails.
+            logger.error(f"{value} is not a setpoint the pump can store")
+            return False
+
+        published = self.get_setpoint_range(mode)
+        low, high = published or fallback
+        if not low <= value <= high:
+            logger.info(
+                f"Setpoint {value} {unit} is outside the "
+                f"{low:.4g}-{high:.4g} {unit} "
+                + ("range the pump reports" if published else "assumed range")
+                + "; sending it anyway - the pump clamps rather than refusing"
+            )
+        return True
+
+    async def _commit_setpoint(self) -> bool:
+        """
+        Persist a setpoint the fused control request has just carried.
+
+        The GO app follows every Object 86 Sub 6 control request with an
+        Object 84 Sub 1 overview commit, 25 times over in the capture
+        corpus, and that is what makes the value stick.
+        """
+        await self._send_configuration_commit()
+        return True
+
+    async def read_setpoint_ranges(self) -> dict[int, tuple[float, float]]:
+        """
+        Read each scalar mode's setpoint range from the pump.
+
+        The pump publishes these in the type 301 factory-config objects at
+        Object 86 sub-ids 13, 15, 17 and 39 - the same objects the Grundfos
+        GO app's setpoint slider binds to. Each holds a 28-byte struct whose
+        first three floats are default, minimum and maximum, in the pump's
+        native units.
 
         Returns:
-            True if successful, False otherwise
+            ``{ControlMode: (minimum, maximum)}`` in this client's units,
+            for as many modes as could be read.
+
+        Note:
+            The chain is deliberately **sequential and stops at the first
+            failure**. All four objects answer with the same type code
+            (``00 01 2d 01``), so the transport cannot tell their replies
+            apart. Carrying on past a failure hands read N's late reply to
+            read N+1 and shifts every remaining range by one slot - which
+            would bound constant pressure by constant speed's 1650-3671
+            read as Pascals, 0.168-0.374 m, and refuse an ordinary 1.5 m
+            setpoint for the rest of the connection.
+
+        Examples:
+            >>> ranges = await client.control.read_setpoint_ranges()  # doctest: +SKIP
+            >>> ranges[ControlMode.CONSTANT_SPEED]  # doctest: +SKIP
+            (1650.0, 3671.0)
         """
-        # Build Class 10 SET packet (OpSpec 0x84 = SET + 4 bytes)
-        # APDU: [Class][OpSpec][SubH][SubL][ObjH][ObjL][Data(4)]
-        apdu = bytearray([0x0A, 0x84])
-        apdu.extend(encode_uint16_be(sub_id))
-        apdu.extend(encode_uint16_be(obj_id))
-        apdu.extend(encode_float_be(value))
+        ranges: dict[int, tuple[float, float]] = {}
 
-        # Build GENI frame
-        req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
+        for mode, sub_id in self._RANGE_SUB_IDS.items():
+            data = await self._read_class10_object(self.PUMP_OBJ, sub_id)
+            if not data:
+                logger.debug(
+                    f"Setpoint range for mode {mode} (Sub {sub_id}) could "
+                    f"not be read; stopping the chain rather than "
+                    f"misattributing the replies that follow"
+                )
+                break
 
-        # Send with retry
-        if await self._send_with_retry(
-            req, f"Set Setpoint {value:.2f} (Sub={sub_id}, Obj={obj_id})"
-        ):
-            # Send configuration commit
-            await self._send_configuration_commit()
-            return True
+            body = data
+            if len(body) >= 3 and body[0] == 0 and body[1] == 0:
+                body = body[3:]
 
-        return False
+            if len(body) < 12:
+                logger.debug(
+                    f"Setpoint range for mode {mode} is {len(body)} bytes, "
+                    f"too short for three floats"
+                )
+                break
+
+            minimum = decode_float_be(body, 4)
+            maximum = decode_float_be(body, 8)
+            if minimum is None or maximum is None:
+                break
+
+            scale = self._RANGE_SCALE[mode]
+            ranges[mode] = (minimum * scale, maximum * scale)
+
+        if ranges:
+            self._setpoint_ranges.update(ranges)
+        return ranges
+
+    def get_setpoint_range(self, mode: int) -> tuple[float, float] | None:
+        """
+        The pump's own range for a mode, if it has been read.
+
+        Returns None when it has not. Callers should fall back to the
+        *wider* inherited constants rather than refusing: letting the pump
+        clamp a value it dislikes is better than refusing one it would have
+        taken.
+        """
+        return self._setpoint_ranges.get(mode)
+
+    # _set_class10_setpoint() was here, and is deliberately gone.
+    #
+    # It built [0A][84][SubH][SubL][ObjH][ObjL][f32] - sub-id first, where
+    # every Class 10 SET this pump accepts is object first. So the frame
+    # named object 0x00, and the pump refused it. Confirmed on hardware
+    # 2026-08-20 by sending the exact frame the method produced:
+    #
+    #     -> 27 0C E7 F8 0A 84 00 27 00 56 38 84 4F 4B EA CC
+    #     <- 24 07 F8 E7 0A 81 00 4F 40 4E 81
+    #
+    # 0x81 is Unknown Data Item with one payload byte, and that byte is
+    # 0x00: the object it could not find. Every setpoint write this client
+    # has made since the method existed was refused, invisibly, because the
+    # send was fire-and-forget and _send_with_retry() reports success even
+    # on a timeout.
+    #
+    # Correcting the address would not have been enough. Sub-ids 13, 15, 17
+    # and 39 are type 301, a 28-byte struct of seven floats; a SET to a
+    # typed object has to carry [TypeH][TypeL][Ver][size] ahead of the body,
+    # and a bare float would be read as the top half of the type word.
+    #
+    # It is also not needed. The fused Object 86 Sub 6 control request
+    # already carries the setpoint - which is how the GO app sets one,
+    # 25 times over in the capture corpus, each followed by an Object 84
+    # Sub 1 overview commit. That is what _commit_setpoint() does.
 
     async def _send_with_retry(
         self, packet: bytes, description: str, retries: int = 3
@@ -1420,11 +1633,20 @@ class ControlService(BaseService):
         For control commands, we attempt to verify success by waiting for a response.
         If no response is received, we still consider it successful (fire-and-forget).
         """
-        # A reply only counts if it comes back on the class the command was
-        # sent on. This matters most for the Class 3 commands: their
-        # acknowledgement is a bare two-byte frame with nothing to match on
-        # but the class, so without this gate a Class 10 telemetry
+        # A reply only counts if it comes back on the class the command
+        # was sent on. This matters most for the Class 3 run commands:
+        # their acknowledgement is a bare two-byte frame with nothing to
+        # match on but the class, so without this gate a Class 10 telemetry
         # notification arriving first would be read as the answer.
+        #
+        # Class 10 SETs *are* acknowledged, in 90-120 ms measured through
+        # this client against an ALPHA HWR, with the canonical nine-byte
+        # 24 05 F8 E7 0A 01 00 AE A2. An earlier revision here skipped the
+        # wait on the strength of a probe that never saw one - because the
+        # probe wrote frames whole, and this pump ignores a GENI frame that
+        # is not split into 20-byte GATT writes whatever the negotiated
+        # MTU says. The frames never arrived, so of course nothing answered
+        # them.
         command = Command.for_request(
             packet,
             expect_short_ack=True,
@@ -1591,6 +1813,13 @@ class ControlService(BaseService):
             )
             return False
         self._cached_temp_range = temp_range
+
+        # The setpoint ranges, likewise, are not required. A pump that
+        # will not answer them leaves the write layer on its fallback
+        # constants, which is worse than the truth but better than being
+        # unable to write at all. Read once per connection: they are
+        # factory values and do not move.
+        await self.read_setpoint_ranges()
 
         # The cycle configuration is deliberately not required. It is not
         # needed to display anything, and a pump that returns a short or

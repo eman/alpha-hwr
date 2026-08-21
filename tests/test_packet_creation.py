@@ -1,14 +1,14 @@
 import struct
 
+from wire import class10_reply
+
 from alpha_hwr.constants import (
     AUTH_CLASS10_MAGIC,
     AUTH_EXTEND_1,
     AUTH_EXTEND_2,
     AUTH_LEGACY_MAGIC,
-    CLASS_10,
     FRAME_START,
     RESERVED_BYTE,
-    RESPONSE_START,
     SERVICE_ID_HIGH,
     CommandOpcode,
 )
@@ -161,8 +161,8 @@ class TestPacketCreation:
         # 16-20: Power
         # 20-24: Speed
 
-        sub_id = 69  # 0x45
-        obj_id = 87  # 0x57
+        # The motor-state register answers as type 3 version 1.
+        reply_type = (0x0001, 0x0003)
 
         # Construct payload
         volt_bytes = struct.pack(">f", 230.0)
@@ -181,26 +181,7 @@ class TestPacketCreation:
             + speed_bytes
         )
 
-        # Build Packet manually to simulate device response
-        # [24][Len][Dst][Src][0A][Op][Sub][Obj][Data]
-        length = 10 + len(payload)
-
-        packet = bytearray(
-            [
-                RESPONSE_START,
-                length,
-                0xF8,  # Dest (Client)
-                0xE7,  # Src (Pump)
-                CLASS_10,
-                0x00,  # Op
-                (sub_id >> 8) & 0xFF,
-                sub_id & 0xFF,
-                (obj_id >> 8) & 0xFF,
-                obj_id & 0xFF,
-            ]
-        )
-        packet.extend(payload)
-        packet.extend([0x00, 0x00])  # Fake CRC
+        packet = class10_reply(*reply_type, payload)
 
         frame = FrameParser.parse_frame(bytes(packet))
         data = TelemetryDecoder.decode(frame)
@@ -263,33 +244,19 @@ class TestPacketCreation:
         """
         Test FrameBuilder.parse_class10_telemetry for Flow/Head (Sub 0x122, Obj 0x5D).
         """
-        sub_id = 0x0122
-        obj_id = 0x005D
+        # The reply names the object's type; 0x3502 v2 is what the
+        # flow/head register answers with, measured 2026-08-20.
+        reply_type = (0x0002, 0x3502)
 
         # Flow = 2.5 m3/h, Head = 4.0 m
         flow_bytes = struct.pack(">f", 2.5)
         head_bytes = struct.pack(">f", 4.0)
         payload = flow_bytes + head_bytes
 
-        length = 10 + len(payload)
-        packet = bytearray(
-            [
-                RESPONSE_START,
-                length,
-                0xF8,
-                0xE7,
-                CLASS_10,
-                0x00,
-                (sub_id >> 8) & 0xFF,
-                sub_id & 0xFF,
-                (obj_id >> 8) & 0xFF,
-                obj_id & 0xFF,
-            ]
-        )
-        packet.extend(payload)
-        packet.extend([0x00, 0x00])
+        packet = class10_reply(*reply_type, payload)
 
-        frame = FrameParser.parse_frame(bytes(packet))
+        frame = FrameParser.parse_frame(packet)
+        assert frame.crc_valid
         data = TelemetryDecoder.decode(frame)
 
         assert data["flow_m3h"] == 2.5
@@ -299,32 +266,17 @@ class TestPacketCreation:
         """
         Test FrameBuilder.parse_class10_telemetry for Temperature (Sub 0x12C, Obj 0x5D).
         """
-        sub_id = 0x012C
-        obj_id = 0x005D
+        # Temperatures answer as type 0x1602 version 2.
+        reply_type = (0x0002, 0x1602)
 
         # Media Temp = 45.5 C
         temp_bytes = struct.pack(">f", 45.5)
         payload = temp_bytes
 
-        length = 10 + len(payload)
-        packet = bytearray(
-            [
-                RESPONSE_START,
-                length,
-                0xF8,
-                0xE7,
-                CLASS_10,
-                0x00,
-                (sub_id >> 8) & 0xFF,
-                sub_id & 0xFF,
-                (obj_id >> 8) & 0xFF,
-                obj_id & 0xFF,
-            ]
-        )
-        packet.extend(payload)
-        packet.extend([0x00, 0x00])
+        packet = class10_reply(*reply_type, payload)
 
-        frame = FrameParser.parse_frame(bytes(packet))
+        frame = FrameParser.parse_frame(packet)
+        assert frame.crc_valid
         data = TelemetryDecoder.decode(frame)
 
         assert data["media_temperature_c"] == 45.5

@@ -40,6 +40,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+#: How long to wait for a Class 10 write's acknowledgement.
+#:
+#: Measured through this client against an ALPHA HWR: 90-120 ms across
+#: Object 86 Sub 10, Object 91 Sub 430 and Object 84 Sub 1. The capture
+#: corpus puts the whole distribution at 36-193 ms with nothing over
+#: 295 ms anywhere. 400 ms clears all of it.
+SET_ACK_TIMEOUT = 0.4
+
 
 class ScheduleService(BaseService):
     """
@@ -50,15 +58,15 @@ class ScheduleService(BaseService):
     one time interval per day of the week.
 
     Example:
-        >>> service = ScheduleService(session, transport)
+        >>> service = ScheduleService(session, transport)  # doctest: +SKIP
         >>>
         >>> # Check if schedule is enabled
-        >>> enabled = await service.get_state()
-        >>> print(f"Schedule enabled: {enabled}")
+        >>> enabled = await service.get_state()  # doctest: +SKIP
+        >>> print(f"Schedule enabled: {enabled}")  # doctest: +SKIP
         >>>
         >>> # Read current schedule
-        >>> entries = await service.read_entries()
-        >>> for entry in entries:
+        >>> entries = await service.read_entries()  # doctest: +SKIP
+        >>> for entry in entries:  # doctest: +SKIP
         ...     print(f"{entry.day}: {entry.begin_time}-{entry.end_time}")
         >>>
         >>> # Write new schedule
@@ -68,10 +76,10 @@ class ScheduleService(BaseService):
         ...     ScheduleEntry(day="Tuesday", begin_hour=6, begin_minute=0,
         ...                   end_hour=8, end_minute=0),
         ... ]
-        >>> success = await service.write_entries(new_entries, layer=0)
+        >>> success = await service.write_entries(new_entries, layer=0)  # doctest: +SKIP
         >>>
         >>> # Enable schedule
-        >>> await service.enable()
+        >>> await service.enable()  # doctest: +SKIP
     """
 
     #: ClockProgramOverview byte 5: what the pump does outside every
@@ -115,8 +123,8 @@ class ScheduleService(BaseService):
             ConnectionError: If not connected or not authenticated
 
         Example:
-            >>> enabled = await service.get_state()
-            >>> if enabled:
+            >>> enabled = await service.get_state()  # doctest: +SKIP
+            >>> if enabled:  # doctest: +SKIP
             ...     print("Schedule is active")
             ... else:
             ...     print("Schedule is disabled")
@@ -157,8 +165,8 @@ class ScheduleService(BaseService):
             ConnectionError: If not connected or not authenticated
 
         Example:
-            >>> success = await service.enable()
-            >>> if success:
+            >>> success = await service.enable()  # doctest: +SKIP
+            >>> if success:  # doctest: +SKIP
             ...     print("Schedule enabled")
 
         Implementation Notes:
@@ -187,8 +195,8 @@ class ScheduleService(BaseService):
             ConnectionError: If not connected or not authenticated
 
         Example:
-            >>> success = await service.disable()
-            >>> if success:
+            >>> success = await service.disable()  # doctest: +SKIP
+            >>> if success:  # doctest: +SKIP
             ...     print("Schedule disabled")
 
         Implementation Notes:
@@ -216,13 +224,13 @@ class ScheduleService(BaseService):
 
         Example:
             >>> # Read all layers
-            >>> all_entries = await service.read_entries()
+            >>> all_entries = await service.read_entries()  # doctest: +SKIP
             >>>
             >>> # Read specific layer
-            >>> layer0 = await service.read_entries(layer=0)
+            >>> layer0 = await service.read_entries(layer=0)  # doctest: +SKIP
             >>>
             >>> # Display entries
-            >>> for entry in all_entries:
+            >>> for entry in all_entries:  # doctest: +SKIP
             ...     print(f"Layer {entry.layer}, {entry.day}: "
             ...           f"{entry.begin_time}-{entry.end_time}")
 
@@ -336,8 +344,8 @@ class ScheduleService(BaseService):
             ...     ScheduleEntry(day="Tuesday", begin_hour=6, begin_minute=0,
             ...                   end_hour=8, end_minute=0, layer=0),
             ... ]
-            >>> success = await service.write_entries(entries, layer=0)
-            >>> if success:
+            >>> success = await service.write_entries(entries, layer=0)  # doctest: +SKIP
+            >>> if success:  # doctest: +SKIP
             ...     print("Schedule written successfully")
 
         Implementation Notes:
@@ -480,8 +488,8 @@ class ScheduleService(BaseService):
 
         Example:
             >>> # Clear Monday's schedule on layer 0
-            >>> success = await service.clear_entry("Monday", layer=0)
-            >>> if success:
+            >>> success = await service.clear_entry("Monday", layer=0)  # doctest: +SKIP
+            >>> if success:  # doctest: +SKIP
             ...     print("Monday schedule cleared")
 
         Implementation Notes:
@@ -553,9 +561,9 @@ class ScheduleService(BaseService):
             ...     ScheduleEntry(day="Monday", begin_hour=7, begin_minute=0,
             ...                   end_hour=9, end_minute=0),  # Overlaps!
             ... ]
-            >>> is_valid, errors = service.validate_entries(entries)
-            >>> print(is_valid)  # False
-            >>> print(errors)
+            >>> is_valid, errors = service.validate_entries(entries)  # doctest: +SKIP
+            >>> print(is_valid)  # False  # doctest: +SKIP
+            >>> print(errors)  # doctest: +SKIP
             ['Overlap detected: Monday layer 0: 06:00-08:00 overlaps with 07:00-09:00']
 
         Implementation Notes:
@@ -819,24 +827,28 @@ class ScheduleService(BaseService):
 
             logger.debug(f"Writing Class 10 command: {frame.hex()}")
 
-            # A timeout here is the expected case, not a fault: the pump
-            # uses a two-phase commit for flash-backed writes and its
-            # acknowledgement usually lands after the response window has
-            # closed. That is why the return value cannot mean "the pump
-            # took it" - only a readback can establish that.
+            # A Class 10 SET is acknowledged with the bare nine-byte
+            # 24 05 F8 E7 0A 01 00 AE A2, in 90-120 ms measured through
+            # this client. The acknowledgement carries no identifiers, so
+            # it can only be attributed to the command in flight - hence
+            # expect_short_ack.
+            #
+            # It is not the verdict. The pump clamps values it dislikes
+            # rather than refusing them, so only a readback establishes
+            # what was stored; this just says the frame arrived.
             response = await self.transport.send_command(
                 frame,
                 Command(
                     expect_short_ack=True,
-                    quiet_timeout=True,
                     description="Class 10 write",
                 ),
-                timeout=3.0,
+                timeout=SET_ACK_TIMEOUT,
             )
 
-            if response is not None:
-                logger.debug(
-                    f"Got response to Class 10 write: {response.hex()}"
+            if response is None:
+                logger.warning(
+                    "No acknowledgement for the Class 10 write; the "
+                    "readback will say whether it landed"
                 )
 
             return True

@@ -241,151 +241,122 @@ class TestAlarmsWarningsDecoding:
 
 
 class TestAutoDecoding:
-    """Test automatic decoding based on frame identifiers."""
+    """
+    Routing a real reply to the right decoder.
+
+    These drive frames captured from an ALPHA HWR (family 52, type 7,
+    version 2) on 2026-08-20 through the production parser, rather than
+    hand-building a ParsedFrame. That matters here specifically: the router
+    used to match on the Object and Sub-ID pairs that were *requested*
+    ((87, 69), (93, 290), (93, 300)), and a reply carries neither - so every
+    case fell through to a fallback and the routing table was never
+    exercised by a frame the pump could send. Synthetic frames agreed with
+    it, because they were built from the same wrong assumption.
+    """
+
+    #: Reply to the motor-state register read, 56 bytes on the wire.
+    MOTOR_FRAME = bytes.fromhex(
+        "2434f8e70a300001000300002942e730d643237a000000000000000000"
+        "00000000000000007fffffff7fffffff0000000000000000002385"
+    )
+
+    #: Reply to the flow/pressure register read, 51 bytes.
+    FLOW_FRAME = bytes.fromhex(
+        "242ff8e70a2b0002350200002400000000000000007fffffff7fffffff"
+        "7fffffff7fffffff000000000000000000000000edbe"
+    )
+
+    #: Reply to the temperature register read, 28 bytes.
+    TEMP_FRAME = bytes.fromhex(
+        "2418f8e70a140002160200000d41e0f24d41e9654e41d60bac001c01"
+    )
 
     def test_decode_motor_state_frame(self):
-        """Test auto-decoding motor state frame."""
-        # Create a mock frame
-        payload = bytearray(28)
-        payload[0:4] = encode_float_be(240.0)
-
-        frame = ParsedFrame(
-            valid=True,
-            frame_type="response",
-            class_byte=0x0A,
-            sub_id=69,
-            obj_id=87,
-            payload=bytes(payload),
-            crc_valid=True,
-            raw_data=b"",
-        )
-
+        frame = FrameParser.parse_frame(self.MOTOR_FRAME)
+        assert frame.crc_valid
         result = TelemetryDecoder.decode(frame)
         assert "voltage_ac_v" in result
+        # 0x42E730D6 - the pump was on mains at the time of capture.
+        assert 100.0 < result["voltage_ac_v"] < 130.0
 
     def test_decode_flow_pressure_frame(self):
-        """Test auto-decoding flow/pressure frame."""
-        payload = bytearray(16)
-        payload[0:4] = encode_float_be(2.5)
-
-        frame = ParsedFrame(
-            valid=True,
-            frame_type="response",
-            class_byte=0x0A,
-            sub_id=290,
-            obj_id=93,
-            payload=bytes(payload),
-            crc_valid=True,
-            raw_data=b"",
-        )
-
+        frame = FrameParser.parse_frame(self.FLOW_FRAME)
+        assert frame.crc_valid
         result = TelemetryDecoder.decode(frame)
         assert "flow_m3h" in result
+        assert "head_m" in result
 
     def test_decode_temperature_frame(self):
-        """Test auto-decoding temperature frame."""
-        payload = bytearray(12)
-        payload[0:4] = encode_float_be(55.0)
-
-        frame = ParsedFrame(
-            valid=True,
-            frame_type="response",
-            class_byte=0x0A,
-            sub_id=300,
-            obj_id=93,
-            payload=bytes(payload),
-            crc_valid=True,
-            raw_data=b"",
-        )
-
+        frame = FrameParser.parse_frame(self.TEMP_FRAME)
+        assert frame.crc_valid
         result = TelemetryDecoder.decode(frame)
         assert "media_temperature_c" in result
+        assert 20.0 < result["media_temperature_c"] < 40.0
 
-    def test_decode_alarms_frame(self):
-        """Test auto-decoding alarms frame."""
-        payload = encode_uint16_be(1) + encode_uint16_be(2)
+    def test_each_register_answers_with_its_own_type(self):
+        """
+        The three telemetry replies are told apart by type, not by length.
 
+        A previous filter keyed on the declared payload length - 48, 43 and
+        20 for these three - which is why it appeared to work while
+        discarding any other reply that happened to be one of those sizes.
+        """
+        types = {
+            FrameParser.parse_frame(f).type_low_ver
+            for f in (self.MOTOR_FRAME, self.FLOW_FRAME, self.TEMP_FRAME)
+        }
+        assert types == {0x0003, 0x3502, 0x1602}
+
+    def test_alarms_and_warnings_are_not_routed(self):
+        """
+        The router cannot label an alarm list, and does not pretend to.
+
+        Reading Object 88 Sub 0 and Object 88 Sub 11 on 2026-08-20 returned
+        byte-identical frames, both typed 0x3A01 version 2. Whichever list
+        came back, the reply says the same thing - so only the caller that
+        issued the read knows, and DeviceInfoService.read_alarms() decodes
+        them itself rather than coming through here.
+        """
+        captured = bytes.fromhex("240df8e70a0900023a010000020000dc50")
+        frame = FrameParser.parse_frame(captured)
+
+        assert frame.crc_valid
+        assert (frame.type_high, frame.type_low_ver) == (0x0002, 0x3A01)
+        assert TelemetryDecoder.decode(frame) == {}
+
+    def test_alarm_codes_still_decode_when_the_caller_knows(self):
         frame = ParsedFrame(
             valid=True,
             frame_type="response",
             class_byte=0x0A,
-            sub_id=0,
-            obj_id=88,
-            payload=payload,
+            type_high=0x0002,
+            type_low_ver=0x3A01,
+            payload=encode_uint16_be(42) + encode_uint16_be(7),
+            multi_apdu=False,
             crc_valid=True,
             raw_data=b"",
         )
-
-        result = TelemetryDecoder.decode(frame)
-        assert "active_alarms" in result
-        assert result["active_alarms"] == [1, 2]
-
-    def test_decode_warnings_frame(self):
-        """Test auto-decoding warnings frame."""
-        payload = encode_uint16_be(10)
-
-        frame = ParsedFrame(
-            valid=True,
-            frame_type="response",
-            class_byte=0x0A,
-            sub_id=11,
-            obj_id=88,
-            payload=payload,
-            crc_valid=True,
-            raw_data=b"",
-        )
-
-        result = TelemetryDecoder.decode(frame)
-        assert "active_warnings" in result
-        assert result["active_warnings"] == [10]
-
-    def test_decode_unknown_frame(self):
-        """Test auto-decoding unknown telemetry type."""
-        frame = ParsedFrame(
-            valid=True,
-            frame_type="response",
-            class_byte=0x0A,
-            sub_id=9999,
-            obj_id=9999,
-            payload=b"",
-            crc_valid=True,
-            raw_data=b"",
-        )
-
-        result = TelemetryDecoder.decode(frame)
-        assert result == {}
+        assert TelemetryDecoder.decode_alarms_warnings(frame.payload) == [42, 7]
 
     def test_decode_non_class10_frame(self):
-        """Test auto-decoding returns empty dict for non-Class 10 frames."""
-        frame = ParsedFrame(
-            valid=True,
-            frame_type="response",
-            class_byte=0x02,  # Class 2
-            sub_id=None,
-            obj_id=None,
-            payload=b"",
-            crc_valid=True,
-            raw_data=b"",
+        """A Class 7 string reply carries no telemetry."""
+        frame = FrameParser.parse_frame(
+            bytes.fromhex("240ef8e7070a414c5048412048575200838d")
         )
+        assert frame.class_byte == 7
+        assert TelemetryDecoder.decode(frame) == {}
 
-        result = TelemetryDecoder.decode(frame)
-        assert result == {}
+    def test_decode_refusal_frame(self):
+        """
+        A refusal is not telemetry, and must not decode as any.
 
-    def test_decode_missing_identifiers(self):
-        """Test auto-decoding returns empty dict for frames with missing IDs."""
-        frame = ParsedFrame(
-            valid=True,
-            frame_type="response",
-            class_byte=0x0A,
-            sub_id=None,
-            obj_id=None,
-            payload=b"",
-            crc_valid=True,
-            raw_data=b"",
-        )
-
-        result = TelemetryDecoder.decode(frame)
-        assert result == {}
+        ``0x81`` is Unknown Data Item with one payload byte naming the item
+        the pump did not recognise - here item 0. Read as an acknowledgement
+        carrying an error code, this frame said "success, code 0".
+        """
+        frame = FrameParser.parse_frame(bytes.fromhex("2407f8e70a810040405ebf"))
+        assert frame.class_byte == 0x0A
+        assert TelemetryDecoder.decode(frame) == {}
 
 
 class TestReferenceVectors:
@@ -443,33 +414,39 @@ class TestReferenceVectors:
 
 
 class TestEndToEnd:
-    """Test complete parsing and decoding workflow."""
+    """Parse a frame off the wire and decode it, with nothing in between."""
 
     def test_parse_and_decode_motor_state(self):
-        """Test complete workflow: parse frame -> decode telemetry."""
-        # Construct complete frame with motor state telemetry
-        payload = bytearray(28)
-        payload[0:4] = encode_float_be(230.0)  # Voltage
-        payload[8:12] = encode_float_be(1.5)  # Current
+        """
+        The captured motor reply survives the whole path.
 
-        # Build minimal frame (without proper CRC for simplicity)
-        frame_data = bytes(
-            [0x24, 0x1C, 0xE7, 0xF8, 0x0A, 0x00, 0x00, 0x45, 0x00, 0x57]
+        The frame this replaced was hand-built with the destination and
+        source addresses swapped and a deliberately wrong CRC, and it
+        declared a zero-byte payload while carrying 28 - so it exercised
+        neither the length field nor the checksum, which are the two things
+        parsing a real frame depends on.
+        """
+        raw = bytes.fromhex(
+            "2434f8e70a300001000300002942e730d643237a000000000000000000"
+            "00000000000000007fffffff7fffffff0000000000000000002385"
         )
-        frame_data += bytes(payload) + bytes([0x00, 0x00])
 
-        # Parse frame
-        frame = FrameParser.parse_frame(frame_data)
+        frame = FrameParser.parse_frame(raw)
 
-        # Should parse successfully (even if CRC is wrong)
         assert frame.valid is True
+        assert frame.crc_valid is True
+        assert frame.frame_type == "response"
         assert frame.class_byte == 0x0A
+        # Declared payload length and frame length agree, as they do for
+        # every CRC-valid reply this pump sends.
+        assert raw[5] == len(raw) - 8
+        assert frame.multi_apdu is False
 
-        # Decode telemetry
-        if frame.obj_id == 87 and frame.sub_id == 69:
-            telemetry = TelemetryDecoder.decode_motor_state(frame.payload)
-            assert "voltage_ac_v" in telemetry
-            assert "current_a" in telemetry
+        telemetry = TelemetryDecoder.decode(frame)
+        assert "voltage_ac_v" in telemetry
+        assert "current_a" in telemetry
+        assert "power_w" in telemetry
+        assert "speed_rpm" in telemetry
 
 
 class TestEdgeCases:

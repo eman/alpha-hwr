@@ -73,10 +73,11 @@ from __future__ import annotations
 import logging
 import struct
 import warnings
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from ..exceptions import READ_ERRORS
+from ..exceptions import READ_ERRORS, ConnectionError
+from ..pump_time import from_pump_time
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -99,16 +100,16 @@ class EventLogService(BaseService):
         >>> from alpha_hwr.services import EventLogService
         >>>
         >>> # Initialize
-        >>> event_log = EventLogService(transport, session)
+        >>> event_log = EventLogService(transport, session)  # doctest: +SKIP
         >>>
         >>> # Get all entries
-        >>> entries = await event_log.get_all_entries()
-        >>> for entry in entries:
+        >>> entries = await event_log.get_all_entries()  # doctest: +SKIP
+        >>> for entry in entries:  # doctest: +SKIP
         ...     print(f"{entry.timestamp}: Cycle {entry.cycle_counter}")
         >>>
         >>> # Get single entry
-        >>> newest = await event_log.get_entry(0)
-        >>> oldest = await event_log.get_entry(19)
+        >>> newest = await event_log.get_entry(0)  # doctest: +SKIP
+        >>> oldest = await event_log.get_entry(19)  # doctest: +SKIP
     """
 
     def __init__(self, transport: Transport, session: Session) -> None:
@@ -137,8 +138,8 @@ class EventLogService(BaseService):
 
         Example:
             >>> # Get newest entry
-            >>> entry = await event_log.get_entry(0)
-            >>> if entry:
+            >>> entry = await event_log.get_entry(0)  # doctest: +SKIP
+            >>> if entry:  # doctest: +SKIP
             ...     print(f"Last event: {entry.timestamp}")
         """
         if not 0 <= index <= 19:
@@ -170,6 +171,12 @@ class EventLogService(BaseService):
 
             return self._parse_entry(payload[:16], index, subid)
 
+        except ConnectionError:
+            # A dropped link is not "this entry is unreadable". Every
+            # remaining entry will fail the same way, and the caller must
+            # be able to tell a short log from a short read.
+            raise
+
         except READ_ERRORS as e:
             logger.error(f"Error reading event log entry {index}: {e}")
             return None
@@ -179,13 +186,22 @@ class EventLogService(BaseService):
         Read all event log entries from the pump.
 
         Returns:
-            List of EventLogEntry objects, ordered from newest (0) to oldest (19).
-            Entries that fail to read will be skipped.
+            List of EventLogEntry objects, ordered from newest (0) to
+            oldest (19). An entry the pump will not return is skipped -
+            that is ordinary, since a log with fewer than twenty entries
+            reports the empty slots as unreadable.
+
+        Raises:
+            ConnectionError: The link dropped part-way through. The entries
+                read so far are discarded rather than returned, because a
+                partial read and a short log are indistinguishable once
+                the list is handed back - "Retrieved 5/20" is exactly what
+                a five-entry log looks like.
 
         Example:
-            >>> entries = await event_log.get_all_entries()
-            >>> print(f"Retrieved {len(entries)} event log entries")
-            >>> for entry in entries[:5]:  # Show 5 most recent
+            >>> entries = await event_log.get_all_entries()  # doctest: +SKIP
+            >>> print(f"Retrieved {len(entries)} event log entries")  # doctest: +SKIP
+            >>> for entry in entries[:5]:  # Show 5 most recent  # doctest: +SKIP
             ...     print(f"  {entry.timestamp}: Cycle {entry.cycle_counter}")
         """
         if not self.session.is_connected():
@@ -193,12 +209,31 @@ class EventLogService(BaseService):
 
         logger.info("Fetching all event log entries...")
 
-        entries = []
+        entries: list[EventLogEntry] = []
 
         for index in range(20):
-            entry = await self.get_entry(index)
+            try:
+                entry = await self.get_entry(index)
+            except ConnectionError as e:
+                # Say how far it got. The count is the diagnostic - it is
+                # the difference between "the pump has this many entries"
+                # and "the link went here" - and it is exactly what the
+                # returned list could not express.
+                raise ConnectionError(
+                    f"Pump disconnected while reading the event log after "
+                    f"{len(entries)} of 20 entries: {e}"
+                ) from e
             if entry:
                 entries.append(entry)
+
+        if not self.session.is_connected():
+            # The link can go without the chain noticing: a read already
+            # answered when it drops returns normally, so the loop runs to
+            # completion over a link that died half way.
+            raise ConnectionError(
+                f"Pump disconnected while reading the event log; "
+                f"{len(entries)} of 20 entries had been read"
+            )
 
         logger.info(f"Retrieved {len(entries)}/20 event log entries")
 
@@ -221,8 +256,8 @@ class EventLogService(BaseService):
             EventLogMetadata object with decoded fields, or None if read failed
 
         Example:
-            >>> metadata = await event_log.get_metadata()
-            >>> if metadata:
+            >>> metadata = await event_log.get_metadata()  # doctest: +SKIP
+            >>> if metadata:  # doctest: +SKIP
             ...     print(f"Current cycle: {metadata.current_cycle}")
             ...     print(f"Available entries: {metadata.available_entries}")
         """
@@ -327,7 +362,7 @@ class EventLogService(BaseService):
 
             # Parse Unix timestamp (big-endian uint32)
             timestamp_raw = struct.unpack(">I", raw_data[10:14])[0]
-            timestamp = datetime.fromtimestamp(timestamp_raw, tz=UTC)
+            timestamp = from_pump_time(timestamp_raw)
 
             return EventLogEntry(
                 index=index,

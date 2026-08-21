@@ -88,8 +88,8 @@ class BaseService:
                 error instead of reporting "no data".
 
         Example:
-            >>> data = await self._read_class10_object(93, 1)  # Read statistics
-            >>> data = await self._read_class10_object(86, 6)  # Read control mode
+            >>> data = await self._read_class10_object(93, 1)  # Read statistics  # doctest: +SKIP
+            >>> data = await self._read_class10_object(86, 6)  # Read control mode  # doctest: +SKIP
 
         Implementation Notes:
             - Builds APDU: [0x0A][0x03][ObjID][SubID_H][SubID_L]
@@ -197,12 +197,15 @@ class BaseService:
             String value, or None if read failed
 
         Example:
-            >>> serial = await self._read_class7_string(1)  # Serial number
-            >>> sw_ver = await self._read_class7_string(2)  # Software version
+            >>> serial = await self._read_class7_string(1)  # Serial number  # doctest: +SKIP
+            >>> sw_ver = await self._read_class7_string(2)  # Software version  # doctest: +SKIP
 
         Implementation Notes:
             - APDU: [0x07][0x01][StringID]
-            - Response: [STX][LEN][DST][SRC][0x07][Cmd][ID][...STRING...][CRC]
+            - Response: [STX][LEN][DST][SRC][0x07][Count][...STRING...][CRC]
+            - ``Count`` is the string's byte length, and the first
+              character is at offset 6. The reply does not echo the
+              string ID that was requested.
             - String is UTF-8 encoded with null terminators
         """
         try:
@@ -228,10 +231,33 @@ class BaseService:
                     timeout=3.0,
                 )
 
-                if response and len(response) > 9:
-                    # Extract string data: skip frame header (7 bytes) and CRC (2 bytes)
-                    # Frame: [STX][LEN][DST][SRC][Class][Cmd][ID][...STRING...][CRC_H][CRC_L]
-                    string_data = response[7:-2]
+                if response and len(response) > 8:
+                    # The header is six bytes, not seven. Byte 5 is the
+                    # string's byte count - an APDU head like any other -
+                    # and the text starts at offset 6.
+                    #
+                    # Reading from offset 7 dropped the first character of
+                    # every string this pump returns. It was invisible
+                    # because the two most-read strings were patched up
+                    # afterwards: "LPHA HWR" had an "A" prepended, and a
+                    # serial reading "0000479" had a "1" prepended. The
+                    # second is a coincidence - correct for a serial
+                    # beginning "10", corrupting one beginning "20" - and
+                    # the version strings, which had no such patch, shipped
+                    # a character short. Verified 2026-08-20: the pump
+                    # answers 24 0E F8 E7 07 0A 41 4C 50 48 41 ... where
+                    # 0x0A is the ten bytes of "ALPHA HWR\0" and 0x41 is
+                    # the "A".
+                    declared = response[5]
+                    string_data = response[6:-2]
+                    if declared != len(string_data):
+                        # Do not trust the count to bound the read - it is
+                        # radio-supplied, and believing it would let a
+                        # corrupt byte walk off the end. Just say so.
+                        logger.debug(
+                            f"String {string_id} declares {declared} bytes "
+                            f"but the frame carries {len(string_data)}"
+                        )
                     logger.debug(
                         f"Raw string data for ID {string_id}: {string_data.hex()}"
                     )
@@ -278,7 +304,7 @@ class BaseService:
 
         Example:
             >>> apdu = bytes([0x0A, 0x03, 93, 0x00, 0x01])  # Class 10 read
-            >>> packet = self._build_geni_packet(0xF8, 0xE7, apdu)
+            >>> packet = self._build_geni_packet(0xF8, 0xE7, apdu)  # doctest: +SKIP
 
         Implementation Notes:
             - Frame format: [STX][LEN][ServiceID][Source][APDU][CRC_H][CRC_L]

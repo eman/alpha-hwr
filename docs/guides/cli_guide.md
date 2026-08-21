@@ -263,7 +263,7 @@ Maintains temperature within a specified range (Mode 27):
 alpha-hwr control set-temperature --min 35 --max 39
 
 # Set custom range with no autoadapt and a flow limit
-alpha-hwr control set-temperature --min 40 --max 45 --no-autoadapt --flow-limit 1.5
+alpha-hwr control set-temperature --min 40 --max 45 --no-autoadapt
 ```
 
 #### Cycle Time Control
@@ -284,7 +284,7 @@ Runs at fixed RPM (Mode 2):
 
 ```bash
 # Set to 2500 RPM with 2.3 GPM flow limit
-alpha-hwr control set-speed 2500 --flow-limit 2.3
+alpha-hwr control set-speed 2500
 ```
 
 #### Constant Pressure
@@ -320,7 +320,7 @@ Set a global maximum flow limit to prevent corrosion:
 
 ```bash
 # Set 1.5 GPM limit (recommended for 1/2" pipe)
-alpha-hwr control set-flow-limit 1.5
+alpha-hwr control limiters
 ```
 
 ---
@@ -729,7 +729,7 @@ alpha-hwr monitor live
 | `control set-speed` | Set constant speed mode (Mode 2) |
 | `control set-flow` | Set constant flow mode (Mode 8) |
 | `control set-proportional` | Set proportional pressure mode (Mode 1) |
-| `control set-flow-limit` | Set maximum flow limit (GPM) |
+| `control limiters` | Show the MaxFlow and MinFlow limiters |
 | `control set-mode <mode> <setpoint>` | Set control mode and setpoint together |
 
 ### Device Commands

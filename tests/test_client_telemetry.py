@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
+from wire import class10_reply
 
 from alpha_hwr.client import AlphaHWRClient
 
@@ -64,25 +65,11 @@ async def test_class10_notification_handling(client):
         volt_bytes + padding + curr_bytes + padding + pwr_bytes + speed_bytes
     )
 
-    # Build frame: [STX][LEN][DST][SRC][Class][Op][SubH][SubL][ObjH][ObjL][Payload][CRC]
-    # Total length = DST(1) + SRC(1) + Class(1) + Op(1) + SubH(1) + SubL(1) + ObjH(1) + ObjL(1) + Payload(24) + CRC(2) = 34
-    header = bytes(
-        [
-            0x24,  # STX (Response)
-            0x22,  # LEN = 34 decimal = 0x22
-            0xF8,
-            0xE7,  # Dest, Src
-            0x0A,
-            0x90,  # Class 10, OpSpec (notification)
-            0x00,
-            0x45,  # Sub ID = 69 (0x0045)
-            0x00,
-            0x57,  # Obj ID = 87 (0x0057) - Motor State
-        ]
-    )
-    crc = b"\x00\x00"  # Dummy CRC
-
-    packet = header + payload + crc
+    # A motor-state reply is typed 3 version 1; nothing in it echoes the
+    # Object 87 / Sub-ID 69 that was requested. The frame this replaced put
+    # those in bytes 6-9, chose 0x90 as a constant "notification opcode"
+    # where that byte is a payload length, and carried a dummy CRC.
+    packet = class10_reply(0x0001, 0x0003, payload)
 
     # Send notification through telemetry service
     client.telemetry.update_from_notification(bytearray(packet))

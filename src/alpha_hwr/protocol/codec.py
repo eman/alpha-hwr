@@ -43,7 +43,7 @@ def encode_float_be(value: float) -> bytes:
     Examples
     --------
     >>> encode_float_be(1.5)
-    b'\\x3f\\xc0\\x00\\x00'
+    b'?\\xc0\\x00\\x00'
 
     >>> encode_float_be(100.0)
     b'B\\xc8\\x00\\x00'
@@ -83,8 +83,8 @@ def decode_float_be(data: bytes, offset: int = 0) -> float | None:
     >>> decode_float_be(data, offset=2)
     100.0
 
-    >>> decode_float_be(b'\\x00\\x00')  # Not enough bytes
-    None
+    >>> decode_float_be(b'\\x00\\x00') is None  # Not enough bytes
+    True
 
     Notes
     -----

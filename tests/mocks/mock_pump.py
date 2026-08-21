@@ -19,7 +19,7 @@ from alpha_hwr.constants import ControlMode
 from alpha_hwr.protocol import FrameParser
 from alpha_hwr.protocol.codec import encode_float_be, encode_uint16_be
 from alpha_hwr.protocol.matcher import expected_reply
-from alpha_hwr.utils import calc_crc16
+from alpha_hwr.utils import calc_crc16_read
 
 logger = logging.getLogger(__name__)
 
@@ -376,7 +376,7 @@ class MockPump:
         if obj_id == 91 and sub_id == 421:
             # dhw_on_off_control_configuration_obj, as measured:
             # [00 00 06][flow setpoint f32, m3/s][on minutes][off minutes]
-            payload = bytearray([0x00, 0x00, 0x06])
+            payload = bytearray()
             payload.extend(bytes([0x38, 0x84, 0x4F, 0x30]))  # 0.227 m3/h
             payload.append(self.state.cycle_on_minutes)
             payload.append(self.state.cycle_off_minutes)
@@ -558,7 +558,6 @@ class MockPump:
     def _build_statistics_response(self) -> bytes:
         """Build Class 10 statistics response (Obj 93, Sub 1)."""
         payload = bytearray()
-        payload.extend(bytes([0x00, 0x00, 0x00]))  # Header
         payload.extend(struct.pack(">I", 100))  # Starts
         payload.extend(struct.pack(">H", 5))  # Starts 1h
         payload.extend(struct.pack(">H", 10))  # Starts 24h
@@ -569,7 +568,6 @@ class MockPump:
     def _build_schedule_overview_response(self) -> bytes:
         """Build Class 10 schedule overview response (Obj 84, Sub 1)."""
         payload = bytearray()
-        payload.extend(bytes([0x00, 0x00, 0x00]))  # Header
         payload.extend(bytes([0x05, 0x05, 0x05, 0x05]))  # Capabilities
         payload.append(0x01 if self.state.schedule_enabled else 0x00)  # Enabled
         payload.append(0x02)  # Default action
@@ -580,7 +578,6 @@ class MockPump:
     def _build_schedule_entries_response(self, sub_id: int) -> bytes:
         """Build Class 10 schedule entries response (Obj 84, Sub 1000-1004)."""
         payload = bytearray()
-        payload.extend(bytes([0x00, 0x00, 0x00]))  # Header
 
         layer = sub_id - 1000
         if layer in self.state.schedule_entries:
@@ -600,8 +597,6 @@ class MockPump:
         dt = self.state.last_synced_time or datetime.now()  # noqa: DTZ005
 
         payload = bytearray()
-        payload.extend(bytes([0x00, 0x00]))  # Status (valid)
-        payload.append(0x07)  # Length
         payload.extend(struct.pack(">H", dt.year))
         payload.append(dt.month)
         payload.append(dt.day)
@@ -617,8 +612,7 @@ class MockPump:
 
         Format: [00 00 0E][01 42 0C][00 00 42 1E DE 4C][OFF][3C 02][ON][01]
         """
-        payload = bytearray([0x00, 0x00, 0x0E])  # Header
-        payload.extend([0x01, 0x42, 0x0C])  # Magic
+        payload = bytearray([0x01, 0x42, 0x0C])  # Magic
         payload.extend([0x00, 0x00, 0x42, 0x1E, 0xDE, 0x4C])  # Magic
         payload.append(self.state.cycle_off_minutes)  # Offset 12
         payload.extend([0x3C, 0x02])  # Magic
@@ -649,7 +643,7 @@ class MockPump:
         - **Sub 10** (mode request) reads back the no-op sentinels it is
           written with: ``operation_mode = NoCmd`` and ``set_point = NaN``.
         """
-        payload = bytearray([0x00, 0x00, 0x07])
+        payload = bytearray()
 
         if sub_id == 0x000A:
             payload.append(0x00)  # control_source = Undefined
@@ -689,7 +683,6 @@ class MockPump:
         # Last 10 of 100-cycle values (10 bytes, 1 byte each)
 
         payload = bytearray()
-        payload.extend(bytes([0x00, 0x00, 0x00]))  # Header
         payload.extend(encode_float_be(2.5))  # Current value (451=flow)
         payload.extend(bytes([i for i in range(10)]))  # 10 cycle values
         payload.append(0x05)  # Next counter
@@ -701,7 +694,6 @@ class MockPump:
     def _build_event_log_metadata_response(self) -> bytes:
         """Build event log metadata response (Obj 88, Sub 10199)."""
         payload = bytearray()
-        payload.extend(bytes([0x00, 0x00, 0x00]))  # Header
         payload.extend(struct.pack(">H", 150))  # Current cycle
         payload.extend(struct.pack(">H", 5))  # Available entries
         payload.extend(struct.pack(">H", 20))  # Max size
@@ -712,7 +704,6 @@ class MockPump:
     def _build_event_log_entry_response(self, sub_id: int) -> bytes:
         """Build event log entry response (Obj 88, Sub 10200-10219)."""
         payload = bytearray()
-        payload.extend(bytes([0x00, 0x00, 0x00]))  # Header
 
         # 16-byte entry
         entry = bytearray(16)
@@ -725,41 +716,67 @@ class MockPump:
         payload.extend(entry)
         return self._build_class10_response(sub_id, 88, bytes(payload))
 
+    #: Addresses in a reply, in wire order.
+    #:
+    #: The pump answers ``[0x24][len][0xF8][0xE7]``: destination us,
+    #: source the pump. Requests carry them the other way round. This mock
+    #: used to emit ``[0x24][len][0xE7][0xF8]`` - the request ordering on a
+    #: response - which is a frame the hardware never sends.
+    REPLY_DEST = 0xF8
+    REPLY_SRC = 0xE7
+
+    def _frame(self, class_byte: int, apdu_payload: bytes) -> bytes:
+        """
+        Wrap an APDU payload in a reply frame.
+
+        Two things here were wrong for as long as this mock existed, and
+        both hid real defects rather than causing new ones:
+
+        * the APDU head was a hardcoded constant per builder (``0x90``,
+          ``0x81``, ``0x01``). It is ``0booLLLLLL`` - an acknowledgement
+          and the payload's byte count - so every frame this mock produced
+          declared a length unrelated to what it carried, and anything
+          reading the length field agreed with the mock and disagreed with
+          the pump.
+        * the CRC used :func:`calc_crc16`, which omits the final XOR. No
+          frame in either direction uses that. Nothing noticed because
+          nothing verified an inbound CRC.
+        """
+        if len(apdu_payload) > 0x3F:
+            raise ValueError(
+                f"APDU payload of {len(apdu_payload)} bytes cannot be "
+                f"declared in six bits; the pump splits these."
+            )
+        apdu = bytes([class_byte, len(apdu_payload)]) + apdu_payload
+        frame = bytearray(
+            [0x24, len(apdu) + 2, self.REPLY_DEST, self.REPLY_SRC]
+        )
+        frame.extend(apdu)
+        frame.extend(encode_uint16_be(calc_crc16_read(bytes(frame[1:]))))
+        return bytes(frame)
+
     def _build_class10_response(
         self, sub_id: int, obj_id: int, payload: bytes
     ) -> bytes:
         """
-        Build a generic Class 10 response frame.
+        Build a Class 10 data reply.
 
-        The identifier fields carry the type code the real pump answers
-        that object with, not an echo of the request. Measured against an
-        ALPHA HWR on 2026-08-04; see ``protocol.matcher.RESPONSE_IDENTIFIERS``.
-        This mock used to echo the request, which no reply from the real
-        device ever does - so any matching logic it exercised was being
-        tested against behaviour the pump does not have.
+        Bytes 6-9 carry ``[00][TypeH][TypeL][Version]`` - the object's type,
+        not an echo of the address that was asked for. The body then opens
+        with its own three-byte ``[00][00][size]`` header, which is what
+        every captured reply from an ALPHA HWR does and what
+        :attr:`ParsedFrame.object_body` strips.
         """
         identifiers = expected_reply(obj_id, sub_id)
-        field_a, field_b = identifiers if identifiers else (sub_id, obj_id)
+        type_high, type_low_ver = (
+            identifiers if identifiers else (sub_id, obj_id)
+        )
 
-        # Build APDU: [Class][OpSpec][A-H][A-L][B-H][B-L][Payload]
-        apdu = bytearray([0x0A, 0x90])
-        apdu.extend(encode_uint16_be(field_a))
-        apdu.extend(encode_uint16_be(field_b))
-        apdu.extend(payload)
-
-        # Build frame: [Start][Length][SvcH][SvcL][APDU][CRC]
-        # Length field = bytes from after length byte to before CRC
-        # = Service ID (2) + APDU length
-        length = len(apdu) + 2  # +2 for service ID bytes only (not CRC)
-        frame = bytearray([0x24, length, 0xE7, 0xF8])
-        frame.extend(apdu)
-
-        # Add CRC
-        crc_data = frame[1:]  # Exclude start byte
-        crc = calc_crc16(bytes(crc_data))
-        frame.extend(encode_uint16_be(crc))
-
-        return bytes(frame)
+        body = bytes([0x00, 0x00, len(payload)]) + payload
+        apdu_payload = (
+            encode_uint16_be(type_high) + encode_uint16_be(type_low_ver) + body
+        )
+        return self._frame(0x0A, apdu_payload)
 
     #: Class 3 run-state command IDs.
     CLASS3_STOP = 0x05
@@ -783,80 +800,63 @@ class MockPump:
         """
         Build the bare acknowledgement a Class 3 command draws.
 
-        ``[03 00]`` means the pump executed it; ``[03 01 xx]`` means it
-        only described the data item and did nothing. The frame is far
-        shorter than an ordinary response and carries no identifiers, so
-        the class byte is all a caller has to match on.
+        ``[03 00]`` means the pump executed it; ``[03 01 xx]`` means it only
+        described the data item and did nothing. The frame is shorter than
+        an ordinary response and carries no type fields, so the class byte
+        is all a caller has to match on.
         """
-        apdu = (
-            bytearray([0x03, 0x00])
-            if accepted
-            else bytearray([0x03, 0x01, 0xAC])
-        )
-        frame = bytearray([0x24, len(apdu) + 2, 0xE7, 0xF8])
-        frame.extend(apdu)
-        frame.extend(encode_uint16_be(calc_crc16(bytes(frame[1:]))))
-        return bytes(frame)
+        return self._frame(0x03, b"" if accepted else bytes([0xAC]))
 
     def _build_class3_response(self, payload: bytes) -> bytes:
-        """Build Class 3 response frame."""
-        apdu = bytearray([0x03, 0x81])  # Class 3, response OpSpec
-        apdu.extend(payload)
-
-        # Length = Service ID (2) + APDU length
-        length = len(apdu) + 2
-        frame = bytearray([0x24, length, 0xE7, 0xF8])
-        frame.extend(apdu)
-
-        crc = calc_crc16(bytes(frame[1:]))
-        frame.extend(encode_uint16_be(crc))
-
-        return bytes(frame)
+        """Build a Class 3 data reply."""
+        return self._frame(0x03, payload)
 
     def _build_class7_response(self, string_id: int, value: str) -> bytes:
-        """Build Class 7 response frame."""
-        val_bytes = value.encode("utf-8") + b"\x00"
-        apdu = bytearray([0x07, 0x81, string_id])
-        apdu.extend(val_bytes)
+        """
+        Build a Class 7 string reply.
 
-        length = len(apdu) + 2
-        frame = bytearray([0x24, length, 0xE7, 0xF8])
-        frame.extend(apdu)
+        The string starts at byte 6 and the APDU head is its byte count.
+        There is no echoed string ID: a captured ``ALPHA HWR`` reply reads
+        ``24 0E F8 E7 07 0A 41 4C 50 48 41 ...``, where ``0x0A`` is the ten
+        bytes of ``ALPHA HWR\0`` and ``0x41`` is the ``A``.
 
-        crc = calc_crc16(bytes(frame[1:]))
-        frame.extend(encode_uint16_be(crc))
-
-        return bytes(frame)
+        This mock used to emit ``[07][81][string_id]`` before the text,
+        which put the first character one byte late - the same off-by-one
+        the client compensated for by prepending ``"A"`` to ``"LPHA HWR"``.
+        A mock that reproduces a bug cannot catch it.
+        """
+        return self._frame(0x07, value.encode("utf-8") + b"\x00")
 
     def _build_class2_response(self, payload: bytes) -> bytes:
-        """Build Class 2 response frame."""
-        apdu = bytearray([0x02, 0x81])
-        apdu.extend(payload)
-
-        length = len(apdu) + 2
-        frame = bytearray([0x24, length, 0xE7, 0xF8])
-        frame.extend(apdu)
-
-        crc = calc_crc16(bytes(frame[1:]))
-        frame.extend(encode_uint16_be(crc))
-
-        return bytes(frame)
+        """Build a Class 2 data reply."""
+        return self._frame(0x02, payload)
 
     def _build_ack_response(self) -> bytes:
-        """Build simple acknowledgment response."""
-        # Class 10 ACK: [Start][Len][Svc(2)][Class=0x0A][OpSpec=0x01][CRC(2)]
-        # Length = Svc(2) + Class(1) + OpSpec(1) = 4
-        frame = bytearray([0x24, 0x04, 0xE7, 0xF8, 0x0A, 0x01])
-        crc = calc_crc16(bytes(frame[1:]))
-        frame.extend(encode_uint16_be(crc))
-        return bytes(frame)
+        """
+        Build the acknowledgement a Class 10 write draws.
+
+        Nine bytes: ``24 05 F8 E7 0A 01 00 CRC CRC``. The single payload
+        byte is the Class 10 status - 0 for OK - and is a *second*
+        acknowledgement, checked only once the APDU head's own ack says the
+        pump understood the request.
+        """
+        return self._frame(0x0A, bytes([0x00]))
 
     def _build_error_response(self) -> bytes:
-        """Build error response."""
-        # Length = Svc(2) + Class(1) + OpSpec(1) + Error(1) = 5
-        frame = bytearray([0x24, 0x05, 0xE7, 0xF8, 0xFF, 0xFF, 0x00])
-        crc = calc_crc16(bytes(frame[1:]))
-        frame.extend(encode_uint16_be(crc))
+        """
+        Build a refusal.
+
+        ``0x81`` is ``10 000001``: Unknown Data Item, one payload byte, and
+        that byte names the item the pump did not recognise. It is not an
+        acknowledgement carrying an error code, which is how this client
+        read it - so a refusal naming item ``0x00`` was taken for success.
+        """
+        apdu = bytes([0x0A, 0x81, 0x00])
+        frame = bytearray(
+            [0x24, len(apdu) + 2, self.REPLY_DEST, self.REPLY_SRC]
+        )
+        frame.extend(apdu)
+        frame.extend(encode_uint16_be(calc_crc16_read(bytes(frame[1:]))))
         return bytes(frame)
 
     async def start_telemetry_stream(self, interval: float = 1.0):

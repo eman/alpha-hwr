@@ -3,6 +3,287 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **The APDU head is a length, not an opcode.** Byte 5 of a GENI frame is
+  `0booLLLLLL`: an operation (GET/SET/INFO) or an acknowledgement in the
+  top two bits, and the payload's byte count in the low six. There is no
+  "OpSpec". `byte5 == len(frame) - 8` held for every reply measured
+  against the pump.
+
+  Two mistakes followed from reading it as an opcode. The set `{0x30,
+  0x2B, 0x14, 0x2E, 0x2D, 0x09}`, carried as "register-read operation
+  specifiers" and used to select a payload offset, is really the payload
+  lengths 48, 43, 20, 46, 45 and 9 — it worked because 48, 43 and 20 are
+  exactly the three telemetry replies, and mis-sliced anything else that
+  size. And `0x81` was read as an acknowledgement carrying an error code:
+  it is Unknown Data Item with one payload byte, and that byte names the
+  item the pump did not recognise, so a refused write read as accepted
+  whenever the item was `0x00` — the case this pump produces.
+
+- **A response carries no Object ID and no Sub-ID.** Bytes 6-9 are
+  `[00][TypeH][TypeL][Version]`, the type of the object answered. Matching
+  therefore discriminates types, not instances: Object 86 sub-ids 13, 15,
+  17 and 39 all answer `00 01 2d 01`, and alarms and warnings answer
+  identically to each other.
+
+  The rule that accepted the two fields in either order is gone — they are
+  one type field, every measured reply matches in wire order, and
+  accepting a transpose let unrelated objects answer each other's reads.
+
+- **Telemetry routed on the address it asked for.** The decoder's table,
+  the frame parser's telemetry set and the stream-detection flags all
+  compared against `(87, 69)`, `(93, 290)` and `(93, 300)`. No reply
+  carries those, so every case fell through to a raw-frame fallback, and
+  `_has_motor_state_stream` could never be set by a notification — so the
+  polling it exists to suppress ran whether or not the pump was streaming.
+
+- **An out-of-range setpoint is no longer refused before the wire.** This
+  pump does not reject a setpoint it dislikes - it takes it and clamps it,
+  and reports what it stored - so the write now goes out and settles
+  `clamped` with the pump's value. Measured: 4000 RPM stores 3671, 600 RPM
+  stores 1650, against a published range of 1650-3671.
+
+  The published range becomes the explanation rather than the gate. It is
+  quoted in the settle detail when a clamp happens, and only when it came
+  from the pump rather than from a fallback constant.
+
+  There is a second reason the client must not pre-refuse, and it is not
+  recoverable from the range: **with a flow limiter enabled there is no
+  maximum speed.** The pump accepts the setpoint and manages actual speed
+  to hold the flow bound, and where it settles is a property of the
+  installation's hydraulics - one reported loop delivered 1885 RPM for a
+  3000 RPM request. Any check that looked authoritative would be wrong in
+  a way the client cannot detect. Raised by @jfriend00 on
+  esphome-alpha-hwr #276.
+
+  A value that is not a number is still refused: there is nothing for the
+  pump to clamp to, and the all-ones float doubles as the `SETPOINT_KEEP`
+  sentinel, so a NaN would read as "leave the setpoint alone".
+
+- **One time base, in `alpha_hwr.pump_time`.** The pump keeps local wall
+  clock and has no notion of UTC: its `DateTimeActual` carries a
+  `dst_status` that reads `SummerTime`, its `DaylightSavingTime` object is
+  enabled with the US rule and a 60-minute offset, and **no timezone or
+  UTC-offset field exists anywhere in its GENI profile**. So every
+  timestamp it stores is in its clock's base, which is local.
+
+  `set_clock` and the single-event encoding were already right. The event
+  log and the trend history were not: they decoded with
+  `datetime.fromtimestamp(ts, tz=UTC)`, which yields the correct digits
+  attached to the wrong instant - calling `.astimezone()` on one shifted it
+  by the local offset. Those surfaces now return naive datetimes carrying
+  the pump's wall clock, like the rest.
+
+  This is an interoperability rule rather than a preference: the GO app,
+  the ESPHome component and this library all write the same clock, and the
+  pump cannot say which base a value arrived in. Two clients disagreeing
+  sets the clock wrong by the local offset and misfires every stored
+  schedule.
+
+- **Every reason a frame is thrown away is now counted**
+  (`transport.frame_drops`): bad CRC, an abandoned partial, bytes that
+  start no frame, an impossible declared length, a reassembly overflow,
+  and a full response queue. They are separate counters because they mean
+  different things - a bad CRC is a corrupted link, a runt length is a
+  peer talking nonsense, and unsolicited fragments usually mean sync was
+  lost rather than that the radio is bad. A dropped frame is the system
+  working; what was missing was any way to know it had happened.
+
+- **Inbound CRC is now enforced.** It was computed and never read:
+  `validate_frame_integrity()` was its only consumer and had no call site,
+  so every write verdict was decided by reading unverified bytes back.
+  Frames are trimmed to their declared length first, since the completion
+  test is `>=` and trailing bytes sit outside what the CRC covers. Bad
+  frames are dropped and counted (`transport.crc_failures`).
+
+- **Reassembly.** `0x27` was accepted as an inbound start byte; the pump
+  never sends it. A frame start now begins a new packet only when
+  reassembly is not already under way — a mid-frame fragment can perfectly
+  well begin `0x24`, and treating it as a start discarded the frame in
+  progress. A partial frame is abandoned after a second rather than
+  wedging the buffer. The declared length is bounded at both ends: there
+  was no minimum, so a length byte of `0x00` completed a four-byte
+  "frame" instantly, and the maximum was 256 against a real 257. A second
+  frame arriving in the same notification is now delivered instead of
+  being swallowed into the first one's payload.
+
+- **Every device-info string was a character short.** The Class 7 header
+  is six bytes, not seven: byte 5 is the string's byte count and the text
+  starts at offset 6, with no echoed string ID. Two strings were patched
+  up afterwards and so looked right — an `"A"` prepended to `LPHA HWR`,
+  and a `"1"` prepended to a serial reading `0000479`, which was correct
+  for this unit only by coincidence. The versions had no such patch:
+
+      software  2601618V04.02.01.02539  ->  92601618V04.02.01.02539
+      hardware  2601617V01.03.00.00469  ->  92601617V01.03.00.00469
+      BLE       2811431V06.00.01.00001  ->  92811431V06.00.01.00001
+
+  Both rewrites are removed rather than retuned.
+
+- **Single-event writes declared a payload length they did not carry.**
+  The APDU head was `0xB3` - SET with 51 bytes - borrowed from the schedule
+  layer write, whose 53-byte APDU really does carry 51. A single event
+  carries 19, so the head is `0x93`. Every one of the 29 single-event
+  writes in the capture corpus uses `0x93`; the 8 layer writes use `0xB3`.
+  The pump accepts either, so nothing was visibly failing, but a firmware
+  that checked the field would have refused ours with no diagnostic.
+
+- **A single-event write never checked what the pump kept.** It now reads
+  the slot back and compares the window, the enabled flag and - the point
+  of the exercise - the ACTION byte. ACTION is half the meaning of a
+  single event: `0x01` holds the pump off across the window, which is what
+  a vacation *is*, and `0x02` runs it once. A confirm without it would
+  settle a vacation as written while the pump was scheduled to run.
+
+- **`clear_vacation()` ignored the clock.** It cleared the first enabled
+  Stop event in slot order, so a finished vacation in an early slot
+  shadowed a live one later: the call reported success and the pump stayed
+  off. It now prefers the vacation that is running, then the next one due,
+  and says so when it falls back to an expired one. `find_free_slot()` one
+  method up had always been clocked; the asymmetry was the bug.
+
+- **A wholly-past window is refused**, rather than spending one of five
+  slots on an event that can never run. A window already *underway* is
+  still accepted - starting part-way through is legitimate, so only the
+  end is compared.
+
+- **Slot bounds are checked in two stages, in that order.** The protocol
+  envelope first and without touching the pump - sub-id is `900 + slot`
+  and the schedule layers start at 1000, so slot 100 addresses layer 0
+  whatever the pump is doing. The pump's own count second, from the
+  overview. Deferring the first check made an impossible slot on a broken
+  link report "the overview could not be read", blaming the link for an
+  argument that could never have been right.
+
+- **Single-event timestamps are bounded to what the wire can hold**
+  (uint32, 1970 to 2106). `build_apdu` previously raised `OverflowError`
+  from inside a `try` that caught only read errors, so it escaped
+  uncaught.
+
+- **A read chain cut short by a disconnect reported itself as success.**
+  `get_all_entries()` skipped entries it could not read - which is right,
+  since a log with twelve entries reports the other eight as unreadable -
+  and a dropped link went down the same path. The result was a short list
+  and `Retrieved 5/20`, which is exactly what a five-entry log looks like.
+  `get_trend_data()` had the same shape: three of its four series are
+  legitimately `None` on some pumps, so a half-built collection did not
+  look wrong.
+
+  Both now raise `ConnectionError` and say how far they got, rather than
+  handing back something indistinguishable from less data. Measured on the
+  pump: dropping the link 0.35 s into a full event-log read now raises
+  *"disconnected while reading the event log after 4 of 20 entries"*
+  instead of returning four entries.
+
+- **A waiter sat out its own timeout after the link had gone.** Nothing
+  woke a pending read when the BLE link dropped, so each one waited its
+  full three seconds for a pump that was no longer there. `read_response`
+  now races the reply against the disconnect, and a dropped link is
+  reported as such rather than as a timeout - 0.1 s instead of 3.0 s in
+  the unit test that pins it.
+
+- **`alpha_hwr.exceptions.ConnectionError` now subclasses the builtin.**
+  The package shadows the builtin name, and which one a module raised came
+  down to whether that file happened to import this one - `base.py` and
+  `client.py` raised the package's, `session.py` and `time.py` the
+  builtin - so no single `except` clause caught both. It now inherits from
+  both, which is what anyone writing `except ConnectionError` expects.
+
+- **A GENI frame must be split into 20-byte GATT writes.** The transport
+  has always chunked at `BLE_MTU_LIMIT = 20`, and it turns out that is a
+  pump requirement rather than a guess about the radio: with the ATT MTU
+  negotiated at 65, a 27-byte frame sent in one `write_gatt_char` is
+  ignored outright, while the identical bytes chunked at 20 are
+  acknowledged in 111 ms. Documented, and pinned by tests, so it does not
+  get "optimised" away.
+
+- **The dedicated Class 10 setpoint write was refused, always.** It
+  addressed sub-id first where every Class 10 SET this pump accepts is
+  object first, so it named object `0x00` and the pump answered Unknown
+  Data Item quoting `0x00` back — on every setpoint write since the method
+  existed, invisibly, because the send was fire-and-forget and the retry
+  helper reports success even on a timeout. It is deleted: the fused
+  Object 86 Sub 6 request already carries the setpoint, which is how the
+  Grundfos GO app sets one.
+
+### Added
+
+- **Setpoint bounds read from the pump** (`read_setpoint_ranges()`,
+  `get_setpoint_range()`). The pump publishes them in the type 301
+  objects at Object 86 sub 13, 15, 17 and 39. Every constant this client
+  validated against was wrong in both directions:
+
+  | mode | pump | was |
+  |---|---|---|
+  | constant speed | 1650 – 3671 RPM | 500 – 4500 |
+  | constant pressure | 1.000 – 2.450 m | 0.5 – 10.0 |
+  | proportional pressure | 2.599 – 4.569 m | 0.5 – 10.0 |
+  | constant flow | 0.114 – 2.498 m³/h | 0.1 – 10.0 |
+
+  Proportional pressure was the worst: a 0.5 m floor against a real 2.6 m,
+  in a range that does not overlap constant pressure's — and the two
+  shared one constant. The read runs once per connection during cache
+  sync, sequentially, and stops at the first failure, because all four
+  objects answer with the same type code and carrying on would shift every
+  remaining range by one slot. The old constants remain as a deliberately
+  wide fallback: refusing a setpoint the pump would have taken is worse
+  than letting it clamp one it dislikes.
+
+- **`read_limiters()` and `alpha-hwr control limiters`.** An enabled flow
+  limiter caps delivered flow whatever the setpoint says, and nothing in
+  the setpoint range reveals it — so a setpoint can settle accepted, read
+  back correct, and still not be delivered.
+
+### Removed
+
+- **The authentication handshake.** Ten packets went out on every
+  connection as a three-stage "unlock". All four distinct packets are
+  reads — two GETs and two INFO queries — and their replies were
+  discarded. A read cannot change device state. With none of them sent, a
+  bare connect-and-subscribe link answers every read this client makes.
+  The 750 ms of inter-stage delays went too; they were transcribed from
+  this client's own `sleep()` calls and then documented as pump timing
+  requirements. `authenticate()` keeps its name and now only waits for the
+  radio to settle.
+
+- **`set_flow_limit()` and `alpha-hwr control set-flow-limit`**, along
+  with the `--flow-limit` options on `set-speed` and `set-temperature`.
+  They wrote Object 86 Sub 39 — the constant-flow *setpoint range*, not a
+  limiter — through the refused frame above. The real limiters are at
+  Object 86 Sub 600 (MaxFlow) and Sub 601 (MinFlow); `read_limiters()`
+  reads them. The write is not reimplemented, because enabling a limiter
+  silently caps the pump and that is not a change to make as a side effect
+  of a protocol sync.
+
+### Tests
+
+- **Doctests are run, and green.** 185 of 279 examples in the source were
+  failing. Seven were genuinely wrong — `encode_float_be(1.5)` claimed
+  `b'\x3f\xc0\x00\x00'` where Python prints `?`, a three-byte register
+  read's frame length was given as 9 rather than 11, `build_command_info`
+  claimed an address with a stray digit and a trailing ellipsis, and four
+  `Session` examples referred to objects nobody had built. The rest were
+  never executable — `await` at the top level, or a client that does not
+  exist — and now carry `# doctest: +SKIP`, which says what they are.
+  `tests/test_doctests.py` runs the remainder with a floor on the count,
+  so the failure mode cannot return as "skip everything".
+
+### Documentation
+
+- **The clock write's frame layout is described correctly.** It is Object
+  94 **Sub 100**, type **321 version 2**; the constant carrying its first
+  six bytes was named `_TYPE_322_HEADER`, and 322 is the type the *read*
+  of Sub 101 answers with. Those six bytes are not an opaque header either
+  - they are the tail of the address, the object's size field and the
+  struct's leading byte. Verified against the frame the builder emits.
+
+- `docs/protocol/bench_findings.md` records the 2026-08-20 session: the
+  Class 7 header, the response type table, the setpoint ranges, the
+  second Class 10 acknowledgement, the limiter survey, the post-SET quiet
+  period, and how long an Object 91 write takes to become visible.
+
+
 ## [0.7.0] - 2026-08-05
 
 ### Added

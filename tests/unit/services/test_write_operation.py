@@ -55,6 +55,11 @@ def control() -> MagicMock:
     c.set_temperature_range_control = AsyncMock(return_value=True)
     c.set_cycle_time_control = AsyncMock(return_value=True)
     c.is_cache_valid = True
+    # No range read yet, so the write layer falls back to its own wide
+    # constants. A MagicMock would return a truthy Mock here and be
+    # unpacked as a pair of bounds, which is not a state the real service
+    # can be in.
+    c.get_setpoint_range = MagicMock(return_value=None)
     return c
 
 
@@ -473,9 +478,18 @@ async def test_a_single_field_write_does_not_need_the_cache(
 
 
 @pytest.mark.asyncio
-async def test_an_out_of_range_setpoint_is_invalid(
+async def test_even_a_wildly_out_of_range_setpoint_reaches_the_pump(
     writes: WriteOperationService, control: MagicMock
 ) -> None:
+    """
+    99,000 RPM is absurd and is still the pump's call.
+
+    This used to settle INVALID against a 500-4500 constant that was wrong
+    in both directions. Replacing the constant with the pump's own range
+    would have made the refusal *accurate* and still wrong: the pump
+    clamps rather than refusing, and with a flow limiter active there is
+    no bound to check against at all.
+    """
     result = await writes.submit(
         WriteCommand.SET_SETPOINT,
         "setpoint:2",
@@ -483,9 +497,8 @@ async def test_an_out_of_range_setpoint_is_invalid(
         value=99_000.0,
     )
 
-    assert result.status is WriteStatus.INVALID
-    assert "500" in result.detail and "4500" in result.detail
-    control.set_constant_speed.assert_not_awaited()
+    assert result.status is not WriteStatus.INVALID
+    control.set_constant_speed.assert_awaited_once_with(99_000.0)
 
 
 @pytest.mark.asyncio
@@ -532,5 +545,107 @@ async def test_range_checks_are_per_mode(
         value=1.5,
     )
 
+    # Both reach the pump now; what differs is what it does with them.
+    # 1.5 is an ordinary flow setpoint and an absurd speed, and the pump
+    # is the one that says so.
     assert flow.status is WriteStatus.ACCEPTED
-    assert speed.status is WriteStatus.INVALID
+    assert speed.status is not WriteStatus.INVALID
+
+
+@pytest.mark.asyncio
+async def test_an_out_of_range_setpoint_is_sent_and_clamps(
+    control: MagicMock,
+) -> None:
+    """
+    The pump decides, not us.
+
+    It does not refuse a setpoint it dislikes - it takes it and clamps it -
+    so sending 4000 RPM against a 1650-3671 range settles CLAMPED with what
+    the pump stored, which tells the caller more than a refusal would.
+
+    The bound also cannot be ours to enforce. With a flow limiter enabled
+    the pump manages actual speed to hold the flow bound, and where it
+    settles is a property of the installation's hydraulics - one reported
+    loop delivered 1885 RPM for a 3000 RPM request. No number is the
+    maximum speed there. See esphome-alpha-hwr #276.
+    """
+    control.get_setpoint_range = MagicMock(return_value=(1650.0, 3671.0))
+    # Held 2000 before the write, 3671 after: a value that is neither what
+    # was asked for nor what was there is a clamp. Returning 3671 for both
+    # reads would be "the pump kept what it had", which is REJECTED, and is
+    # the distinction the previous-value read exists to make.
+    control.get_mode = AsyncMock(
+        side_effect=[info(setpoint=2000.0)] + [info(setpoint=3671.0)] * 6
+    )
+    writes = WriteOperationService(control)
+
+    result = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:2",
+        mode=ControlMode.CONSTANT_SPEED,
+        value=4000.0,
+    )
+
+    assert result.status is WriteStatus.CLAMPED
+    assert result.value == 3671.0
+    control.set_constant_speed.assert_awaited_once_with(4000.0)
+
+
+@pytest.mark.asyncio
+async def test_a_clamp_says_what_the_range_was(control: MagicMock) -> None:
+    """
+    The published range becomes the explanation rather than the gate.
+
+    Only when it came from the pump: saying "its range is 500-4500" from a
+    fallback constant would be asserting something we do not know, and
+    those constants were wrong in both directions on every mode.
+    """
+    control.get_setpoint_range = MagicMock(return_value=(1650.0, 3671.0))
+    control.get_mode = AsyncMock(
+        side_effect=[info(setpoint=2000.0)] + [info(setpoint=3671.0)] * 6
+    )
+    writes = WriteOperationService(control)
+
+    result = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:2",
+        mode=ControlMode.CONSTANT_SPEED,
+        value=4000.0,
+    )
+    assert "1650" in result.detail and "3671" in result.detail
+
+    control.get_setpoint_range = MagicMock(return_value=None)
+    control.get_mode = AsyncMock(
+        side_effect=[info(setpoint=2000.0)] + [info(setpoint=3671.0)] * 6
+    )
+    quiet = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:2",
+        mode=ControlMode.CONSTANT_SPEED,
+        value=4000.0,
+    )
+    assert "range" not in quiet.detail
+
+
+@pytest.mark.asyncio
+async def test_a_value_that_is_not_a_number_is_still_refused(
+    control: MagicMock,
+) -> None:
+    """
+    There is nothing here for the pump to clamp to.
+
+    And the all-ones float is the SETPOINT_KEEP sentinel, so a NaN on the
+    wire reads as "leave the setpoint alone" - a write that silently does
+    nothing rather than one that fails.
+    """
+    writes = WriteOperationService(control)
+
+    result = await writes.submit(
+        WriteCommand.SET_SETPOINT,
+        "setpoint:2",
+        mode=ControlMode.CONSTANT_SPEED,
+        value=float("nan"),
+    )
+
+    assert result.status is WriteStatus.INVALID
+    control.set_constant_speed.assert_not_awaited()

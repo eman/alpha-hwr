@@ -80,19 +80,19 @@ class DeviceInfoService(BaseService):
     version information, and operational statistics.
 
     Example:
-        >>> from alpha_hwr.services import DeviceInfoService
+        >>> from alpha_hwr.services import DeviceInfoService  # doctest: +SKIP
         >>>
         >>> # Initialize
-        >>> device_info = DeviceInfoService(transport, session)
+        >>> device_info = DeviceInfoService(transport, session)  # doctest: +SKIP
         >>>
         >>> # Read basic info (no connection needed)
-        >>> info = await device_info.read_basic()
-        >>> print(f"Product: {info.product_family}/{info.product_type}")
+        >>> info = await device_info.read_basic()  # doctest: +SKIP
+        >>> print(f"Product: {info.product_family}/{info.product_type}")  # doctest: +SKIP
         >>>
         >>> # Read detailed info (requires connection)
-        >>> info = await device_info.read_detailed()
-        >>> print(f"Serial: {info.serial_number}")
-        >>> print(f"SW Version: {info.software_version}")
+        >>> info = await device_info.read_detailed()  # doctest: +SKIP
+        >>> print(f"Serial: {info.serial_number}")  # doctest: +SKIP
+        >>> print(f"SW Version: {info.software_version}")  # doctest: +SKIP
     """
 
     def __init__(
@@ -126,10 +126,10 @@ class DeviceInfoService(BaseService):
             DeviceInfo with all available fields, or None if read failed
 
         Example:
-            >>> info = await device_info.read_info()
-            >>> print(f"Product: {info.product_family}/{info.product_type}")
-            >>> print(f"Serial: {info.serial_number}")
-            >>> print(f"SW Version: {info.software_version}")
+            >>> info = await device_info.read_info()  # doctest: +SKIP
+            >>> print(f"Product: {info.product_family}/{info.product_type}")  # doctest: +SKIP
+            >>> print(f"Serial: {info.serial_number}")  # doctest: +SKIP
+            >>> print(f"SW Version: {info.software_version}")  # doctest: +SKIP
         """
         # Combine basic and detailed info
         info_dict: dict[str, Any] = {}
@@ -183,10 +183,10 @@ class DeviceInfoService(BaseService):
             or None if scan failed
 
         Example:
-            >>> info = await device_info.read_basic("AA:BB:CC:DD:EE:FF")
-            >>> print(f"Product family: {info.product_family}")
-            >>> print(f"Product type: {info.product_type}")
-            >>> print(f"Product version: {info.product_version}")
+            >>> info = await device_info.read_basic("AA:BB:CC:DD:EE:FF")  # doctest: +SKIP
+            >>> print(f"Product family: {info.product_family}")  # doctest: +SKIP
+            >>> print(f"Product type: {info.product_type}")  # doctest: +SKIP
+            >>> print(f"Product version: {info.product_version}")  # doctest: +SKIP
 
         Implementation Notes:
             - GENI service UUID: 0000fdd0-0000-1000-8000-00805f9b34fb
@@ -246,15 +246,16 @@ class DeviceInfoService(BaseService):
             ConnectionError: If not connected or not authenticated
 
         Example:
-            >>> info = await device_info.read_detailed()
-            >>> print(f"Serial: {info.serial_number}")
-            >>> print(f"SW Version: {info.software_version}")
-            >>> print(f"HW Version: {info.hardware_version}")
+            >>> info = await device_info.read_detailed()  # doctest: +SKIP
+            >>> print(f"Serial: {info.serial_number}")  # doctest: +SKIP
+            >>> print(f"SW Version: {info.software_version}")  # doctest: +SKIP
+            >>> print(f"HW Version: {info.hardware_version}")  # doctest: +SKIP
 
         Implementation Notes:
             - Uses Class 7 ReadString command (0x07, 0x01)
             - String IDs: 9=serial, 50=sw_ver, 52=hw_ver, 58=ble_ver
-            - Response format: `[Frame Header][String Data...][CRC]`
+            - Response format: `[STX][LEN][DST][SRC][0x07][Count][String][CRC]`
+              - six header bytes, then the text
             - Strings are UTF-8 encoded, null-terminated
         """
         self.session.ensure_authenticated()
@@ -262,18 +263,21 @@ class DeviceInfoService(BaseService):
         device_info_dict: dict[str, Any] = {}
 
         try:
-            # Read serial suffix (ID 9 is "0000479")
-            serial_suffix = await self._read_class7_string(9)
-            if serial_suffix:
-                # The full serial is "10000479", prepend the missing "1"
-                device_info_dict["serial_number"] = f"1{serial_suffix}"
+            # ID 9 is the serial number, whole. It used to arrive as
+            # "0000479" and have a "1" prepended to make "10000479" - which
+            # was right for this unit by luck, since the missing character
+            # really was a "1". The string was one short because the Class 7
+            # header was read as seven bytes instead of six; with that
+            # fixed the pump returns "10000479" itself, and prepending
+            # anything would corrupt it.
+            serial = await self._read_class7_string(9)
+            if serial:
+                device_info_dict["serial_number"] = serial
 
-            # Read product name (ID 1 often returns "LPHA HWR")
+            # ID 1 is the product name. Same off-by-one: it arrived as
+            # "LPHA HWR" and was rewritten to "ALPHA HWR" by name.
             product_name = await self._read_class7_string(1)
             if product_name:
-                # Fix common truncation issue where "A" is missing
-                if product_name == "LPHA HWR":
-                    product_name = "ALPHA HWR"
                 device_info_dict["product_name"] = product_name
 
             # Read software version (ID 50)
@@ -315,9 +319,9 @@ class DeviceInfoService(BaseService):
             Statistics object with available data, or None if read failed
 
         Example:
-            >>> stats = await device_info.read_statistics()
-            >>> print(f"Runtime: {stats.operating_hours} hours")
-            >>> print(f"Starts: {stats.start_count}")
+            >>> stats = await device_info.read_statistics()  # doctest: +SKIP
+            >>> print(f"Runtime: {stats.operating_hours} hours")  # doctest: +SKIP
+            >>> print(f"Starts: {stats.start_count}")  # doctest: +SKIP
 
         Implementation Notes:
             - Object 93, Sub-ID 1 (Type 248: operation_history_pump_obj)
@@ -378,10 +382,10 @@ class DeviceInfoService(BaseService):
             AlarmInfo with active alarm/warning codes, or None if read failed
 
         Example:
-            >>> alarms = await device_info.read_alarms()
-            >>> if alarms.active_alarms:
+            >>> alarms = await device_info.read_alarms()  # doctest: +SKIP
+            >>> if alarms.active_alarms:  # doctest: +SKIP
             ...     print(f"Active alarms: {alarms.active_alarms}")
-            >>> if alarms.active_warnings:
+            >>> if alarms.active_warnings:  # doctest: +SKIP
             ...     print(f"Active warnings: {alarms.active_warnings}")
 
         Implementation Notes:

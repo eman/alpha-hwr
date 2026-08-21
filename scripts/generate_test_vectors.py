@@ -49,10 +49,10 @@ OUT = (
 #: evidence rather than self-consistency: reproducing their CRC proves the
 #: algorithm, not merely that the code agrees with itself.
 CAPTURED = [
-    ("2707e7f80203949596eb47", "Legacy magic (handshake stage 1)"),
-    ("2707e7f80a03560006c55a", "Class 10 unlock (handshake stage 2)"),
-    ("2705e7f805c14bc382", "Extend 1 (handshake stage 3)"),
-    ("2705e7f80bc10fd0c3", "Extend 2 (handshake stage 3)"),
+    ("2707e7f80203949596eb47", "Class 2 GET of unit family/type/version"),
+    ("2707e7f80a03560006c55a", "Class 10 GET of Object 86 Sub 6"),
+    ("2705e7f805c14bc382", "INFO query, Class 5 item 0x4B"),
+    ("2705e7f80bc10fd0c3", "INFO query, Class 11 item 0x0F"),
     ("2705e7f8038106e587", "Class 3 START"),
     ("2705e7f8038105d5e4", "Class 3 STOP"),
 ]
@@ -170,21 +170,21 @@ consistency.
         add(f"| `{value}` (`0x{value:08X}`){suffix} | `{_hex(enc)}` |\n")
 
     add(_section("5. Frame Building"))
-    add("""The handshake packets are built from their APDUs and must reproduce
+    add("""The opening packets are built from their APDUs and must reproduce
 the captured constants byte for byte:
 
 | APDU | Frame | Matches capture |
 | :--- | :--- | :--- |
 """)
     for apdu_hex, expected, label in [
-        ("0203949596", AuthenticationHandler.LEGACY_MAGIC, "Legacy magic"),
+        ("0203949596", AuthenticationHandler.LEGACY_MAGIC, "Class 2 GET"),
         (
             "0a0356 0006".replace(" ", ""),
             AuthenticationHandler.CLASS10_UNLOCK,
-            "Class 10 unlock",
+            "Class 10 GET of Object 86 Sub 6",
         ),
-        ("05c14b", AuthenticationHandler.EXTEND_1, "Extend 1"),
-        ("0bc10f", AuthenticationHandler.EXTEND_2, "Extend 2"),
+        ("05c14b", AuthenticationHandler.EXTEND_1, "INFO, Class 5 item 0x4B"),
+        ("0bc10f", AuthenticationHandler.EXTEND_2, "INFO, Class 11 item 0x0F"),
     ]:
         built = FrameBuilder.build_geni_frame(bytes.fromhex(apdu_hex))
         ok = "yes" if built == expected else "**NO**"

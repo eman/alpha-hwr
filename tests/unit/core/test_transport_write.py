@@ -9,12 +9,53 @@ chunk still exceeded the 20-byte MTU.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from wire import CAPTURED
 
 from alpha_hwr.constants import GENI_CHAR_UUID
-from alpha_hwr.core.transport import BLE_MTU_LIMIT, SEND_PACING, Transport
+from alpha_hwr.core import transport as tmod
+from alpha_hwr.core.transport import (
+    BLE_MTU_LIMIT,
+    SEND_PACING,
+    Transport,
+)
+
+if TYPE_CHECKING:
+    from bleak.backends.characteristic import BleakGATTCharacteristic
+
+#: A Class 10 SET (the no-op ClockProgramOverview write-back) and a Class
+#: 10 GET, as they go on the wire.
+_SET = bytes.fromhex("2717e7f80a9354000100da0100000a02050005010100000000b44e")
+_GET = bytes.fromhex("2707e7f80a03540001d5e8")
+
+
+def notify(transport: Transport, data: bytes) -> None:
+    """
+    Feed one BLE notification in, the way bleak would.
+
+    bleak passes the characteristic and the callback ignores it, so a test
+    has nothing meaningful to supply; building a real
+    BleakGATTCharacteristic to be discarded would be theatre. The cast says
+    so rather than hiding it.
+    """
+    transport._notification_callback(
+        cast("BleakGATTCharacteristic", None), bytearray(data)
+    )
+
+
+@pytest.fixture
+def slept(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Every sleep the transport asks for, in order."""
+    recorded: list[float] = []
+
+    async def fake_sleep(seconds: float) -> None:
+        recorded.append(seconds)
+
+    monkeypatch.setattr(tmod.asyncio, "sleep", fake_sleep)
+    return recorded
 
 
 @pytest.fixture
@@ -169,3 +210,107 @@ async def test_disconnect_clears_the_pacing_clock(
     await transport.write(bytes(4))
 
     assert slept == []
+
+
+class TestFramesAreChunkedForThePump:
+    """
+    This pump needs GENI frames split into 20-byte GATT writes.
+
+    Not an optimisation, and not about the negotiated ATT MTU - which is 65
+    on this link, easily enough for a 27-byte frame in one write. Measured:
+    the Object 84 Sub 1 overview write sent as a single 27-byte
+    write_gatt_char draws no reply at all, while the identical bytes
+    chunked at 20 are acknowledged in 111 ms.
+
+    An earlier reading of that silence was that Class 10 SETs are never
+    acknowledged. They are, in 90-120 ms; the frames simply were not
+    arriving.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_frame_over_the_limit_is_split(
+        self, transport: Transport, ble_client: MagicMock
+    ) -> None:
+        await transport.write(_SET)
+
+        written = written_chunks(ble_client)
+        assert len(written) > 1, "a 27-byte frame must not go out whole"
+        assert all(len(chunk) <= BLE_MTU_LIMIT for chunk in written)
+        assert b"".join(written) == _SET
+
+    @pytest.mark.asyncio
+    async def test_a_frame_within_the_limit_goes_in_one_write(
+        self, transport: Transport, ble_client: MagicMock
+    ) -> None:
+        await transport.write(_GET)
+
+        assert written_chunks(ble_client) == [_GET]
+
+    @pytest.mark.asyncio
+    async def test_chunks_are_paced(
+        self, transport: Transport, slept: list[float]
+    ) -> None:
+        """The pump drops traffic that arrives faster than SEND_PACING."""
+        await transport.write(_SET)
+
+        assert slept, "chunks of one frame must be paced apart"
+
+
+class TestFrameDropCounters:
+    """
+    A dropped frame leaves a trace.
+
+    Dropping is the system working - a bad CRC caught is a corrupted frame
+    that did not become a write verdict. What was missing is any way to
+    know it happened: a link quietly shedding frames is otherwise
+    indistinguishable from a client that occasionally times out for no
+    reason. One counter per reason, because they mean different things.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_bad_crc_is_counted(self, transport: Transport) -> None:
+        delivered: list[bytes] = []
+        transport._custom_handlers.append(delivered.append)
+
+        corrupt = bytearray(CAPTURED["mode_read"])
+        corrupt[-1] ^= 0xFF
+        notify(transport, bytes(corrupt))
+
+        assert delivered == []
+        assert transport.frame_drops["crc_failures"] == 1
+
+    @pytest.mark.asyncio
+    async def test_an_impossible_length_is_counted_separately(
+        self, transport: Transport
+    ) -> None:
+        """
+        A runt length is a peer talking nonsense, not a corrupted link.
+
+        Counting it as a CRC failure would make a framing bug look like
+        radio interference.
+        """
+        notify(transport, bytes([0x24, 0x00, 0xF8, 0xE7, 0x0A, 0x00]))
+
+        assert transport.frame_drops["runt_length_drops"] == 1
+        assert transport.frame_drops["crc_failures"] == 0
+
+    @pytest.mark.asyncio
+    async def test_bytes_that_start_no_frame_are_counted(
+        self, transport: Transport
+    ) -> None:
+        """Usually means sync was lost, not that the radio is bad."""
+        notify(transport, b"\xde\xad\xbe\xef")
+
+        assert transport.frame_drops["unsolicited_fragments"] == 1
+
+    @pytest.mark.asyncio
+    async def test_a_clean_frame_counts_nothing(
+        self, transport: Transport
+    ) -> None:
+        delivered: list[bytes] = []
+        transport._custom_handlers.append(delivered.append)
+
+        notify(transport, CAPTURED["mode_read"])
+
+        assert len(delivered) == 1
+        assert not any(transport.frame_drops.values())

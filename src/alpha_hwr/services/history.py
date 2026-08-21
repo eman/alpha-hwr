@@ -52,10 +52,11 @@ from __future__ import annotations
 
 import logging
 import struct
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from ..exceptions import READ_ERRORS
+from ..exceptions import READ_ERRORS, ConnectionError
+from ..pump_time import from_pump_time
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -82,16 +83,16 @@ class HistoryService(BaseService):
         >>> from alpha_hwr.services import HistoryService
         >>>
         >>> # Initialize
-        >>> history = HistoryService(transport, session)
+        >>> history = HistoryService(transport, session)  # doctest: +SKIP
         >>>
         >>> # Get all trend data
-        >>> trends = await history.get_trend_data()
-        >>> if trends.flow_series:
+        >>> trends = await history.get_trend_data()  # doctest: +SKIP
+        >>> if trends.flow_series:  # doctest: +SKIP
         ...     print(f"Current flow: {trends.flow_series.cycle_10_points[0].value} m³/h")
         >>>
         >>> # Get cycle timestamps
-        >>> timestamps = await history.get_cycle_timestamps(count=10)
-        >>> print(f"Last cycle: {timestamps[0]}")
+        >>> timestamps = await history.get_cycle_timestamps(count=10)  # doctest: +SKIP
+        >>> print(f"Last cycle: {timestamps[0]}")  # doctest: +SKIP
     """
 
     def __init__(self, transport: Transport, session: Session) -> None:
@@ -119,8 +120,8 @@ class HistoryService(BaseService):
             TrendDataCollection with all series, or None if retrieval failed.
 
         Example:
-            >>> trends = await history.get_trend_data()
-            >>> if trends and trends.flow_series:
+            >>> trends = await history.get_trend_data()  # doctest: +SKIP
+            >>> if trends and trends.flow_series:  # doctest: +SKIP
             ...     for point in trends.flow_series.cycle_10_points:
             ...         print(f"{point.timestamp}: {point.value} m³/h")
         """
@@ -218,6 +219,13 @@ class HistoryService(BaseService):
                 power_on_time_series=power_time_series,
             )
 
+        except ConnectionError:
+            # A half-built collection is not a result. Three of the four
+            # series are legitimately None on a pump that does not keep
+            # them, so a caller cannot tell a dropped link from a sparse
+            # trend once the object is handed back.
+            raise
+
         except READ_ERRORS as e:
             logger.error(f"Error fetching trend data: {e}")
             import traceback
@@ -239,8 +247,8 @@ class HistoryService(BaseService):
             Most recent cycle is first in list.
 
         Example:
-            >>> timestamps = await history.get_cycle_timestamps(count=10)
-            >>> if timestamps:
+            >>> timestamps = await history.get_cycle_timestamps(count=10)  # doctest: +SKIP
+            >>> if timestamps:  # doctest: +SKIP
             ...     print(f"Last cycle: {timestamps[0]}")
             ...     print(f"Cycle 10 ago: {timestamps[-1]}")
         """
@@ -264,9 +272,12 @@ class HistoryService(BaseService):
                 if ts < 946684800:  # Jan 1, 2000
                     ts += 946684800
 
-                result.append(datetime.fromtimestamp(ts, tz=UTC))
+                result.append(from_pump_time(ts))
 
             return result
+
+        except ConnectionError:
+            raise
 
         except READ_ERRORS as e:
             logger.error(f"Error fetching cycle timestamps: {e}")
@@ -314,6 +325,12 @@ class HistoryService(BaseService):
                 "timestamps": timestamps,
                 "cycle_type": 10 if subid == 13300 else 100,
             }
+
+        except ConnectionError:
+            # Not "this map is unreadable" - every read after it will fail
+            # the same way, and a trend series missing because the link
+            # went looks exactly like one the pump does not keep.
+            raise
 
         except READ_ERRORS as e:
             logger.error(f"Error reading timestamp map {subid}: {e}")
@@ -371,6 +388,11 @@ class HistoryService(BaseService):
                 )
                 return None
 
+        except ConnectionError:
+            # See _read_timestamp_map: a dropped link is not "this trend
+            # is empty".
+            raise
+
         except READ_ERRORS as e:
             logger.error(
                 f"Error reading trend values Obj{obj_id}/Sub{subid}: {e}"
@@ -419,7 +441,7 @@ class HistoryService(BaseService):
 
                     points_10.append(
                         TrendDataPoint(
-                            timestamp=datetime.fromtimestamp(ts, tz=UTC),
+                            timestamp=from_pump_time(ts),
                             value=val_scaled,
                         )
                     )
@@ -438,7 +460,7 @@ class HistoryService(BaseService):
 
                     points_100.append(
                         TrendDataPoint(
-                            timestamp=datetime.fromtimestamp(ts, tz=UTC),
+                            timestamp=from_pump_time(ts),
                             value=val_scaled,
                         )
                     )

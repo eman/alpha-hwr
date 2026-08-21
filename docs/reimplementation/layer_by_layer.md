@@ -622,26 +622,24 @@ async def authenticate(client):
     sequence was sent without a transport error - not that the pump
     confirmed anything.
     """
-    for _ in range(3):  # Stage 1: legacy magic
-        await send_packet(client, LEGACY_MAGIC)
-        await asyncio.sleep(INTER_PACKET_DELAY)
-    await asyncio.sleep(STAGE_1_TO_2_DELAY)
-
-    for _ in range(5):  # Stage 2: Class 10 unlock
-        await send_packet(client, CLASS10_UNLOCK)
-        await asyncio.sleep(INTER_PACKET_DELAY)
-    await asyncio.sleep(STAGE_2_TO_3_DELAY)
-
-    await send_packet(client, EXTEND_1)  # Stage 3: extension packets
-    await asyncio.sleep(INTER_PACKET_DELAY)
-    await send_packet(client, EXTEND_2)
-
-    await asyncio.sleep(STABILIZE_DELAY)
+    Nothing is sent. There is no handshake.
+    """
+    await asyncio.sleep(STABILIZE_DELAY)  # let the BLE link settle
 ```
 
-> If the handshake appears to succeed and then everything times out, check
-> **bonding** before you check your frames. An unbonded connection is dropped
-> at about 1.8 seconds regardless of traffic.
+> **This used to be a ten-packet "unlock" sequence.** It was not one. All four
+> distinct packets decode as reads — two GETs and two INFO queries — under the
+> rule that byte 5 is `0booLLLLLL`, and their replies were discarded unread.
+> A read cannot change device state.
+>
+> Verified on hardware 2026-08-20: a bare connect-and-subscribe link, with none
+> of them sent, answered every Class 7 string, every Class 10 object read and
+> all three telemetry registers. The 750 ms of inter-stage delays went too —
+> they were copied from the reference client's own `sleep()` calls and then
+> written up as pump timing requirements.
+>
+> If reads time out, check **bonding** before you check your frames. An
+> unbonded connection is dropped at about 1.8 seconds regardless of traffic.
 
 See [02_authentication.md](../protocol/packet_traces/02_authentication.md) for detailed explanation.
 
@@ -654,7 +652,7 @@ See [02_authentication.md](../protocol/packet_traces/02_authentication.md) for d
 ### 5.1 Session State Machine
 
 ```
-DISCONNECTED → CONNECTED → AUTHENTICATING → AUTHENTICATED → ERROR
+DISCONNECTED → CONNECTED → STABILIZING → READY
 ```
 
 **Implementation**:

@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from wire import frame
 
 from alpha_hwr.client import AlphaHWRClient
 
@@ -72,49 +73,46 @@ async def test_read_device_info_from_advertisement():
 async def test_read_device_info_with_class7_strings(mock_client_simple):
     """Test reading device info with Class 7 strings."""
 
-    # Mock transport.query to return Class 7 string responses
-    async def mock_query(frame, match_func=None, timeout=3.0):
-        # Determine which string is being requested based on the frame
-        # Frame structure: [STX][LEN][DST][SRC][Class][Cmd][ID]...
-        if len(frame) < 7:
+    # Class 7 replies as an ALPHA HWR actually sends them, recorded
+    # 2026-08-20. The strings this fixture used to carry were the
+    # *truncated* ones - "0000479" and "2601618V04.02.01.02539" - because
+    # they were copied out of this client's own output while it was
+    # reading from offset 7 and dropping the first character. So the
+    # fixture agreed with the bug, and the "1" the serial assertion
+    # expected was the character the reader had thrown away.
+    STRINGS = {
+        1: "ALPHA HWR",
+        9: "10000479",
+        50: "92601618V04.02.01.02539",
+        52: "92601617V01.03.00.00469",
+        58: "92811431V06.00.01.00001",
+    }
+
+    async def mock_query(request, match_func=None, timeout=3.0):
+        # Request: [STX][LEN][DST][SRC][0x07][head][string_id]
+        if len(request) < 7:
             return None
+        value = STRINGS.get(request[6])
+        if value is None:
+            return None
+        return frame(0x07, value.encode() + b"\x00")
 
-        string_id = frame[6]  # String ID is at position 6 in the packet
-
-        if string_id == 9:  # Serial number
-            return (
-                b"\x27\x0e\xe7\xf8\x07\x01\x09" + b"0000479\x00" + b"\x00\x00"
-            )
-        elif string_id == 50:  # Software version
-            return (
-                b"\x27\x20\xe7\xf8\x07\x01\x32"
-                + b"2601618V04.02.01.02539\x00"
-                + b"\x00\x00"
-            )
-        elif string_id == 52:  # Hardware version
-            return (
-                b"\x27\x20\xe7\xf8\x07\x01\x34"
-                + b"2601617V01.03.00.00469\x00"
-                + b"\x00\x00"
-            )
-        elif string_id == 58:  # BLE version
-            return (
-                b"\x27\x20\xe7\xf8\x07\x01\x3a"
-                + b"2811431V06.00.01.00001\x00"
-                + b"\x00\x00"
-            )
-        return None
+    async def mock_send_command(request, command, timeout=3.0):
+        return await mock_query(request)
 
     mock_client_simple.transport.query = AsyncMock(side_effect=mock_query)
+    mock_client_simple.transport.send_command = AsyncMock(
+        side_effect=mock_send_command
+    )
 
     device_info = await mock_client_simple.device_info.read_info()
 
     assert device_info is not None
-    # Serial number gets "1" prepended to the suffix from ID 9
+    # The serial arrives whole; nothing is prepended to it.
     assert device_info.serial_number == "10000479"
-    assert device_info.software_version == "2601618V04.02.01.02539"
-    assert device_info.hardware_version == "2601617V01.03.00.00469"
-    assert device_info.ble_version == "2811431V06.00.01.00001"
+    assert device_info.software_version == "92601618V04.02.01.02539"
+    assert device_info.hardware_version == "92601617V01.03.00.00469"
+    assert device_info.ble_version == "92811431V06.00.01.00001"
 
 
 @pytest.mark.asyncio

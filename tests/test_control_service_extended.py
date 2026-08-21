@@ -30,6 +30,8 @@ class TestSetConstantSpeed:
         result = await mock_client_simple.control.set_constant_speed(2500.0)
 
         assert result is True
+        # The Class 10 SET is acknowledged, so it goes through
+        # send_command() and consumes a query.
         assert mock_client_simple.transport.query.call_count >= 2
 
     @pytest.mark.asyncio
@@ -56,17 +58,35 @@ class TestSetConstantSpeed:
 
     @pytest.mark.asyncio
     async def test_set_constant_speed_too_low(self, mock_client_simple):
-        """Test setting constant speed below minimum (< 500 RPM)."""
+        """
+        An out-of-range setpoint is the pump's call, not ours.
+
+        It does not refuse a value it dislikes - it takes it and clamps it,
+        and reports what it stored - so the write goes out and the verified
+        path settles CLAMPED. With a flow limiter active there is no bound
+        to check against anyway: the pump manages actual speed to hold the
+        flow bound, and where it settles is a property of the loop's
+        hydraulics. See esphome-alpha-hwr #276.
+        """
         result = await mock_client_simple.control.set_constant_speed(400.0)
 
-        assert result is False
+        assert result is True
 
     @pytest.mark.asyncio
     async def test_set_constant_speed_too_high(self, mock_client_simple):
-        """Test setting constant speed above maximum (> 4500 RPM)."""
+        """
+        An out-of-range setpoint is the pump's call, not ours.
+
+        It does not refuse a value it dislikes - it takes it and clamps it,
+        and reports what it stored - so the write goes out and the verified
+        path settles CLAMPED. With a flow limiter active there is no bound
+        to check against anyway: the pump manages actual speed to hold the
+        flow bound, and where it settles is a property of the loop's
+        hydraulics. See esphome-alpha-hwr #276.
+        """
         result = await mock_client_simple.control.set_constant_speed(5000.0)
 
-        assert result is False
+        assert result is True
 
     @pytest.mark.asyncio
     async def test_set_constant_speed_typical_values(self, mock_client_simple):
@@ -126,19 +146,37 @@ class TestSetProportionalPressure:
 
     @pytest.mark.asyncio
     async def test_set_proportional_pressure_too_low(self, mock_client_simple):
-        """Test setting proportional pressure below minimum (< 0.5m)."""
+        """
+        An out-of-range setpoint is the pump's call, not ours.
+
+        It does not refuse a value it dislikes - it takes it and clamps it,
+        and reports what it stored - so the write goes out and the verified
+        path settles CLAMPED. With a flow limiter active there is no bound
+        to check against anyway: the pump manages actual speed to hold the
+        flow bound, and where it settles is a property of the loop's
+        hydraulics. See esphome-alpha-hwr #276.
+        """
         result = await mock_client_simple.control.set_proportional_pressure(0.3)
 
-        assert result is False
+        assert result is True
 
     @pytest.mark.asyncio
     async def test_set_proportional_pressure_too_high(self, mock_client_simple):
-        """Test setting proportional pressure above maximum (> 10m)."""
+        """
+        An out-of-range setpoint is the pump's call, not ours.
+
+        It does not refuse a value it dislikes - it takes it and clamps it,
+        and reports what it stored - so the write goes out and the verified
+        path settles CLAMPED. With a flow limiter active there is no bound
+        to check against anyway: the pump manages actual speed to hold the
+        flow bound, and where it settles is a property of the loop's
+        hydraulics. See esphome-alpha-hwr #276.
+        """
         result = await mock_client_simple.control.set_proportional_pressure(
             12.0
         )
 
-        assert result is False
+        assert result is True
 
 
 class TestSetAutoadaptModes:
@@ -154,6 +192,8 @@ class TestSetAutoadaptModes:
         result = await mock_client_simple.control.set_autoadapt_radiator(3.0)
 
         assert result is True
+        # The Class 10 SET is acknowledged, so it goes through
+        # send_command() and consumes a query.
         assert mock_client_simple.transport.query.call_count >= 2
 
     @pytest.mark.asyncio
@@ -296,7 +336,6 @@ class TestControlServiceErrorHandling:
         self, mock_client_simple
     ):
         """Test set_constant_speed when transport raises exception."""
-        # Mock query to raise exception after max retries
         mock_client_simple.transport.query = AsyncMock(
             side_effect=BleakError("Transport error")
         )
@@ -359,7 +398,7 @@ class TestControlServiceIntegration:
             is True
         )
 
-        # Each mode switch should have made query calls (set_mode + set_setpoint)
+        # Each mode switch makes query calls (set_mode + set_setpoint).
         assert mock_client_simple.transport.query.call_count >= 8
 
     @pytest.mark.asyncio
@@ -381,15 +420,19 @@ class TestControlServiceIntegration:
             await mock_client_simple.control.set_autoadapt_radiator(4.0) is True
         )
 
-        # Invalid values for each mode
+        # Values outside each mode's range still reach the pump: it clamps
+        # rather than refusing, and reports what it stored. Only a value
+        # that is not a number is refused here, because there is nothing
+        # for the pump to clamp to - and the all-ones float doubles as the
+        # SETPOINT_KEEP sentinel, so it would read as "leave it alone".
         assert (
-            await mock_client_simple.control.set_constant_speed(100.0) is False
+            await mock_client_simple.control.set_constant_speed(100.0) is True
         )
         assert (
             await mock_client_simple.control.set_proportional_pressure(15.0)
-            is False
+            is True
         )
         assert (
-            await mock_client_simple.control.set_autoadapt_radiator(15.0)
+            await mock_client_simple.control.set_constant_speed(float("nan"))
             is False
         )

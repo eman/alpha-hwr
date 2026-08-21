@@ -61,22 +61,33 @@ async def test_set_temperature_range_control_failure(mock_client_simple):
 
 
 @pytest.mark.asyncio
-async def test_set_flow_limit_success(mock_client_simple, answering_transport):
-    """Test successful flow limit setting."""
-    # The configuration commit carries the whole schedule overview, so it
-    # reads the pump's copy first and skips the commit entirely if it
-    # cannot - writing a fabricated overview would switch the schedule off.
+async def test_read_limiters_reports_both_and_whether_either_is_limiting(
+    mock_client_simple, answering_transport
+):
+    """
+    The limiters are read, not written.
+
+    set_flow_limit() used to write Object 86 Sub 39 - which is the
+    constant-flow *setpoint range*, a type 301 factory object, not a
+    limiter - and the pump refused the frame in any case. The real
+    limiters are Object 86 Sub 600 (MaxFlow) and Sub 601 (MinFlow),
+    established 2026-08-20 by reading all sixty declared sub-ids and
+    finding every one past the second answers OPERATION_FAILED.
+
+    This matters because an enabled limiter caps delivered flow whatever
+    the setpoint says, and nothing in the setpoint range reveals it.
+    """
     mock_client_simple.transport.query = AsyncMock(
         side_effect=answering_transport
     )
 
-    result = await mock_client_simple.control.set_flow_limit(1.5)
+    assert not hasattr(mock_client_simple.control, "set_flow_limit")
 
-    assert result is True
-    assert mock_client_simple.transport.query.call_count >= 1
-    assert mock_client_simple.transport.write.call_count >= 1, (
-        "the commit should have been sent once the overview was readable"
-    )
+    limiters = await mock_client_simple.control.read_limiters()
+
+    # The mock pump does not implement the limiter objects, so this is
+    # about the call shape rather than the values.
+    assert isinstance(limiters, dict)
 
 
 @pytest.mark.asyncio
@@ -90,9 +101,19 @@ async def test_commit_is_skipped_when_the_overview_cannot_be_read(
     constant in place of the pump's own copy overwrites the schedule's
     enabled flag. Skipping a flush is recoverable; that is not.
     """
-    result = await mock_client_simple.control.set_flow_limit(1.5)
+    result = await mock_client_simple.control.set_constant_speed(2000.0)
 
     assert result is True, "the setpoint write itself still succeeds"
-    assert mock_client_simple.transport.write.call_count == 0, (
-        "no commit may be sent when the overview is unknown"
-    )
+
+    # The control request itself is written, so counting every write no
+    # longer isolates the commit. Count the commits: an Object 84 Sub 1
+    # Class 10 SET, which is what would overwrite the schedule state.
+    commits = [
+        frame
+        for (frame, *_), _ in mock_client_simple.transport.write.call_args_list
+        if len(frame) > 7
+        and frame[4] == 0x0A
+        and frame[6] == 84
+        and frame[7:9] == b"\x00\x01"
+    ]
+    assert commits == [], "no commit may be sent when the overview is unknown"

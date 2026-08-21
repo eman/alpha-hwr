@@ -184,23 +184,24 @@ class TestScheduleState:
 
         # Sequence of query() calls:
         # 1. enable() reads current state
-        # 2. enable() writes (needs empty response for success)
+        # 2. enable() writes - the Class 10 SET is acknowledged, and the
+        #    empty response stands in for that acknowledgement
         # 3. enable() verifies
         # 4. disable() reads current state
-        # 5. disable() writes (needs empty response for success)
+        # 5. disable() writes
         # 6. disable() verifies
         responses = [
             build_class10_response(
                 84, 1, bytes(payload_disabled)
             ),  # Read for enable
-            b"",  # Write response for enable (empty = success)
+            b"",  # Write acknowledgement for enable
             build_class10_response(
                 84, 1, bytes(payload_enabled)
             ),  # Verify enable worked
             build_class10_response(
                 84, 1, bytes(payload_enabled)
             ),  # Read for disable
-            b"",  # Write response for disable (empty = success)
+            b"",  # Write acknowledgement for disable
             build_class10_response(
                 84, 1, bytes(payload_disabled)
             ),  # Verify disable worked

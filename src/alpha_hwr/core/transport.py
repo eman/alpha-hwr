@@ -13,14 +13,17 @@ GENI protocol packets.
 """
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import Callable
 
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
-from ..constants import GENI_CHAR_UUID
+from ..constants import CLASS_10, GENI_CHAR_UUID
 from ..exceptions import READ_ERRORS
+from ..protocol.apdu import apdu_is_set
+from ..protocol.frame_parser import frame_crc_valid
 from ..protocol.matcher import Command as MatcherCommand
 from ..protocol.matcher import matches as matcher_matches
 
@@ -35,6 +38,54 @@ BLE_MTU_LIMIT = 20
 #: or separate commands. The pump drops or ignores traffic that arrives
 #: faster than this.
 SEND_PACING = 0.05
+
+#: Only the pump's start byte is accepted inbound.
+#:
+#: 0x27 was accepted here too, described as "request/echo". The pump does
+#: not echo: across the reference capture corpus, all 22,062 pump-to-phone
+#: frames start 0x24 and none start 0x27. Accepting 0x27 meant an ordinary
+#: payload byte could be taken for the start of a new frame.
+RESPONSE_START_BYTE = 0x24
+
+#: Smallest length byte a real frame can declare.
+#:
+#: A frame is ``length + 4`` bytes and the shortest legal one is the
+#: nine-byte Class 10 acknowledgement ``24 05 F8 E7 0A 01 00 AE A2``. With
+#: no floor, a length byte of 0x00 declared a four-byte frame, so any
+#: notification "completed" instantly and was dispatched as a runt.
+MIN_LENGTH_BYTE = 5
+
+#: Largest telegram the protocol allows: 253 PDU bytes plus start, length
+#: and the two CRC bytes.
+#:
+#: The old ceiling was 256, three short, so a legal maximum-length telegram
+#: would have been discarded mid-reassembly.
+MAX_PDU_LEN = 253
+MAX_TELEGRAM_LEN = MAX_PDU_LEN + 4
+
+#: How long a partial frame may sit before it is abandoned.
+#:
+#: The pump paces fragments about 50 ms apart, so a gap of a full second
+#: means the rest is not coming. Without this a truncated frame wedges
+#: reassembly for the life of the connection.
+REASSEMBLY_TIMEOUT = 1.0
+
+
+def is_class10_set(frame: bytes) -> bool:
+    """
+    True for a Class 10 SET, which the pump neither answers nor talks over.
+
+    Reads the class byte and the operation bits of the APDU head, so it is
+    the frame itself that decides rather than a list of addresses kept in
+    step by hand.
+
+    Examples:
+        >>> is_class10_set(bytes.fromhex("2717e7f80a9354000100da01"))
+        True
+        >>> is_class10_set(bytes.fromhex("2707e7f80a03540001d5e8"))
+        False
+    """
+    return len(frame) > 5 and frame[4] == CLASS_10 and apdu_is_set(frame[5])
 
 
 class Transport:
@@ -102,13 +153,13 @@ class Transport:
     --------
     >>> from bleak import BleakClient
     >>> client = BleakClient("device_address")
-    >>> await client.connect()
+    >>> await client.connect()  # doctest: +SKIP
     >>>
     >>> transport = Transport(client)
-    >>> await transport.start_notifications(my_handler)
+    >>> await transport.start_notifications(my_handler)  # doctest: +SKIP
     >>>
     >>> # Send a packet with transaction lock
-    >>> async with transport.transaction():
+    >>> async with transport.transaction():  # doctest: +SKIP
     ...     await transport.write(packet_bytes)
     ...     response = await transport.wait_for_response(timeout=3.0)
 
@@ -141,6 +192,30 @@ class Transport:
         self._response_queue: asyncio.Queue[bytes] = asyncio.Queue()
         self._response_buffer = bytearray()
 
+        # When the current partial frame's first fragment arrived. A frame
+        # start only begins a new packet when we are not already
+        # reassembling, so this is what stops a truncated frame wedging the
+        # buffer forever.
+        self._reassembly_started: float | None = None
+
+        # Set when the BLE link drops. Anything waiting on a reply checks
+        # it, so a caller learns immediately instead of sitting out its own
+        # timeout for a pump that is no longer there.
+        self._link_down = asyncio.Event()
+
+        # Why inbound bytes were thrown away. One counter per reason,
+        # because they mean different things: a bad CRC is a corrupted
+        # link, a runt length is a peer talking nonsense, and bytes that
+        # start no frame usually mean we lost sync rather than that the
+        # radio is bad. Until the CRC was enforced none of this could be
+        # counted, because nothing checked anything.
+        self.crc_failures = 0
+        self.stale_partials = 0
+        self.unsolicited_fragments = 0
+        self.runt_length_drops = 0
+        self.overflow_drops = 0
+        self.queue_full_drops = 0
+
         # Custom notification handlers (for telemetry streaming)
         self._custom_handlers: list[Callable[[bytes], None]] = []
 
@@ -164,10 +239,21 @@ class Transport:
         logger.debug("Transport initialized")
 
     async def _pace(self) -> None:
-        """Wait out the remainder of the inter-write gap, if any."""
+        """
+        Wait out the inter-write gap.
+
+        SEND_PACING is about how fast the pump's radio will take bytes.
+        Note the chunking in :meth:`write` is not an optimisation: this
+        pump requires GENI frames split into BLE_MTU_LIMIT-byte writes
+        regardless of the negotiated ATT MTU. A 27-byte frame sent as one
+        GATT write is silently ignored - measured, with the MTU negotiated
+        at 65 - while the same frame chunked at 20 is acknowledged in
+        111 ms.
+        """
+        now = asyncio.get_event_loop().time()
         if self._last_write is None:
             return
-        elapsed = asyncio.get_event_loop().time() - self._last_write
+        elapsed = now - self._last_write
         if elapsed < SEND_PACING:
             await asyncio.sleep(SEND_PACING - elapsed)
 
@@ -190,7 +276,7 @@ class Transport:
         --------
         >>> async def my_handler(data):
         ...     print(f"Received {len(data)} bytes")
-        >>> await transport.start_notifications(my_handler)
+        >>> await transport.start_notifications(my_handler)  # doctest: +SKIP
 
         Notes
         -----
@@ -202,6 +288,12 @@ class Transport:
         if handler:
             self._custom_handlers.append(handler)
             logger.debug("Custom notification handler registered")
+
+        # A fresh link. Clear the drop flag so waiters do not give up
+        # immediately on a connection that is up again, and drop any
+        # partial frame left over from the last one.
+        self._link_down.clear()
+        self._reset_reassembly()
 
         # Only start notifications once
         if not self._notifications_started:
@@ -223,6 +315,30 @@ class Transport:
         except READ_ERRORS as e:
             logger.debug(f"Error stopping notifications: {e}")
 
+    @property
+    def frame_drops(self) -> dict[str, int]:
+        """
+        Every reason a frame was thrown away, and how often.
+
+        A drop is the system working, so none of these is an error by
+        itself - but a link quietly shedding frames is otherwise
+        indistinguishable from a client that occasionally times out for no
+        reason, which is the gap this closes.
+        """
+        return {
+            "crc_failures": self.crc_failures,
+            "stale_partials": self.stale_partials,
+            "unsolicited_fragments": self.unsolicited_fragments,
+            "runt_length_drops": self.runt_length_drops,
+            "overflow_drops": self.overflow_drops,
+            "queue_full_drops": self.queue_full_drops,
+        }
+
+    def _reset_reassembly(self) -> None:
+        """Drop any partial frame and forget when it started."""
+        self._response_buffer = bytearray()
+        self._reassembly_started = None
+
     def _notification_callback(
         self, characteristic: BleakGATTCharacteristic, data: bytearray
     ) -> None:
@@ -243,62 +359,134 @@ class Transport:
         -----
         This runs in BLE event loop context. Keep processing minimal.
 
-        GENI packets can be fragmented by BLE MTU limits (20 bytes).
-        We accumulate fragments until we have a complete packet:
-        - If data[0] is 0x24 or 0x27 (frame start), start new packet
-        - Otherwise, append to current buffer
-        - Check if packet complete: len(buffer) >= buffer[1] + 4
-        - Only queue complete packets
+        GENI frames are fragmented by the 20-byte MTU, so fragments are
+        accumulated until the frame's own length field says it is complete:
+
+        - 0x24 starts a new frame, but *only* when not already
+          reassembling. A mid-frame fragment can begin with 0x24 - it is an
+          ordinary payload byte - and treating it as a start discarded the
+          frame under way and dispatched the fragment as a runt.
+        - The declared length must be plausible before it is trusted.
+        - The frame is trimmed to its declared length and its CRC checked
+          before anything downstream sees it. This is the only place a
+          frame becomes visible to the rest of the client, so it is the
+          only place that check has to happen - and until it was made, every
+          write verdict was decided by reading unverified bytes back.
         """
         logger.debug(
             f"BLE notification received: {len(data)} bytes - {data.hex()}"
         )
 
-        # Handle packet fragmentation
-        # Frame start bytes: 0x24 (response) or 0x27 (request/echo)
-        if len(data) > 0 and data[0] in (0x24, 0x27):
-            # New packet starting
+        if not data:
+            return
+
+        now = asyncio.get_event_loop().time()
+
+        # A partial frame that stopped arriving is abandoned rather than
+        # left to absorb the next frame's fragments.
+        if (
+            self._response_buffer
+            and self._reassembly_started is not None
+            and now - self._reassembly_started > REASSEMBLY_TIMEOUT
+        ):
+            self.stale_partials += 1
+            logger.warning(
+                f"Abandoning a partial frame after "
+                f"{now - self._reassembly_started:.1f}s: "
+                f"{self._response_buffer.hex()}"
+            )
+            self._reset_reassembly()
+
+        if not self._response_buffer:
+            if data[0] != RESPONSE_START_BYTE:
+                # Not a frame start and nothing under way: there is no
+                # frame this can belong to.
+                self.unsolicited_fragments += 1
+                logger.debug(
+                    f"Ignoring {len(data)} bytes that start no frame: "
+                    f"{bytes(data).hex()}"
+                )
+                return
             self._response_buffer = bytearray(data)
+            self._reassembly_started = now
         else:
-            # Continuation of existing packet
+            # Already reassembling. Everything is a continuation, including
+            # a fragment that happens to begin 0x24.
             self._response_buffer.extend(data)
 
-        # Check if we have a complete packet
-        if len(self._response_buffer) >= 2:
-            expected_len = (
-                self._response_buffer[1] + 4
-            )  # Length field + start + len + CRC(2)
-            if len(self._response_buffer) >= expected_len:
-                # Packet complete!
-                full_packet = bytes(self._response_buffer)
-                logger.debug(f"Complete packet assembled: {full_packet.hex()}")
+        if len(self._response_buffer) < 2:
+            return
 
-                # Queue for protocol layer processing
-                try:
-                    self._response_queue.put_nowait(full_packet)
-                except asyncio.QueueFull:
-                    logger.warning("Response queue full, dropping packet")
+        length_byte = self._response_buffer[1]
+        if length_byte < MIN_LENGTH_BYTE:
+            self.runt_length_drops += 1
+            logger.warning(
+                f"Frame declares {length_byte} bytes, below the "
+                f"{MIN_LENGTH_BYTE}-byte minimum; dropping"
+            )
+            self._reset_reassembly()
+            return
 
-                # Call custom handlers (e.g., for telemetry updates)
-                for handler in self._custom_handlers:
-                    try:
-                        handler(full_packet)
-                    except Exception as e:  # noqa: BLE001
-                        # Caller-supplied handler: isolate it so one bad
-                        # handler cannot kill the notification callback.
-                        logger.error(f"Error in custom handler: {e}")
+        expected_len = length_byte + 4
 
-                # Clear buffer for next packet
-                self._response_buffer.clear()
-            else:
-                logger.debug(
-                    f"Partial packet: have {len(self._response_buffer)}, need {expected_len}"
-                )
+        # An overflow means frame sync was lost. Drop the partial frame and
+        # nothing else: it says nothing about whether the pump will answer
+        # commands already sent, so it must not tear down the queue. Note
+        # this runs *before* anything is dispatched - it used to run after,
+        # so an overlong buffer was delivered and only then cleared.
+        if len(self._response_buffer) > MAX_TELEGRAM_LEN:
+            self.overflow_drops += 1
+            logger.warning(
+                f"Reassembly buffer reached {len(self._response_buffer)} "
+                f"bytes, past the {MAX_TELEGRAM_LEN}-byte maximum telegram; "
+                f"dropping the partial frame"
+            )
+            self._reset_reassembly()
+            return
 
-        # Safety: Clear buffer if it grows too large (corrupted data)
-        if len(self._response_buffer) > 256:
-            logger.warning("Response buffer overflow, clearing")
-            self._response_buffer.clear()
+        if len(self._response_buffer) < expected_len:
+            logger.debug(
+                f"Partial frame: have {len(self._response_buffer)}, "
+                f"need {expected_len}"
+            )
+            return
+
+        # Trim to what the frame declares. The test above is >=, so
+        # trailing bytes can be sitting in the buffer - and they are
+        # outside what the CRC covers, so checking them in would fail a
+        # sound frame.
+        full_packet = bytes(self._response_buffer[:expected_len])
+        leftover = bytes(self._response_buffer[expected_len:])
+        self._reset_reassembly()
+
+        if not frame_crc_valid(full_packet):
+            self.crc_failures += 1
+            logger.warning(
+                f"Dropping a frame whose CRC does not match "
+                f"(#{self.crc_failures}): {full_packet.hex()}"
+            )
+            return
+
+        logger.debug(f"Complete packet assembled: {full_packet.hex()}")
+
+        try:
+            self._response_queue.put_nowait(full_packet)
+        except asyncio.QueueFull:
+            self.queue_full_drops += 1
+            logger.warning("Response queue full, dropping packet")
+
+        for handler in self._custom_handlers:
+            try:
+                handler(full_packet)
+            except Exception as e:  # noqa: BLE001
+                # Caller-supplied handler: isolate it so one bad handler
+                # cannot kill the notification callback.
+                logger.error(f"Error in custom handler: {e}")
+
+        if leftover:
+            # A second frame rode in behind the first. Feed it back rather
+            # than discarding it.
+            self._notification_callback(characteristic, bytearray(leftover))
 
     async def write(self, data: bytes, response: bool = False) -> None:
         """
@@ -327,8 +515,8 @@ class Transport:
 
         Examples
         --------
-        >>> packet = protocol.build_command(...)
-        >>> await transport.write(packet)
+        >>> packet = protocol.build_command(...)  # doctest: +SKIP
+        >>> await transport.write(packet)  # doctest: +SKIP
         """
         chunks = [
             data[i : i + BLE_MTU_LIMIT]
@@ -369,20 +557,50 @@ class Transport:
 
         Examples
         --------
-        >>> await transport.write(request_packet)
-        >>> response = await transport.read_response(timeout=5.0)
-        >>> if response:
+        >>> await transport.write(request_packet)  # doctest: +SKIP
+        >>> response = await transport.read_response(timeout=5.0)  # doctest: +SKIP
+        >>> if response:  # doctest: +SKIP
         ...     data = protocol.parse(response)
         """
+        if self._link_down.is_set():
+            logger.debug("Not waiting for a reply: the link is down")
+            return None
+
+        # Race the reply against the link dropping. A dropped link is not a
+        # timeout: nothing in GENIbus cancels a request, but a dead link
+        # cannot deliver one either, so waiting the full timeout only
+        # delays the caller learning what already happened. A chain of
+        # reads used to sit out three seconds each, in series, after the
+        # pump had gone.
+        get = asyncio.ensure_future(self._response_queue.get())
+        dropped = asyncio.ensure_future(self._link_down.wait())
         try:
-            response = await asyncio.wait_for(
-                self._response_queue.get(), timeout=timeout
+            done, _ = await asyncio.wait(
+                (get, dropped),
+                timeout=timeout,
+                return_when=asyncio.FIRST_COMPLETED,
             )
+        finally:
+            dropped.cancel()
+
+        if get in done:
+            response = get.result()
             logger.debug(f"Read response: {len(response)} bytes")
             return response
-        except TimeoutError:
+
+        # Either the link went or the timeout expired. In both cases a
+        # frame may have landed in the gap between the wait ending and
+        # this line; keep it rather than losing it with the task.
+        get.cancel()
+        if get.done() and not get.cancelled() and get.exception() is None:
+            with contextlib.suppress(asyncio.QueueFull):
+                self._response_queue.put_nowait(get.result())
+
+        if dropped in done:
+            logger.debug("Gave up waiting for a reply: the link dropped")
+        else:
             logger.debug(f"Response timeout after {timeout}s")
-            return None
+        return None
 
     def transaction(self) -> asyncio.Lock:
         """
@@ -397,7 +615,7 @@ class Transport:
 
         Examples
         --------
-        >>> async with transport.transaction():
+        >>> async with transport.transaction():  # doctest: +SKIP
         ...     await transport.write(command1)
         ...     response1 = await transport.read_response()
         ...     # Next command waits for this to complete
@@ -434,9 +652,9 @@ class Transport:
 
         Examples
         --------
-        >>> command = protocol.build_read_request(register)
-        >>> response = await transport.send_with_response(command)
-        >>> if response:
+        >>> command = protocol.build_read_request(register)  # doctest: +SKIP
+        >>> response = await transport.send_with_response(command)  # doctest: +SKIP
+        >>> if response:  # doctest: +SKIP
         ...     value = protocol.parse_response(response)
         """
         async with self._transaction_lock:
@@ -477,7 +695,7 @@ class Transport:
         >>> # Filter out telemetry stream notifications
         >>> def not_telemetry(data):
         ...     return not (len(data) > 5 and data[4] == 0x0A and data[5] == 0x0E)
-        >>> response = await transport.query(request, match_func=not_telemetry)
+        >>> response = await transport.query(request, match_func=not_telemetry)  # doctest: +SKIP
         """
         async with self._transaction_lock:
             # Drain the queue first to avoid stale responses
@@ -737,6 +955,14 @@ class Transport:
         """
         logger.info("BLE link dropped")
         self._last_write = None
+
+        # Wake every waiter before the handlers run. A reply that has not
+        # arrived by now is not going to: nothing in GENIbus cancels a
+        # request, but a dead link cannot deliver one either. Without this
+        # each caller sat out its full timeout - up to three seconds each,
+        # in series, for a chain of reads that could not possibly complete.
+        self._link_down.set()
+
         for handler in self._disconnect_handlers:
             try:
                 handler()
