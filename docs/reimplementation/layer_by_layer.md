@@ -113,9 +113,11 @@ async def connect_to_pump(device_address):
     return (client, char)
 ```
 
-Note also that **the pump drops an idle connection at about 1.8 seconds**
-unless it is bonded. If your connection dies almost immediately and always at
-the same moment, the problem is pairing, not your frames.
+Note also that **the pump only talks over a bonded link**. A host it has
+never bonded with gets no connection at all, and one it holds a stale bond for
+is dropped at about 1.8 seconds. If your connection never opens, or dies
+almost immediately and always at the same moment, the problem is pairing, not
+your frames.
 
 
 ---
@@ -638,8 +640,9 @@ async def authenticate(client):
 > they were copied from the reference client's own `sleep()` calls and then
 > written up as pump timing requirements.
 >
-> If reads time out, check **bonding** before you check your frames. An
-> unbonded connection is dropped at about 1.8 seconds regardless of traffic.
+> If reads time out, check **bonding** before you check your frames. The pump
+> drops a link it has no valid bond for at about 1.8 seconds regardless of
+> traffic, and refuses a host it has never bonded with outright.
 
 See [02_authentication.md](../protocol/packet_traces/02_authentication.md) for detailed explanation.
 

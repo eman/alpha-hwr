@@ -57,9 +57,45 @@ All communication (commands and telemetry) happens over a single GATT Characteri
 *   **Properties**: `Write`, `Notify`
 
 ### Pairing
-The device requires **Pairing/Bonding** for normal use.
-*   **Level**: `Just Works` (No PIN usually required, though some models might prompt).
-*   **Requirement**: Bonding is recommended. While some commands might work without it, telemetry, control, stable Schedule downloading (HCI layer), and consistent reconnection are much more reliable after bonding.
+The pump has to be paired (bonded) with the host. No GENI frame has ever been
+exchanged over a link that was not bonded, and the pump decides what happens
+to one before a frame could be sent:
+
+| the pump's view of the host | what happens |
+|---|---|
+| bonded | the link works |
+| holds a bond the host has lost | the link opens, and is dropped about 2 s later at the security stage (measured here at ~1.8 s) |
+| has never bonded to it | no link at all: the connection request goes unanswered and fails with `0x3e` within 150-300 ms |
+
+The last row was measured from a never-paired Linux host on 2026-09-27, three
+attempts out of three, and matches a dozen refused connects from an ESP32 —
+see [esphome-alpha-hwr#244](https://github.com/eman/esphome-alpha-hwr/issues/244).
+
+*   **Level**: `Just Works`, no PIN.
+*   **The pump starts it.** In pairing mode the pump sends a security request
+    and the host answers it. The ESPHome port found that a pairing request
+    sent from the host first came back "Pairing Not Supported" and cost the
+    pump's own request.
+*   **One connection at a time.** While a host holds the link, the Grundfos GO
+    app cannot connect, and vice versa.
+
+#### Putting the pump into pairing mode
+This is one owner's routine on one pump, reported on
+[esphome-alpha-hwr#229](https://github.com/eman/esphome-alpha-hwr/pull/229),
+not a procedure verified across models:
+
+1. Go to the pump.
+2. Connect the Grundfos GO app, and unlock the pump's front panel from it. The
+   panel re-locks itself, so do this immediately before the next steps.
+3. Disconnect the GO app, to free the pump's one connection.
+4. Press the pairing button on the front panel and wait about 15 seconds for a
+   link. It commonly takes several presses.
+
+#### Do not remove the host's bond remotely
+Removing the bond on the host — `bluetoothctl remove`, clearing the OS's
+Bluetooth pairings, reinstalling — leaves the pump holding a bond for a host
+that no longer has one. The pump then drops that host at the security stage,
+every time, and the only way back is the procedure above, at the pump.
 
 ## 2. Opening Reads (optional)
 

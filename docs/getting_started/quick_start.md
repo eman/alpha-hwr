@@ -1,10 +1,11 @@
 # Quick Start Guide
 
-This guide will help you connect to your Grundfos ALPHA HWR pump, authenticate, and read live telemetry data using Python.
+This guide will help you connect to your Grundfos ALPHA HWR pump and read live telemetry data using Python.
 
-Before you start, make sure the pump is paired/bonded with the laptop or host
-you plan to use. On first connection, the operating system may show a pairing
-prompt; accept it before expecting telemetry.
+Before you start, pair the pump with the laptop or host you plan to use. A
+host the pump has never bonded with gets no connection at all. See
+[Pairing](../protocol/connection.md#pairing) for putting the pump into pairing
+mode.
 
 ## 1. Scan for the Device
 

@@ -173,8 +173,8 @@ await client.write_gatt_char(GENI_CHAR_UUID, packet, response=False)
 **Checklist:**
 - [x] One characteristic: `859cffd1-036e-432a-aa28-1a0085b87ba9`
 - [x] Enable notifications before sending commands
-- [x] Bond with the device — otherwise the connection is dropped at ~1.8 s
-      whether or not you are sending anything
+- [x] Bond with the device — the pump refuses a host it has never bonded
+      with, and drops a stale bond at ~1.8 s whatever you are sending
 
 ---
 

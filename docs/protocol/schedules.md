@@ -42,13 +42,13 @@ Layer 4: Special events      (holiday adjustments)
 
 To successfully read the schedule, the client must follow a strict sequence:
 
-1.  **Authentication**: The device must be unlocked via the [Connection Handshake](connection.md).
-2.  **Bonding**: An unbonded connection is dropped at about 1.8 seconds,
-    whether or not anything is being sent. A schedule read will not complete
-    on one.
-3.  **Keep-Alive Burst**: Before requesting large data structures, send a
+1.  **Bonding**: The pump only talks over a bonded link — see
+    [Pairing](connection.md#pairing). A stale bond is dropped at about 1.8
+    seconds, whether or not anything is being sent, so a schedule read will
+    not complete on one.
+2.  **Keep-Alive Burst**: Before requesting large data structures, send a
     burst of keep-alive packets to wake the GENI controller fully.
-4.  **Timing**: Allow ~200-500 ms after the burst before the read request.
+3.  **Timing**: Allow ~200-500 ms after the burst before the read request.
 
 ## Data Structure
 
