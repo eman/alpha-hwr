@@ -177,6 +177,18 @@ The ALPHA HWR allows setting a maximum flow limit to prevent **flow-accelerated 
 **CLI:**
 ```bash
 alpha-hwr control limiters
+alpha-hwr control set-limiter MaxFlow --enable --limit-gpm 1.5
+```
+
+**Python:**
+```python
+from alpha_hwr.constants import FACTOR_M3H_TO_GPM
+
+result = await client.control.set_flow_limiter(
+    "MaxFlow", True, 1.5 * FACTOR_M3H_TO_GPM
+)
+# Past the factory bounds this settles "clamped", with what the pump kept
+print(result.status, result.limit_m3h)
 ```
 
 ---

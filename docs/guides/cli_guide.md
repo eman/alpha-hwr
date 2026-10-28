@@ -316,12 +316,23 @@ alpha-hwr control set-proportional 1.2
 
 #### Flow Limitation
 
-Set a global maximum flow limit to prevent corrosion:
+Cap the flow to prevent corrosion and noise. In constant curve, constant
+pressure and temperature control the limiter *is* the flow control, since
+those modes regulate speed or head and let flow follow the loop:
 
 ```bash
-# Set 1.5 GPM limit (recommended for 1/2" pipe)
+# Show both limiters and whether either is limiting
 alpha-hwr control limiters
+
+# Cap at 1.5 GPM (recommended for 1/2" pipe)
+alpha-hwr control set-limiter MaxFlow --enable --limit-gpm 1.5
+
+# Turn it off again, keeping the stored cap
+alpha-hwr control set-limiter MaxFlow --disable
 ```
+
+A cap outside the pump's factory bounds is clamped, and the command says what
+the pump kept.
 
 ---
 
@@ -730,6 +741,7 @@ alpha-hwr monitor live
 | `control set-flow` | Set constant flow mode (Mode 8) |
 | `control set-proportional` | Set proportional pressure mode (Mode 1) |
 | `control limiters` | Show the MaxFlow and MinFlow limiters |
+| `control set-limiter` | Enable or disable a flow limiter, and set its cap |
 | `control set-mode <mode> <setpoint>` | Set control mode and setpoint together |
 
 ### Device Commands

@@ -32,7 +32,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from ..constants import ControlMode
+from ..constants import FACTOR_M3H_TO_GPM, ControlMode
 from ..exceptions import READ_ERRORS
 from ..models import WriteCommand, WriteResult, WriteStatus
 
@@ -52,6 +52,8 @@ WATCHDOG_SECONDS: dict[WriteCommand, float] = {
     WriteCommand.SET_TEMPERATURE_RANGE: 15.0,
     WriteCommand.SET_CYCLE_TIMES: 15.0,
     WriteCommand.SET_SCHEDULE_ENABLED: 12.0,
+    # Two reads of the record, the write, and up to three readbacks.
+    WriteCommand.SET_FLOW_LIMITER: 20.0,
 }
 
 #: How long to let the pump apply a write before reading it back, and how
@@ -67,7 +69,15 @@ EPSILON: dict[str, float] = {
     "m3h": 0.005,
     "meters": 0.01,
     "celsius": 0.1,
+    # 0.01 gpm. The caps are entered to two decimals in gpm, and the m3/s
+    # round trip is exact on every value seen on two pumps, so anything
+    # looser would hide a real clamp. See esphome-alpha-hwr#299.
+    "limiter_m3h": 0.01 * FACTOR_M3H_TO_GPM,
 }
+
+#: The largest cap worth sending, 100 gpm. Bounds only the absurd: the
+#: pump's own factory bounds decide the rest, and it clamps to them.
+LIMITER_MAX_M3H = 100 * FACTOR_M3H_TO_GPM
 
 
 def _epsilon_for(mode: ControlMode | int) -> float:
@@ -235,6 +245,7 @@ class WriteOperationService:
             WriteCommand.SET_TEMPERATURE_RANGE: self._run_set_temperature_range,
             WriteCommand.SET_CYCLE_TIMES: self._run_set_cycle_times,
             WriteCommand.SET_SCHEDULE_ENABLED: self._run_set_schedule_enabled,
+            WriteCommand.SET_FLOW_LIMITER: self._run_set_flow_limiter,
         }[op.command]
 
         try:
@@ -632,4 +643,101 @@ class WriteOperationService:
             WriteStatus.ACCEPTED if state == wanted else WriteStatus.REJECTED,
             "" if state == wanted else f"schedule still reports {state}",
             schedule_enabled=state,
+        )
+
+    # -- flow limiters ---------------------------------------------------
+
+    async def _run_set_flow_limiter(self, op: _Operation) -> None:
+        limiter = str(op.args["limiter"])
+        wanted_enabled = bool(op.args["limiter_enabled"])
+        cap = op.args.get("limit_m3h")
+
+        try:
+            self._control._limiter_index(limiter)
+        except ValueError as e:
+            op.settle(WriteStatus.INVALID, str(e))
+            return
+        if cap is not None and (
+            not math.isfinite(cap) or not 0 < cap <= LIMITER_MAX_M3H
+        ):
+            op.settle(
+                WriteStatus.INVALID,
+                f"{cap} m3/h is not a cap: it must be above 0 and at most "
+                f"{LIMITER_MAX_M3H:.1f} (100 gpm), or None to keep the "
+                f"stored one",
+            )
+            return
+
+        # The write reads the record itself, for the PID terms it has to
+        # echo. This read is for the verdict: a pump still holding what it
+        # held before refused, one holding something else clamped.
+        before = await self._control.read_limiter_config(limiter)
+        if before is None:
+            op.settle(
+                WriteStatus.REJECTED,
+                f"could not read the {limiter} limiter; write not attempted",
+            )
+            return
+        was_enabled, was_m3h, _ = before
+        wanted_m3h = was_m3h if cap is None else float(cap)
+
+        if not await self._control.write_limiter_config(
+            limiter, wanted_enabled, wanted_m3h
+        ):
+            op.settle(
+                WriteStatus.REJECTED,
+                "the write was not acknowledged, or the record it has to "
+                "echo could not be read",
+            )
+            return
+
+        eps = EPSILON["limiter_m3h"]
+
+        def matches(
+            enabled: bool, m3h: float, want: tuple[bool, float]
+        ) -> bool:
+            return enabled == want[0] and abs(m3h - want[1]) <= eps
+
+        def settled(c: Any) -> bool:
+            # Either it stored the request, or it stored something other
+            # than what it held before - a clamp, just as final. Only the
+            # old value is worth waiting on.
+            enabled, m3h, _ = c
+            return matches(enabled, m3h, (wanted_enabled, wanted_m3h)) or (
+                not matches(enabled, m3h, (was_enabled, was_m3h))
+            )
+
+        stored = await self._confirm(
+            op,
+            lambda: self._control.read_limiter_config(limiter),
+            settled,
+        )
+        if stored is None:
+            op.settle(
+                WriteStatus.TIMEOUT,
+                f"could not read the {limiter} limiter back",
+            )
+            return
+
+        got_enabled, got_m3h, _ = stored
+        if matches(got_enabled, got_m3h, (wanted_enabled, wanted_m3h)):
+            status, detail = WriteStatus.ACCEPTED, ""
+        else:
+            # Refused if it kept the old record, clamped if it kept
+            # something else - most likely against its factory bounds.
+            unchanged = matches(got_enabled, got_m3h, (was_enabled, was_m3h))
+            status = WriteStatus.REJECTED if unchanged else WriteStatus.CLAMPED
+            state = "enabled" if wanted_enabled else "disabled"
+            held = "enabled" if got_enabled else "disabled"
+            detail = (
+                f"requested {state} at {wanted_m3h:.3f} m3/h, pump holds "
+                f"{held} at {got_m3h:.3f} m3/h"
+            )
+
+        op.settle(
+            status,
+            detail,
+            limiter=limiter,
+            limiter_enabled=got_enabled,
+            limit_m3h=got_m3h,
         )

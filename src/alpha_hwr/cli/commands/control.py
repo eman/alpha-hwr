@@ -12,6 +12,7 @@ Commands:
   - set-temperature: Set temperature range control
   - set-cycle-time: Set DHW cycle time control
   - limiters: Show the MaxFlow and MinFlow limiters
+  - set-limiter: Enable or disable a flow limiter, and set its cap
   - get-cycle-time: Get DHW cycle time configuration
 """
 
@@ -313,6 +314,48 @@ def cmd_limiters(
     run_async(_control_limiters(device))
 
 
+@app.command("set-limiter")
+def cmd_set_limiter(
+    limiter: str = typer.Argument(..., help="MaxFlow or MinFlow"),
+    enable: bool = typer.Option(
+        ..., "--enable/--disable", help="Whether the limiter caps flow"
+    ),
+    limit_gpm: float | None = typer.Option(
+        None, "--limit-gpm", help="Cap in GPM (keeps the stored cap if omitted)"
+    ),
+    limit_m3h: float | None = typer.Option(
+        None,
+        "--limit-m3h",
+        help="Cap in m³/h (keeps the stored cap if omitted)",
+    ),
+    device: str | None = typer.Option(
+        None,
+        "--device",
+        "-d",
+        help="Device address (from config if not specified)",
+    ),
+) -> None:
+    """
+    Enable or disable a flow limiter, and set its cap.
+
+    For constant curve, constant pressure and temperature control the
+    limiter is the flow control: those modes regulate speed or head, and
+    flow follows the loop's hydraulics up to the cap. A cap outside the
+    pump's factory bounds is clamped, and the result says what it kept.
+
+    Example:
+      alpha-hwr control set-limiter MaxFlow --enable --limit-gpm 1.6
+      alpha-hwr control set-limiter MaxFlow --disable
+    """
+    if limit_gpm is not None and limit_m3h is not None:
+        console.print(
+            "[error]Give --limit-gpm or --limit-m3h, not both[/error]"
+        )
+        raise typer.Exit(2)
+    cap = limit_m3h if limit_gpm is None else limit_gpm * FACTOR_M3H_TO_GPM
+    run_async(_control_set_limiter(device, limiter, enable, cap))
+
+
 # Internal async implementations
 
 
@@ -553,4 +596,33 @@ async def _control_limiters(device: str | None) -> None:
                     console.print(f"  limiting {'yes' if limiting else 'no'}")
 
     except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
-        handle_error(e, "Failed to set flow limit")
+        handle_error(e, "Failed to read the limiters")
+
+
+async def _control_set_limiter(
+    device: str | None, limiter: str, enable: bool, limit_m3h: float | None
+) -> None:
+    """Internal async implementation of the set-limiter command."""
+    try:
+        async with get_client(device) as client:
+            control = require_service(client.control, "Control")
+            result = await control.set_flow_limiter(limiter, enable, limit_m3h)
+
+            if not result.ok:
+                console.print(
+                    f"[error]{limiter} limiter {result.status}: "
+                    f"{result.detail}[/error]"
+                )
+                raise typer.Exit(1)
+
+            state = "enabled" if result.limiter_enabled else "disabled"
+            m3h = result.limit_m3h or 0.0
+            print_success(
+                f"{result.limiter} {state} at {m3h:.3f} m³/h "
+                f"({m3h / FACTOR_M3H_TO_GPM:.2f} GPM)"
+            )
+            if result.detail:
+                console.print(f"[dim]{result.detail}[/dim]")
+
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
+        handle_error(e, "Failed to set the limiter")
