@@ -257,3 +257,26 @@ async def test_a_failed_export_unexports_nothing():
 
     bus.unexport.assert_not_called()
     agent_manager.call_unregister_agent.assert_not_awaited()
+
+
+@pytest.mark.usefixtures("linux")
+def test_the_lock_survives_a_new_event_loop():
+    """
+    An asyncio.Lock binds to the loop it is first contended on. One shared
+    by the whole process would make a second contended batch, under a
+    fresh asyncio.run(), raise "bound to a different event loop".
+    """
+    bus, _, patched = fake_bluez()
+
+    async def pair() -> None:
+        async with bluez_pairing_agent(PUMP):
+            await asyncio.sleep(0)
+
+    async def batch() -> None:
+        await asyncio.gather(pair(), pair())
+
+    with patched:
+        asyncio.run(batch())
+        asyncio.run(batch())
+
+    assert bus.export.call_count == 4

@@ -48,6 +48,7 @@ Any BlueZ D-Bus client library can implement this the same way:
 import asyncio
 import logging
 import sys
+import weakref
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -61,7 +62,22 @@ BLUEZ_ROOT_PATH = "/org/bluez"
 #: One agent at a time. They share AGENT_PATH on bleak's one bus, so a
 #: second concurrent export fails - and its cleanup would tear down the
 #: first one's agent in the middle of a pairing.
-_agent_lock = asyncio.Lock()
+#:
+#: One lock per event loop, not one per process: an asyncio.Lock binds to
+#: the loop it is first contended on, and a later ``asyncio.run()`` that
+#: contends it again raises "bound to a different event loop".
+_agent_locks: weakref.WeakKeyDictionary[
+    asyncio.AbstractEventLoop, asyncio.Lock
+] = weakref.WeakKeyDictionary()
+
+
+def _agent_lock() -> asyncio.Lock:
+    """The lock serializing agents on the running loop."""
+    loop = asyncio.get_running_loop()
+    lock = _agent_locks.get(loop)
+    if lock is None:
+        lock = _agent_locks[loop] = asyncio.Lock()
+    return lock
 
 
 def _device_suffix(address: str) -> str:
@@ -179,7 +195,7 @@ async def bluez_pairing_agent(
         return
 
     agent = _NoInputNoOutputAgent()
-    async with _agent_lock:
+    async with _agent_lock():
         exported = False
         registered = False
         try:

@@ -1260,7 +1260,7 @@ class ControlService(BaseService):
             entry: dict[str, float | bool] = {}
 
             user = await self._read_limiter_struct(
-                self.SUB_LIMITER_USER_CONFIG + offset, minimum=6
+                self.SUB_LIMITER_USER_CONFIG + offset, minimum=6, name=index
             )
             if user is not None:
                 entry["enabled"] = bool(user[1])
@@ -1269,7 +1269,7 @@ class ControlService(BaseService):
                     entry["limit_m3h"] = limit * 3600.0
 
             factory = await self._read_limiter_struct(
-                self.SUB_LIMITER_FACTORY_CONFIG + offset, minimum=9
+                self.SUB_LIMITER_FACTORY_CONFIG + offset, minimum=9, name=index
             )
             if factory is not None:
                 low = decode_float_be(factory, 1)
@@ -1279,7 +1279,7 @@ class ControlService(BaseService):
                     entry["factory_max_m3h"] = high * 3600.0
 
             status = await self._read_limiter_struct(
-                self.SUB_LIMITER_STATUS + offset, minimum=6
+                self.SUB_LIMITER_STATUS + offset, minimum=6, name=index
             )
             if status is not None:
                 entry["limiting"] = bool(status[1])
@@ -1290,16 +1290,32 @@ class ControlService(BaseService):
         return out
 
     async def _read_limiter_struct(
-        self, sub_id: int, minimum: int
+        self, sub_id: int, minimum: int, name: int
     ) -> bytes | None:
-        """Read one limiter object, past its three-byte size header."""
+        """
+        Read one limiter object, past its three-byte size header.
+
+        None unless the record names the limiter asked for. MaxFlow and
+        MinFlow answer with one type code, so the matcher cannot tell them
+        apart: a late MaxFlow reply can answer a MinFlow read. Every record
+        in the family starts with the limiter's name byte, which can - and
+        the write echoes what is read, so it must.
+        """
         data = await self._read_class10_object(self.PUMP_OBJ, sub_id)
         if not data:
             return None
         body = data
         if len(body) >= 3 and body[0] == 0 and body[1] == 0:
             body = body[3:]
-        return body if len(body) >= minimum else None
+        if len(body) < minimum:
+            return None
+        if body[0] != name:
+            logger.warning(
+                f"Limiter read of Sub {sub_id} answered for limiter "
+                f"{body[0]}, not {name}; discarding it"
+            )
+            return None
+        return body
 
     #: ``limiter_user_config`` is ``[name][enable][limit f32 m3/s][kp][ti]
     #: [td]``: eighteen bytes, the last twelve the limiter loop's PID terms.
@@ -1323,18 +1339,24 @@ class ControlService(BaseService):
         Read one limiter's user configuration.
 
         Returns ``(enabled, limit_m3h, record)``, where ``record`` is the
-        eighteen raw bytes a write has to echo. None if it cannot be read
-        or is short.
+        eighteen raw bytes a write has to echo. None if it cannot be read,
+        is short, names the other limiter, or holds a cap that is not a
+        finite number.
         """
         index = self._limiter_index(limiter)
         record = await self._read_limiter_struct(
             self.SUB_LIMITER_USER_CONFIG + index - 1,
             minimum=self.LIMITER_CONFIG_LEN,
+            name=index,
         )
         if record is None:
             return None
         limit = decode_float_be(record, 2)
-        if limit is None:
+        # decode_float_be() unpacks NaN and infinity as floats. Neither is
+        # a cap: a NaN compares unequal to everything, so a readback would
+        # settle as a clamp it cannot be, and a write keeping the stored
+        # cap would echo it.
+        if limit is None or not math.isfinite(limit):
             return None
         record = bytes(record[: self.LIMITER_CONFIG_LEN])
         return bool(record[1]), limit * self.SECONDS_PER_HOUR, record

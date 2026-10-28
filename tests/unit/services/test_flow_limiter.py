@@ -198,3 +198,53 @@ async def test_telemetry_arriving_first_is_not_written_back(control) -> None:
     body = apdu_of(control._send_with_retry.await_args.args[0])[11:]
     assert body[0] == 1, "MaxFlow's name byte, not telemetry"
     assert body[6:] == PID, "the limiter's PID terms, not telemetry"
+
+
+# ---------------------------------------------------------------------------
+# What a read may hand the write as its template
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_maxflow_record_answering_a_minflow_read_is_refused(
+    control,
+) -> None:
+    """
+    Both config records answer with type 895, so the matcher cannot tell a
+    late MaxFlow reply from the MinFlow one. Echoed, it would copy MaxFlow's
+    name and PID terms into MinFlow.
+    """
+    control._read_class10_object = AsyncMock(return_value=record(name=1))
+
+    assert await control.read_limiter_config("MinFlow") is None
+    assert not await control.write_limiter_config("MinFlow", True, 0.3)
+    control._send_with_retry.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_the_wrong_limiter_s_status_is_not_reported(control) -> None:
+    """The diagnostic read shares the reader, and the same hazard."""
+    control._read_class10_object = AsyncMock(return_value=record(name=2))
+
+    limiters = await control.read_limiters()
+
+    assert "MaxFlow" not in limiters
+    assert "MinFlow" in limiters
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw", ["7fffffff", "7f800000", "ff800000"])
+async def test_a_cap_that_is_not_a_number_is_not_a_template(
+    control, raw: str
+) -> None:
+    """
+    NaN and infinity decode as floats. A NaN readback would compare
+    unequal to everything and settle as a clamp; a write keeping the
+    stored cap would echo it.
+    """
+    stored = b"\x00\x00\x12" + b"\x01\x01" + bytes.fromhex(raw) + PID
+    control._read_class10_object = AsyncMock(return_value=stored)
+
+    assert await control.read_limiter_config("MaxFlow") is None
+    assert not await control.write_limiter_config("MaxFlow", True, None)
+    control._send_with_retry.assert_not_awaited()
