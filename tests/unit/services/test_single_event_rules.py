@@ -242,3 +242,92 @@ class TestTheSlotCountIsBounded:
         service._read_class10_object = AsyncMock(return_value=None)  # type: ignore[method-assign]
 
         assert await service.slot_count() is None
+
+
+class TestClearVacation:
+    """
+    Every vacation covering now is cleared, not the first.
+
+    Two can overlap, and clearing one leaves the pump held off by the
+    other while the call reports success. See esphome-alpha-hwr#290.
+    """
+
+    @staticmethod
+    def _stop(slot: int, begin: datetime, end: datetime) -> se.SingleEvent:
+        return se.SingleEvent(
+            slot=slot, enabled=True, action=ACTION_STOP, begin=begin, end=end
+        )
+
+    @pytest.mark.asyncio
+    async def test_two_overlapping_live_vacations_are_both_cleared(
+        self, service: SingleEventService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        now = datetime(2026, 9, 1, 12)
+        monkeypatch.setattr(pump_time, "now", lambda: now)
+        service.read_all = AsyncMock(  # type: ignore[method-assign]
+            return_value=[
+                self._stop(0, now - timedelta(days=2), now + timedelta(days=1)),
+                self._stop(
+                    3, now - timedelta(hours=1), now + timedelta(days=5)
+                ),
+            ]
+        )
+        service.clear = AsyncMock(return_value=True)  # type: ignore[method-assign]
+
+        assert await service.clear_vacation()
+        assert [c.args[0] for c in service.clear.await_args_list] == [0, 3]
+
+    @pytest.mark.asyncio
+    async def test_a_future_booking_survives_clearing_a_live_one(
+        self, service: SingleEventService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        now = datetime(2026, 9, 1, 12)
+        monkeypatch.setattr(pump_time, "now", lambda: now)
+        service.read_all = AsyncMock(  # type: ignore[method-assign]
+            return_value=[
+                self._stop(1, now - timedelta(days=1), now + timedelta(days=1)),
+                self._stop(
+                    2, now + timedelta(days=10), now + timedelta(days=12)
+                ),
+            ]
+        )
+        service.clear = AsyncMock(return_value=True)  # type: ignore[method-assign]
+
+        assert await service.clear_vacation()
+        assert [c.args[0] for c in service.clear.await_args_list] == [1]
+
+    @pytest.mark.asyncio
+    async def test_an_ended_vacation_does_not_shadow_a_live_one(
+        self, service: SingleEventService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        now = datetime(2026, 9, 1, 12)
+        monkeypatch.setattr(pump_time, "now", lambda: now)
+        service.read_all = AsyncMock(  # type: ignore[method-assign]
+            return_value=[
+                self._stop(0, now - timedelta(days=9), now - timedelta(days=7)),
+                self._stop(4, now - timedelta(days=1), now + timedelta(days=1)),
+            ]
+        )
+        service.clear = AsyncMock(return_value=True)  # type: ignore[method-assign]
+
+        assert await service.clear_vacation()
+        assert [c.args[0] for c in service.clear.await_args_list] == [4]
+
+    @pytest.mark.asyncio
+    async def test_a_failure_part_way_stops_and_reports_failure(
+        self, service: SingleEventService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The pump is still held off at that point, so this is not success."""
+        now = datetime(2026, 9, 1, 12)
+        monkeypatch.setattr(pump_time, "now", lambda: now)
+        service.read_all = AsyncMock(  # type: ignore[method-assign]
+            return_value=[
+                self._stop(0, now - timedelta(days=1), now + timedelta(days=1)),
+                self._stop(1, now - timedelta(days=1), now + timedelta(days=2)),
+                self._stop(2, now - timedelta(days=1), now + timedelta(days=3)),
+            ]
+        )
+        service.clear = AsyncMock(side_effect=[True, False, True])  # type: ignore[method-assign]
+
+        assert not await service.clear_vacation()
+        assert [c.args[0] for c in service.clear.await_args_list] == [0, 1]

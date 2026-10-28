@@ -42,6 +42,36 @@ def require_service[T](service: T | None, name: str) -> T:
     return service
 
 
+def resolve_address(device: str | None = None) -> str:
+    """
+    Resolve the pump address for a CLI command.
+
+    Priority: explicit device > config manager default > env var.
+
+    Args:
+        device: Optional device address override
+
+    Returns:
+        The resolved device address
+
+    Raises:
+        SystemExit: If no address is configured anywhere
+    """
+    settings = get_settings()
+    address = (
+        device or ConfigManager.get_default_device() or settings.device_address
+    )
+
+    if not address:
+        console.print("[red]Error:[/red] No device address configured.")
+        console.print(
+            "Use 'alpha-hwr device scan' to find devices, then save with 'alpha-hwr device set <mac>'"
+        )
+        sys.exit(1)
+
+    return address
+
+
 @asynccontextmanager
 async def get_client(
     device: str | None = None,
@@ -59,19 +89,7 @@ async def get_client(
         >>> async with get_client() as client:  # doctest: +SKIP
         ...     data = await client.telemetry.read_once()
     """
-    settings = get_settings()
-    # Priority: explicit device > config manager > env var
-    address = (
-        device or ConfigManager.get_default_device() or settings.device_address
-    )
-
-    if not address:
-        console.print("[red]Error:[/red] No device address configured.")
-        console.print(
-            "Use 'alpha-hwr device scan' to find devices, then save with 'alpha-hwr device set <mac>'"
-        )
-        sys.exit(1)
-
+    address = resolve_address(device)
     client = AlphaHWRClient(address)
 
     try:

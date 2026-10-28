@@ -10,7 +10,7 @@ Use this checklist to track your implementation progress. Features are organized
 - [ ] Get the GENI characteristic (`859cffd1-036e-432a-aa28-1a0085b87ba9`) — there is only one, for both directions
 - [ ] Subscribe to notifications on it
 - [ ] Send packets on it, split into 20-byte chunks
-- [ ] Bond/pair — an unbonded idle connection is dropped at ~1.8 s
+- [ ] Bond/pair — a never-bonded host gets no link; a stale bond is dropped at ~1.8 s
 - [ ] Disconnect gracefully
 
 ### Opening reads (optional — skip if writing a new client)

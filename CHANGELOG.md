@@ -5,6 +5,13 @@
 
 ### Fixed
 
+- **`clear_vacation()` clears every vacation covering now.** It cleared
+  the first live one, so with two overlapping the pump stayed held off by
+  the other while the call reported success. They are cleared in slot
+  order and the first failure stops the walk and returns False, since the
+  pump is still held off at that point. Creation is unchanged. Synced from
+  esphome-alpha-hwr#290.
+
 - **The APDU head is a length, not an opcode.** Byte 5 of a GENI frame is
   `0booLLLLLL`: an operation (GET/SET/INFO) or an acknowledgement in the
   top two bits, and the payload's byte count in the low six. There is no
@@ -252,6 +259,35 @@
   the setpoint range reveals it — so a setpoint can settle accepted, read
   back correct, and still not be delivered.
 
+- **`set_flow_limiter()` and `alpha-hwr control set-limiter`**, backed by
+  `write_limiter_config()`. For constant curve, constant pressure and
+  temperature control the limiter *is* the flow control: those modes
+  regulate speed or head and let flow follow the loop's hydraulics. Type
+  895 is one struct, so setting the cap rewrites all eighteen bytes; the
+  pump's PID terms and name byte are echoed from a fresh read, and the
+  write is refused without one rather than zeroing them. A cap past the
+  factory bounds is clamped by the pump, not refused, and settles
+  `clamped` with what it kept. Bench-verified through the ESPHome port
+  (esphome-alpha-hwr#299): 1.6 gpm was taken, 25 gpm was stored as 11.00,
+  MaxFlow's factory ceiling.
+
+- **`alpha-hwr device pair`, backed by `AlphaHWRClient.bond()`.** With
+  the pump in pairing mode, this answers the pairing it starts, on Linux
+  and Windows; macOS has no programmatic pairing, and `bond()` raises
+  `ConnectionError` saying so. There is deliberately no unpair: removing
+  the host's bond leaves the pump holding its half, and it refuses the
+  host until it is re-paired at the unit.
+
+- **`core/pairing_agent.py`.** On Linux, `bleak`'s `pair()` calls BlueZ's
+  `Device1.Pair()` without registering an `org.bluez.Agent1`, and BlueZ
+  refuses every pairing — "Just Works" included — with
+  `org.bluez.Error.AuthenticationFailed` when no agent is registered.
+  `bluetoothctl` registers one on startup, which is why pairing there
+  worked and pairing from this client did not. `bond()` registers a
+  NoInputNoOutput agent as the default before the link opens, because
+  the pump's security request arrives on connect, and treats BlueZ's
+  `AlreadyExists` - that request having completed the bond - as success.
+
 ### Removed
 
 - **The authentication handshake.** Ten packets went out on every
@@ -269,9 +305,7 @@
   They wrote Object 86 Sub 39 — the constant-flow *setpoint range*, not a
   limiter — through the refused frame above. The real limiters are at
   Object 86 Sub 600 (MaxFlow) and Sub 601 (MinFlow); `read_limiters()`
-  reads them. The write is not reimplemented, because enabling a limiter
-  silently caps the pump and that is not a change to make as a side effect
-  of a protocol sync.
+  reads them, and `set_flow_limiter()` (above) writes them.
 
 ### Tests
 
@@ -299,6 +333,24 @@
   Class 7 header, the response type table, the setpoint ranges, the
   second Class 10 acknowledgement, the limiter survey, the post-SET quiet
   period, and how long an Object 91 write takes to become visible.
+
+- **Pairing is required, not recommended.** The docs said the pump
+  "usually" needed pairing and that some commands might work without it.
+  Measured through the ESPHome port (esphome-alpha-hwr#244): a host the
+  pump has never bonded with gets no connection at all, failing with
+  `0x3e` within 300 ms, and one it holds a stale bond for is dropped about
+  2 s in. Neither ever carries a GENI frame. `docs/protocol/connection.md`
+  now says so, that the pump starts the pairing from its own pairing mode,
+  how to put it there, and that removing the host's bond strands it until
+  it is re-paired at the unit. The "~1.8 s unbonded drop" statements
+  elsewhere now say which case they describe.
+
+- `docs/protocol/schedules.md` no longer lists unlocking "via the
+  Connection Handshake" as a requirement; there is no handshake.
+
+- `device pair` is documented in the CLI guide, the pairing section of the
+  connection notes, installation, quick start, and the service-discovery
+  troubleshooting guide.
 
 
 ## [0.7.0] - 2026-08-05

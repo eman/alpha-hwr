@@ -288,6 +288,8 @@ stored, which is not always what you asked for:
 - `set_enabled(on)` — run state
 - `set_temperature_range(min_c, max_c, autoadapt=None)` — mode 27
 - `set_cycle_times(on_min, off_min)` — mode 25
+- `set_flow_limiter(limiter, enabled, limit_m3h=None)` — MaxFlow or MinFlow,
+  Object 86 Sub 600/601. A cap past the factory bounds settles `clamped`
 
 **Primitive setters** — return `bool`, do not read back. `True` means the
 frame was accepted, not that your value is in the pump:
@@ -299,6 +301,8 @@ frame was accepted, not that your value is in the pump:
 - `set_temperature_range_control(min_c, max_c, autoadapt=True)` — mode 27
 - `set_cycle_time_control(on_min, off_min)` — mode 25
 - `read_limiters()` — Object 86 Sub 600 (MaxFlow) and Sub 601 (MinFlow)
+- `write_limiter_config(limiter, enabled, limit_m3h=None)` — read-modify-write
+  of the whole type 895 record, echoing the pump's PID terms
 
 **Deprecated Methods (for heating systems, not ALPHA HWR):**
 - `set_temperature_control(on_temp, off_temp, heating_type)` - Uses modes 13/14/15 (not for DHW)
@@ -322,6 +326,7 @@ alpha-hwr control set-flow <m3h>
 alpha-hwr control set-temperature --min <temp_c> --max <temp_c> [--autoadapt/--no-autoadapt]
 alpha-hwr control set-cycle-time --on <minutes> --off <minutes>
 alpha-hwr control limiters
+alpha-hwr control set-limiter <MaxFlow|MinFlow> --enable|--disable [--limit-gpm <gpm> | --limit-m3h <m3h>]
 alpha-hwr control get-cycle-time
 ```
 

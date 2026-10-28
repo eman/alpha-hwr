@@ -151,15 +151,17 @@ async def connect_to_pump(address):
 
 ### 2.2 Bonding
 
-**The pump drops an unbonded connection after about 1.8 seconds** — reliably,
-to within a few tens of milliseconds, and whether or not you are sending
-anything. This is not a client bug, a keepalive problem or a pacing problem,
-and no amount of traffic prevents it.
+**The pump only talks over a bonded link.** A host it holds a stale bond for
+is dropped after about 1.8 seconds — reliably, to within a few tens of
+milliseconds, and whether or not you are sending anything. A host it has never
+bonded with gets no connection at all: the request fails with `0x3e` within
+300 ms. Neither is a client bug, a keepalive problem or a pacing problem, and
+no amount of traffic prevents it.
 
-Pair/bond with the device once at the OS level and the connection stays up.
-On Linux this is `bluetoothctl pair`; on macOS it happens through the system
-Bluetooth pane. If your session dies at the same moment every time, this is
-the cause.
+Pair once, with the pump in pairing mode, and the connection stays up. The
+pump starts the pairing; see [Pairing](../connection.md#pairing). If your
+session dies at the same moment every time, or never opens, this is the
+cause.
 
 **Test Milestone**:
 - [x] Successfully connects to pump

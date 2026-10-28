@@ -83,7 +83,7 @@ for e in events:
 | `write(slot, begin, end, action=...)` | Write one |
 | `clear(slot)` | Clear one |
 | `set_vacation(begin, end)` | Hold the pump off across a range |
-| `clear_vacation()` | Clear the first enabled hold |
+| `clear_vacation()` | Clear every hold covering now, or else the next one due |
 
 ### Slot capacity comes from the pump
 
