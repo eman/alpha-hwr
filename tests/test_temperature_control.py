@@ -65,7 +65,7 @@ async def test_read_limiters_reports_both_and_whether_either_is_limiting(
     mock_client_simple, answering_transport
 ):
     """
-    The limiters are read, not written.
+    The limiters live at 86/600-601, not at Sub 39.
 
     set_flow_limit() used to write Object 86 Sub 39 - which is the
     constant-flow *setpoint range*, a type 301 factory object, not a

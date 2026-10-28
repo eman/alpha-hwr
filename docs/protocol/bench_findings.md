@@ -310,6 +310,23 @@ does not account for a limiter that is enabled. On this unit neither is, so
 a setpoint here is delivered as written. On a unit with MaxFlow enabled it
 would not be, and nothing in the type-301 range would say so.
 
+### Writing one (ESPHome issue #299)
+
+The user config is writable as one struct: `[0A][9B][56][02 58|59][03 7F][01]
+[00 00 12]` and the eighteen bytes above. Setting the cap rewrites all of them,
+so the PID terms (`3f19999a 3fcccccd 3ecccccd` here) have to be echoed from a
+fresh read; this client refuses to write without one. Measured through the
+ESPHome port on its bench unit:
+
+    MaxFlow enabled, 1.6 gpm    accepted in 2.1 s
+    MaxFlow enabled, 25 gpm     clamped: the pump holds 11.00 gpm
+
+11.00 gpm is `3a35ed8d` m³/s, MaxFlow's factory ceiling at 86/620 above. The
+pump clamps to its factory bounds rather than refusing, so the verified write
+settles `clamped` and reports what it kept. The caps are round in gpm and the
+m³/s round trip is exact on every one seen, so the readback is compared to
+0.01 gpm.
+
 ## Class 10 SETs *are* acknowledged, in 90-120 ms
 
 Measured through this client against an ALPHA HWR, capturing every inbound

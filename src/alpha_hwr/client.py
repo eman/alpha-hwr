@@ -57,6 +57,7 @@ from bleak import BleakClient, BleakScanner
 from .config import get_settings
 from .constants import GENI_SERVICE_UUID
 from .core.authentication import AuthenticationHandler
+from .core.pairing_agent import bluez_pairing_agent
 from .core.session import Session, SessionState
 from .core.transport import Transport
 from .exceptions import READ_ERRORS, ConnectionError
@@ -450,6 +451,81 @@ class AlphaHWRClient:
         logger.info("Disconnecting from pump...")
         await self._cleanup()
         logger.info("Disconnected")
+
+    async def bond(self, timeout: float = 60.0) -> None:
+        """
+        Pair (bond) with the pump at the BLE link layer.
+
+        The pump has to be in pairing mode first - see
+        ``docs/protocol/connection.md``. A host it has never bonded with
+        gets no connection at all otherwise, and the request fails within a
+        few hundred milliseconds. GENI has no authentication handshake, so
+        this bond is the only trust the link carries.
+
+        The pump starts the pairing: in pairing mode it sends a security
+        request as soon as the link opens. On Linux, BlueZ answers that
+        only if a pairing agent is registered, so the agent goes up before
+        the connection does, and ``connect()`` is called here if the client
+        is not already connected. ``BleakClient.pair()`` then either
+        completes the bond or, if the pump's own pairing got there first,
+        reports that it already exists - which is success.
+
+        There is deliberately no ``unbond()``. Removing the host's bond
+        leaves the pump holding its half, and it then refuses the host
+        until it is re-paired at the unit.
+
+        Args:
+            timeout: Connection timeout in seconds, if this connects.
+
+        Raises:
+            ConnectionError: If no address is set, the pump cannot be
+                reached, the pairing fails, or the platform has no
+                programmatic pairing
+                (macOS, where the OS prompts on first encrypted access).
+
+        Example:
+            >>> client = AlphaHWRClient(address, auto_authenticate=False)  # doctest: +SKIP
+            >>> await client.bond()  # doctest: +SKIP
+        """
+        # The agent is the host's default while it is up, so it is told
+        # which device to accept; without an address it would accept any.
+        if not self.address:
+            raise ConnectionError(
+                "bond() needs the pump's address; discover it first"
+            )
+        # Setting up the agent can fail too - BlueZ refusing RegisterAgent
+        # or RequestDefaultAgent - and that is a pairing failure like any
+        # other, so it surfaces as the ConnectionError documented above.
+        try:
+            async with bluez_pairing_agent(self.address):
+                if not self.is_connected:
+                    await self.connect(timeout=timeout)
+                if self._bleak_client is None:
+                    raise ConnectionError("Not connected")
+
+                try:
+                    logger.info("Requesting BLE pairing/bonding...")
+                    await self._bleak_client.pair()
+                except NotImplementedError as e:
+                    raise ConnectionError(
+                        "Programmatic pairing is not supported on this platform "
+                        "(e.g. macOS). Accept the OS pairing prompt instead, or "
+                        "pair using the system Bluetooth settings."
+                    ) from e
+                except Exception as e:
+                    # BlueZ's answer when the pump's security request already
+                    # completed the bond on connect.
+                    if "AlreadyExists" in str(e):
+                        logger.info("BLE bond already in place")
+                        return
+                    logger.error(f"BLE pairing failed: {e}")
+                    raise ConnectionError(f"BLE pairing failed: {e}") from e
+                logger.info("BLE pairing/bonding successful")
+        except ConnectionError:
+            raise
+        except Exception as e:
+            logger.error(f"BLE pairing setup failed: {e}")
+            raise ConnectionError(f"BLE pairing failed: {e}") from e
 
     async def authenticate(self, fast_mode: bool = False) -> bool:
         """

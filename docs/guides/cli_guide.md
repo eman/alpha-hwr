@@ -316,12 +316,23 @@ alpha-hwr control set-proportional 1.2
 
 #### Flow Limitation
 
-Set a global maximum flow limit to prevent corrosion:
+Cap the flow to prevent corrosion and noise. In constant curve, constant
+pressure and temperature control the limiter *is* the flow control, since
+those modes regulate speed or head and let flow follow the loop:
 
 ```bash
-# Set 1.5 GPM limit (recommended for 1/2" pipe)
+# Show both limiters and whether either is limiting
 alpha-hwr control limiters
+
+# Cap at 1.5 GPM (recommended for 1/2" pipe)
+alpha-hwr control set-limiter MaxFlow --enable --limit-gpm 1.5
+
+# Turn it off again, keeping the stored cap
+alpha-hwr control set-limiter MaxFlow --disable
 ```
+
+A cap outside the pump's factory bounds is clamped, and the command says what
+the pump kept.
 
 ---
 
@@ -338,6 +349,29 @@ alpha-hwr device scan
 # Custom timeout
 alpha-hwr device scan --timeout 5.0
 ```
+
+### Pair with a Pump
+
+The pump has to be paired with the host before anything else works: a host
+it has never bonded with gets no connection at all. Put the pump into
+pairing mode first — unlock its front panel from the Grundfos GO app,
+disconnect the app, and press the pairing button (see
+[Pairing](../protocol/connection.md#pairing)) — then run:
+
+```bash
+alpha-hwr device pair
+alpha-hwr device pair --device AA:BB:CC:DD:EE:FF
+```
+
+The pump starts the pairing and this answers it. On Linux it registers the
+pairing agent BlueZ needs before opening the link.
+
+There is no `unpair`. Removing the host's bond leaves the pump holding its
+half, and it refuses the host until it is re-paired at the unit.
+
+**Note**: Programmatic pairing is not supported on macOS. There, accept the
+system Bluetooth pairing prompt shown the first time an encrypted
+characteristic is read (for example, when running `alpha-hwr device info`).
 
 ### Basic Information
 
@@ -588,7 +622,9 @@ done
 
 1. **Restart pump:** Power cycle the pump
 2. **Reset BLE:** Restart Bluetooth adapter
-3. **Clear pairing:** Re-pair the device
+3. **Re-pair at the pump:** put it into pairing mode and run
+   `alpha-hwr device pair`. Do not remove the host's bond first unless you
+   are at the pump: it keeps its half and refuses the host until re-paired
 
 ### Command Not Found
 
@@ -730,6 +766,7 @@ alpha-hwr monitor live
 | `control set-flow` | Set constant flow mode (Mode 8) |
 | `control set-proportional` | Set proportional pressure mode (Mode 1) |
 | `control limiters` | Show the MaxFlow and MinFlow limiters |
+| `control set-limiter` | Enable or disable a flow limiter, and set its cap |
 | `control set-mode <mode> <setpoint>` | Set control mode and setpoint together |
 
 ### Device Commands
@@ -737,6 +774,7 @@ alpha-hwr monitor live
 | Command | Description |
 |---------|-------------|
 | `device scan` | Scan for nearby pumps |
+| `device pair` | Pair (bond) with the pump; it must be in pairing mode |
 | `device info` | Show device information |
 | `device stats` | Show operating statistics |
 | `device alarms` | Show active alarms |

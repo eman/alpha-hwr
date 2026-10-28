@@ -839,6 +839,7 @@ class WriteCommand(StrEnum):
     SET_TEMPERATURE_RANGE = "set_temperature_range"
     SET_CYCLE_TIMES = "set_cycle_times"
     SET_SCHEDULE_ENABLED = "set_schedule_enabled"
+    SET_FLOW_LIMITER = "set_flow_limiter"
     SET_PUMP_STATE = "set_pump_state"
     """Coupled run-state and schedule change; composed of the two above."""
 
@@ -909,6 +910,9 @@ class WriteResult:
     off_minutes: int | None = None
     flow: float | None = None
     schedule_enabled: bool | None = None
+    limiter: str | None = None
+    limiter_enabled: bool | None = None
+    limit_m3h: float | None = None
 
     # What was asked for.
     requested_mode: ControlMode | int | None = None
@@ -920,6 +924,9 @@ class WriteResult:
     requested_on_minutes: int | None = None
     requested_off_minutes: int | None = None
     requested_schedule_enabled: bool | None = None
+    requested_limiter: str | None = None
+    requested_limiter_enabled: bool | None = None
+    requested_limit_m3h: float | None = None
 
     @property
     def ok(self) -> bool:

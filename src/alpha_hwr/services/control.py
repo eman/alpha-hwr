@@ -1260,7 +1260,7 @@ class ControlService(BaseService):
             entry: dict[str, float | bool] = {}
 
             user = await self._read_limiter_struct(
-                self.SUB_LIMITER_USER_CONFIG + offset, minimum=6
+                self.SUB_LIMITER_USER_CONFIG + offset, minimum=6, name=index
             )
             if user is not None:
                 entry["enabled"] = bool(user[1])
@@ -1269,7 +1269,7 @@ class ControlService(BaseService):
                     entry["limit_m3h"] = limit * 3600.0
 
             factory = await self._read_limiter_struct(
-                self.SUB_LIMITER_FACTORY_CONFIG + offset, minimum=9
+                self.SUB_LIMITER_FACTORY_CONFIG + offset, minimum=9, name=index
             )
             if factory is not None:
                 low = decode_float_be(factory, 1)
@@ -1279,7 +1279,7 @@ class ControlService(BaseService):
                     entry["factory_max_m3h"] = high * 3600.0
 
             status = await self._read_limiter_struct(
-                self.SUB_LIMITER_STATUS + offset, minimum=6
+                self.SUB_LIMITER_STATUS + offset, minimum=6, name=index
             )
             if status is not None:
                 entry["limiting"] = bool(status[1])
@@ -1290,16 +1290,153 @@ class ControlService(BaseService):
         return out
 
     async def _read_limiter_struct(
-        self, sub_id: int, minimum: int
+        self, sub_id: int, minimum: int, name: int
     ) -> bytes | None:
-        """Read one limiter object, past its three-byte size header."""
+        """
+        Read one limiter object, past its three-byte size header.
+
+        None unless the record names the limiter asked for. MaxFlow and
+        MinFlow answer with one type code, so the matcher cannot tell them
+        apart: a late MaxFlow reply can answer a MinFlow read. Every record
+        in the family starts with the limiter's name byte, which can - and
+        the write echoes what is read, so it must.
+        """
         data = await self._read_class10_object(self.PUMP_OBJ, sub_id)
         if not data:
             return None
         body = data
         if len(body) >= 3 and body[0] == 0 and body[1] == 0:
             body = body[3:]
-        return body if len(body) >= minimum else None
+        if len(body) < minimum:
+            return None
+        if body[0] != name:
+            logger.warning(
+                f"Limiter read of Sub {sub_id} answered for limiter "
+                f"{body[0]}, not {name}; discarding it"
+            )
+            return None
+        return body
+
+    #: ``limiter_user_config`` is ``[name][enable][limit f32 m3/s][kp][ti]
+    #: [td]``: eighteen bytes, the last twelve the limiter loop's PID terms.
+    LIMITER_CONFIG_LEN = 18
+    LIMITER_PID_OFFSET = 6
+
+    def _limiter_index(self, limiter: str) -> int:
+        """1 for MaxFlow, 2 for MinFlow; ValueError for anything else."""
+        for index, name in self.LIMITER_NAMES.items():
+            if name.lower() == limiter.lower():
+                return index
+        raise ValueError(
+            f"{limiter!r} is not a flow limiter "
+            f"({' or '.join(self.LIMITER_NAMES.values())})"
+        )
+
+    async def read_limiter_config(
+        self, limiter: str
+    ) -> tuple[bool, float, bytes] | None:
+        """
+        Read one limiter's user configuration.
+
+        Returns ``(enabled, limit_m3h, record)``, where ``record`` is the
+        eighteen raw bytes a write has to echo. None if it cannot be read,
+        is short, names the other limiter, or holds a cap that is not a
+        finite number.
+        """
+        index = self._limiter_index(limiter)
+        record = await self._read_limiter_struct(
+            self.SUB_LIMITER_USER_CONFIG + index - 1,
+            minimum=self.LIMITER_CONFIG_LEN,
+            name=index,
+        )
+        if record is None:
+            return None
+        limit = decode_float_be(record, 2)
+        # decode_float_be() unpacks NaN and infinity as floats. Neither is
+        # a cap: a NaN compares unequal to everything, so a readback would
+        # settle as a clamp it cannot be, and a write keeping the stored
+        # cap would echo it.
+        if limit is None or not math.isfinite(limit):
+            return None
+        record = bytes(record[: self.LIMITER_CONFIG_LEN])
+        return bool(record[1]), limit * self.SECONDS_PER_HOUR, record
+
+    async def write_limiter_config(
+        self, limiter: str, enabled: bool, limit_m3h: float | None = None
+    ) -> bool:
+        """
+        Write one limiter's enable flag and cap, preserving the rest.
+
+        Type 895 is one struct, so setting the cap rewrites all eighteen
+        bytes - and twelve of them are the PID terms of the pump's limiter
+        loop. They are echoed verbatim from a fresh read, and with nothing
+        to echo the write is refused: zeroing them would re-tune the loop
+        invisibly, a far bigger change than the one asked for. The name
+        byte is echoed too rather than derived from the sub-id; they agree
+        on this pump, but only the pump's byte is evidence of that.
+
+        ``limit_m3h=None`` keeps the stored cap.
+
+        Not a verified write: the pump clamps a cap outside its factory
+        bounds rather than refusing it (MaxFlow 0.5-11.0 gpm on the bench
+        unit), so prefer :meth:`set_flow_limiter`, which reports what it
+        stored. Bench-verified through esphome-alpha-hwr#299: 1.6 gpm was
+        taken, 25 gpm was stored as 11.00.
+
+        Returns:
+            True if the write was sent, False if the record could not be
+            read or the send failed.
+        """
+        self.session.ensure_authenticated()
+        index = self._limiter_index(limiter)
+
+        stored = await self.read_limiter_config(limiter)
+        if stored is None:
+            logger.error(
+                f"Could not read the {limiter} limiter; aborting rather "
+                f"than overwriting its PID terms"
+            )
+            return False
+        _, stored_m3h, record = stored
+        cap_m3h = stored_m3h if limit_m3h is None else limit_m3h
+        # The verified write validates the cap; this is public too, and a
+        # NaN or infinity is not a cap the read side would accept back.
+        if not math.isfinite(cap_m3h):
+            logger.error(f"{cap_m3h} m3/h is not a cap; not writing it")
+            return False
+
+        sub_id = self.SUB_LIMITER_USER_CONFIG + index - 1
+        # [0A][9B][56][02 58|59][03 7F][01][00 00 12][18-byte record]
+        # 0x9B is SET with 27 payload bytes: object, sub-id, type, version,
+        # size, and the record.
+        apdu = bytearray(
+            [
+                0x0A,  # Class 10
+                0x9B,  # OpSpec: SET + 27 bytes
+                self.PUMP_OBJ,  # Obj-ID (86)
+                (sub_id >> 8) & 0xFF,
+                sub_id & 0xFF,
+                0x03,
+                0x7F,  # Type 895 (limiter_user_config)
+                0x01,  # Object version
+                0x00,
+                0x00,
+                self.LIMITER_CONFIG_LEN,  # Size (18 bytes)
+            ]
+        )
+        apdu.append(record[0])  # limiter name, as the pump has it
+        apdu.append(0x01 if enabled else 0x00)
+        apdu.extend(encode_float_be(cap_m3h / self.SECONDS_PER_HOUR))
+        apdu.extend(record[self.LIMITER_PID_OFFSET : self.LIMITER_CONFIG_LEN])
+
+        logger.info(
+            f"Writing {limiter} limiter: "
+            f"{'enabled' if enabled else 'disabled'} at {cap_m3h:.4f} m3/h"
+        )
+        # No configuration commit, as for the cycle configuration: the
+        # commit writes the schedule overview, unrelated to this object.
+        req = self._build_geni_packet(0xF8, 0xE7, bytes(apdu))
+        return await self._send_with_retry(req, f"Set {limiter} limiter")
 
     #: Object 91 Sub 421, ``dhw_on_off_control_configuration_obj``. Holds
     #: the live cycle configuration: ``[flow setpoint f32 (m3/s)][on][off]``.
@@ -1771,6 +1908,33 @@ class ControlService(BaseService):
             "cycle_times",
             on_minutes=on_minutes,
             off_minutes=off_minutes,
+        )
+
+    async def set_flow_limiter(
+        self,
+        limiter: str,
+        enabled: bool,
+        limit_m3h: float | None = None,
+    ) -> WriteResult:
+        """
+        Enable or disable a flow limiter, and set its cap.
+
+        For three of the pump's five modes the limiter *is* the flow
+        control: constant curve and constant pressure regulate speed and
+        head, so flow drifts with the loop's hydraulics, and temperature
+        control deliberately runs up its maximum curve until it reaches
+        the flow limit.
+
+        ``limiter`` is ``"MaxFlow"`` or ``"MinFlow"``; ``limit_m3h=None``
+        keeps the stored cap. A cap outside the pump's factory bounds is
+        clamped, not refused, and settles ``clamped`` with what it kept.
+        """
+        return await self._require_writes().submit(
+            WriteCommand.SET_FLOW_LIMITER,
+            f"limiter:{limiter.lower()}",
+            limiter=limiter,
+            limiter_enabled=enabled,
+            limit_m3h=limit_m3h,
         )
 
     # ------------------------------------------------------------------

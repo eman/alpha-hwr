@@ -187,22 +187,27 @@ void gatt_discover_complete_callback() {
 1. Try factory reset of pump
 2. Verify pump is ALPHA HWR model (Family 52, Type 7)
 3. Check pump firmware version (see Class 7 ID 50 after auth)
-4. Force re-pair: delete bonding data, reconnect
+4. Re-pair at the pump (see [Pairing](../protocol/connection.md#pairing));
+   deleting the host's bonding data alone strands it
 
-### Issue 1b: Telemetry Works Only After Manual Pairing
+### Issue 1b: The Pump Will Not Connect, or Drops the Link at ~2 s
 
 **Symptoms:**
-- Authentication appears to succeed, but telemetry is empty or unreliable
-- The first successful read happens only after pairing from the OS prompt or
-  the Grundfos app
+- The connection fails within a few hundred milliseconds
+  (`Connection Failed to be Established`, HCI `0x3e`), or
+- It opens and is dropped about 2 s later, before any reply arrives
 
 **Cause:**
-- The pump has not been bonded with the host yet
+- The pump has never bonded with this host (the first), or holds a bond the
+  host has since lost (the second). Neither ever carries a GENI frame.
 
 **Solution:**
-1. Pair the pump on the host before testing the library
+1. Put the pump into pairing mode at the unit and pair it, as described in
+   [Pairing](../protocol/connection.md#pairing) — `alpha-hwr device pair` on
+   Linux and Windows
 2. Accept any Bluetooth pairing prompt shown by the operating system
-3. If needed, remove the old bond and pair again
+3. Do not remove the host's bond to "start fresh" unless you are at the pump:
+   the pump keeps its half, and will refuse the host until it is re-paired there
 
 ### Issue 2: Multiple Pumps Nearby
 

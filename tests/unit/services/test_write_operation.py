@@ -649,3 +649,155 @@ async def test_a_value_that_is_not_a_number_is_still_refused(
 
     assert result.status is WriteStatus.INVALID
     control.set_constant_speed.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Flow limiters (esphome-alpha-hwr#299)
+# ---------------------------------------------------------------------------
+
+GPM = wo.FACTOR_M3H_TO_GPM
+
+
+def _limiter_control(control: MagicMock, *readings: tuple[bool, float]) -> None:
+    """Each read of the record returns the next ``(enabled, gpm)``."""
+    control._limiter_index = MagicMock(return_value=1)
+    control.write_limiter_config = AsyncMock(return_value=True)
+    control.read_limiter_config = AsyncMock(
+        side_effect=[(e, gpm * GPM, b"\x01" * 18) for e, gpm in readings]
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_limiter_cap_the_pump_stores_is_accepted(
+    writes: WriteOperationService, control: MagicMock
+) -> None:
+    _limiter_control(control, (False, 1.5), (True, 1.6))
+
+    result = await writes.submit(
+        WriteCommand.SET_FLOW_LIMITER,
+        "limiter:maxflow",
+        limiter="MaxFlow",
+        limiter_enabled=True,
+        limit_m3h=1.6 * GPM,
+    )
+
+    assert result.status is WriteStatus.ACCEPTED
+    assert result.limiter == "MaxFlow"
+    assert result.limiter_enabled is True
+    assert result.requested_limit_m3h == pytest.approx(1.6 * GPM)
+
+
+@pytest.mark.asyncio
+async def test_a_cap_past_the_factory_bound_settles_clamped(
+    writes: WriteOperationService, control: MagicMock
+) -> None:
+    """Bench: 25 gpm was stored as 11.00, MaxFlow's factory ceiling."""
+    _limiter_control(control, (False, 1.5), (True, 11.0))
+
+    result = await writes.submit(
+        WriteCommand.SET_FLOW_LIMITER,
+        "limiter:maxflow",
+        limiter="MaxFlow",
+        limiter_enabled=True,
+        limit_m3h=25.0 * GPM,
+    )
+
+    assert result.status is WriteStatus.CLAMPED
+    assert result.limit_m3h == pytest.approx(11.0 * GPM)
+    assert "pump holds enabled" in result.detail
+
+
+@pytest.mark.asyncio
+async def test_a_limiter_that_kept_its_old_record_is_rejected(
+    writes: WriteOperationService, control: MagicMock
+) -> None:
+    _limiter_control(control, *[(False, 1.5)] * (1 + wo.CONFIRM_ATTEMPTS))
+
+    result = await writes.submit(
+        WriteCommand.SET_FLOW_LIMITER,
+        "limiter:maxflow",
+        limiter="MaxFlow",
+        limiter_enabled=True,
+        limit_m3h=1.6 * GPM,
+    )
+
+    assert result.status is WriteStatus.REJECTED
+    assert result.limiter_enabled is False
+
+
+@pytest.mark.asyncio
+async def test_no_cap_keeps_the_stored_one_and_changes_only_the_flag(
+    writes: WriteOperationService, control: MagicMock
+) -> None:
+    _limiter_control(control, (False, 1.6), (True, 1.6))
+
+    result = await writes.submit(
+        WriteCommand.SET_FLOW_LIMITER,
+        "limiter:maxflow",
+        limiter="MaxFlow",
+        limiter_enabled=True,
+        limit_m3h=None,
+    )
+
+    assert result.status is WriteStatus.ACCEPTED
+    sent = control.write_limiter_config.await_args.args
+    assert sent[2] == pytest.approx(1.6 * GPM)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cap", [0.0, -1.0, float("nan"), 101 * 0.22712470704])
+async def test_an_absurd_cap_never_reaches_the_pump(
+    writes: WriteOperationService, control: MagicMock, cap: float
+) -> None:
+    _limiter_control(control)
+
+    result = await writes.submit(
+        WriteCommand.SET_FLOW_LIMITER,
+        "limiter:maxflow",
+        limiter="MaxFlow",
+        limiter_enabled=True,
+        limit_m3h=cap,
+    )
+
+    assert result.status is WriteStatus.INVALID
+    control.write_limiter_config.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_an_unreadable_record_refuses_before_writing(
+    writes: WriteOperationService, control: MagicMock
+) -> None:
+    _limiter_control(control)
+    control.read_limiter_config = AsyncMock(return_value=None)
+
+    result = await writes.submit(
+        WriteCommand.SET_FLOW_LIMITER,
+        "limiter:maxflow",
+        limiter="MaxFlow",
+        limiter_enabled=True,
+        limit_m3h=1.6 * GPM,
+    )
+
+    assert result.status is WriteStatus.REJECTED
+    control.write_limiter_config.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_maxflow_and_minflow_writes_do_not_supersede_each_other(
+    control: MagicMock,
+) -> None:
+    """They are independent records, so each gets its own resource key."""
+    from alpha_hwr.services.control import ControlService
+
+    control.set_flow_limiter = ControlService.set_flow_limiter.__get__(control)
+    control._require_writes = MagicMock()
+    control._require_writes.return_value.submit = AsyncMock()
+
+    await control.set_flow_limiter("MaxFlow", True, 0.4)
+    await control.set_flow_limiter("MinFlow", True, 0.2)
+
+    keys = [
+        c.args[1]
+        for c in control._require_writes.return_value.submit.await_args_list
+    ]
+    assert keys == ["limiter:maxflow", "limiter:minflow"]

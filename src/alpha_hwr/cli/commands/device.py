@@ -8,13 +8,20 @@ Commands:
   - scan: Scan for nearby pumps
   - set: Save a device address
   - list: List saved devices
+  - pair: Pair (bond) with the pump at the BLE level
 """
 
 import typer
 
 from ...client import AlphaHWRClient
 from ..app import console
-from ..common import get_client, handle_error, require_service, run_async
+from ..common import (
+    get_client,
+    handle_error,
+    require_service,
+    resolve_address,
+    run_async,
+)
 from ..config_manager import ConfigManager
 from ..output.formatters import (
     format_alarm_panel,
@@ -137,6 +144,39 @@ def cmd_set(
         handle_error(e, "Failed to save device")
 
 
+@app.command("pair")
+def cmd_pair(
+    device: str | None = typer.Option(
+        None,
+        "--device",
+        "-d",
+        help="Device address (from config if not specified)",
+    ),
+    timeout: float = typer.Option(
+        30.0, "--timeout", "-t", help="Connection timeout in seconds"
+    ),
+) -> None:
+    """
+    Pair (bond) with the pump at the BLE level.
+
+    Put the pump into pairing mode first: unlock its front panel from the
+    Grundfos GO app, disconnect the app, and press the pairing button. A
+    host the pump has never bonded with gets no connection otherwise. The
+    pump starts the pairing; this answers it.
+
+    There is no unpair. Removing the host's bond leaves the pump holding
+    its half, and it refuses the host until re-paired at the unit.
+
+    Not supported on macOS, where the OS prompts to pair the first time an
+    encrypted characteristic is read.
+
+    Example:
+      alpha-hwr device pair
+      alpha-hwr device pair --device AA:BB:CC:DD:EE:FF
+    """
+    run_async(_device_pair(device, timeout))
+
+
 @app.command("list")
 def cmd_list() -> None:
     """
@@ -176,6 +216,28 @@ def cmd_list() -> None:
 
 
 # Internal async implementations
+
+
+async def _device_pair(device: str | None, timeout: float) -> None:
+    """Internal async implementation of pair command."""
+    address = resolve_address(device)
+    client = AlphaHWRClient(address, auto_authenticate=False)
+
+    try:
+        console.print(
+            "[dim]The pump must be in pairing mode (front panel unlocked "
+            "from the GO app, app disconnected, pairing button pressed).[/dim]"
+        )
+        console.print(f"[dim]Connecting to {address} and pairing...[/dim]")
+        await client.bond(timeout=timeout)
+        console.print("[green]✓[/green] Paired and bonded with pump")
+
+    except Exception as e:  # noqa: BLE001 - top-level CLI error boundary
+        handle_error(e, "Pairing failed")
+
+    finally:
+        if client.is_connected:
+            await client.disconnect()
 
 
 async def _device_scan(timeout: float, save: str | None = None) -> None:
