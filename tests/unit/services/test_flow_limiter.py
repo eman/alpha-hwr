@@ -13,8 +13,10 @@ import struct
 from unittest.mock import AsyncMock
 
 import pytest
+from wire import CAPTURED, class10_reply
 
 from alpha_hwr.constants import FACTOR_M3H_TO_GPM
+from alpha_hwr.protocol.matcher import matches, read_command
 
 #: kp, ti, td as the bench pump holds them, from its 86/600 record (see
 #: docs/protocol/bench_findings.md). Three distinct values, so an echo that
@@ -149,3 +151,50 @@ async def test_the_bench_record_decodes_as_recorded(control) -> None:
     assert enabled is False
     assert m3h / FACTOR_M3H_TO_GPM == pytest.approx(1.50, abs=1e-3)
     assert raw == BENCH_600[3:]
+
+
+# ---------------------------------------------------------------------------
+# Matching: a limiter read takes only a limiter reply
+# ---------------------------------------------------------------------------
+
+#: The bench 86/600 record as the pump would send it: type 895 version 1.
+BENCH_600_REPLY = class10_reply(0x0003, 0x7F01, BENCH_600[3:])
+
+
+@pytest.mark.parametrize("sub", [600, 601])
+def test_a_limiter_reply_answers_a_limiter_read(sub: int) -> None:
+    assert matches(read_command(86, sub), BENCH_600_REPLY)
+
+
+@pytest.mark.parametrize("name", sorted(CAPTURED))
+def test_no_recorded_frame_answers_a_limiter_read(name: str) -> None:
+    """
+    Before 86/600-601 had a type expectation, any Class 10 frame did.
+
+    The recorded motor-state notification passes every length check a
+    limiter read makes, which is the case that mattered.
+    """
+    assert not matches(read_command(86, 600), CAPTURED[name]), name
+
+
+@pytest.mark.asyncio
+async def test_telemetry_arriving_first_is_not_written_back(control) -> None:
+    """
+    The write echoes what the read returned, so the read must not take
+    the first Class 10 frame that turns up.
+
+    Delivers the recorded motor-state frame ahead of the limiter reply and
+    lets the real matcher choose, the way the transport does.
+    """
+    arriving = [CAPTURED["motor_state"], BENCH_600_REPLY]
+
+    async def send_command(_packet, command, timeout=3.0):
+        return next((f for f in arriving if matches(command, f)), None)
+
+    control.transport.send_command = AsyncMock(side_effect=send_command)
+
+    assert await control.write_limiter_config("MaxFlow", True, 0.5)
+
+    body = apdu_of(control._send_with_retry.await_args.args[0])[11:]
+    assert body[0] == 1, "MaxFlow's name byte, not telemetry"
+    assert body[6:] == PID, "the limiter's PID terms, not telemetry"

@@ -73,6 +73,15 @@ MIN_FRAME_LENGTH = 6
 RESPONSE_TYPES: dict[tuple[int, range], tuple[int, int]] = {
     (86, range(5, 11)): (0x0001, 0x2F01),  # operation status request
     (86, range(13, 40)): (0x0001, 0x2D01),  # setpoint limits
+    # Flow limiters, measured through the ESPHome port: `00 03 7F 01` for
+    # the user config (type 895 v1) and `00 03 80 01` for status (896 v1).
+    # Without these a read took any Class 10 frame, and the limiter write
+    # echoes the config it reads - so a motor-state notification arriving
+    # first would have been written back as the limiter's name and PID
+    # terms. The factory config (897) is left loose: no reply header for it
+    # has been recorded, and a wrong expectation rejects the real reply.
+    (86, range(600, 602)): (0x0003, 0x7F01),  # limiter user config
+    (86, range(640, 642)): (0x0003, 0x8001),  # limiter status
     (91, range(421, 422)): (0x0003, 0xD901),  # DHW / cycle-time config
     (91, range(430, 431)): (0x0003, 0xF402),  # temperature range config
     (84, range(1, 2)): (0x0000, 0xDA01),  # schedule overview
