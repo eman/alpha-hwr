@@ -90,6 +90,17 @@ not a procedure verified across models:
 3. Disconnect the GO app, to free the pump's one connection.
 4. Press the pairing button on the front panel and wait about 15 seconds for a
    link. It commonly takes several presses.
+5. Run `alpha-hwr device pair` (Linux and Windows), or let the OS prompt on
+   macOS.
+
+On Linux, `BleakClient.pair()` does not register a pairing agent, and BlueZ
+refuses every pairing without one — "Just Works" included — with
+`org.bluez.Error.AuthenticationFailed`. `bluetoothctl` registers one on
+startup, which is why pairing there works. `device pair` registers a
+temporary NoInputNoOutput agent through
+`alpha_hwr.core.pairing_agent.bluez_pairing_agent()` **before** connecting,
+since the pump's security request arrives as the link opens, and removes it
+afterwards.
 
 #### Do not remove the host's bond remotely
 Removing the bond on the host — `bluetoothctl remove`, clearing the OS's

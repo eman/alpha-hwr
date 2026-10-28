@@ -14,7 +14,8 @@ This guide covers how to install the `alpha-hwr` library and its dependencies.
 **Pairing / Bonding:** Pair the pump with the host before using the library.
 The pump will not connect to a host it has never bonded with, and the pump
 starts the pairing from its own pairing mode — see
-[Pairing](../protocol/connection.md#pairing).
+[Pairing](../protocol/connection.md#pairing). With the pump in pairing mode,
+`alpha-hwr device pair` completes it on Linux and Windows.
 
 ## Installing via pip
 

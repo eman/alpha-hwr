@@ -5,7 +5,8 @@ This guide will help you connect to your Grundfos ALPHA HWR pump and read live t
 Before you start, pair the pump with the laptop or host you plan to use. A
 host the pump has never bonded with gets no connection at all. See
 [Pairing](../protocol/connection.md#pairing) for putting the pump into pairing
-mode.
+mode; then, on Linux and Windows, run `alpha-hwr device pair` (after setting
+the device address, see below).
 
 ## 1. Scan for the Device
 

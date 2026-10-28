@@ -203,7 +203,8 @@ void gatt_discover_complete_callback() {
 
 **Solution:**
 1. Put the pump into pairing mode at the unit and pair it, as described in
-   [Pairing](../protocol/connection.md#pairing)
+   [Pairing](../protocol/connection.md#pairing) — `alpha-hwr device pair` on
+   Linux and Windows
 2. Accept any Bluetooth pairing prompt shown by the operating system
 3. Do not remove the host's bond to "start fresh" unless you are at the pump:
    the pump keeps its half, and will refuse the host until it is re-paired there

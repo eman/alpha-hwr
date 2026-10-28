@@ -271,6 +271,23 @@
   (esphome-alpha-hwr#299): 1.6 gpm was taken, 25 gpm was stored as 11.00,
   MaxFlow's factory ceiling.
 
+- **`alpha-hwr device pair`, backed by `AlphaHWRClient.bond()`.** With
+  the pump in pairing mode, this answers the pairing it starts, on Linux
+  and Windows; macOS has no programmatic pairing, and `bond()` raises
+  `ConnectionError` saying so. There is deliberately no unpair: removing
+  the host's bond leaves the pump holding its half, and it refuses the
+  host until it is re-paired at the unit.
+
+- **`core/pairing_agent.py`.** On Linux, `bleak`'s `pair()` calls BlueZ's
+  `Device1.Pair()` without registering an `org.bluez.Agent1`, and BlueZ
+  refuses every pairing — "Just Works" included — with
+  `org.bluez.Error.AuthenticationFailed` when no agent is registered.
+  `bluetoothctl` registers one on startup, which is why pairing there
+  worked and pairing from this client did not. `bond()` registers a
+  NoInputNoOutput agent as the default before the link opens, because
+  the pump's security request arrives on connect, and treats BlueZ's
+  `AlreadyExists` - that request having completed the bond - as success.
+
 ### Removed
 
 - **The authentication handshake.** Ten packets went out on every
@@ -330,6 +347,10 @@
 
 - `docs/protocol/schedules.md` no longer lists unlocking "via the
   Connection Handshake" as a requirement; there is no handshake.
+
+- `device pair` is documented in the CLI guide, the pairing section of the
+  connection notes, installation, quick start, and the service-discovery
+  troubleshooting guide.
 
 
 ## [0.7.0] - 2026-08-05
