@@ -465,7 +465,7 @@ class SingleEventService(BaseService):
 
     async def clear_vacation(self) -> bool:
         """
-        Clear the vacation that is running, or the next one due.
+        Clear every vacation that is running, or else the next one due.
 
         This used to clear the *first* enabled Stop event in slot order,
         with no reference to the clock. A finished vacation sitting in an
@@ -474,6 +474,14 @@ class SingleEventService(BaseService):
 
         ``find_free_slot`` one method up has always been clocked. The
         asymmetry was the bug.
+
+        Every live one, not the first: two vacations can overlap, and
+        clearing one of them leaves the pump held off by the other while
+        the call reports success - the same failure one level up. They are
+        cleared in slot order and the first failure stops the walk, since
+        the pump is still held off at that point and saying so is the
+        answer. Creation is left alone: ``set_vacation`` still takes any
+        free slot. See esphome-alpha-hwr#290.
         """
         events = await self.read_all()
         if events is None:
@@ -484,7 +492,18 @@ class SingleEventService(BaseService):
 
         live = [e for e in vacations if e.begin <= now < e.end]
         if live:
-            return await self.clear(live[0].slot)
+            for cleared, event in enumerate(live):
+                if not await self.clear(event.slot):
+                    logger.error(
+                        f"Cleared {cleared} of {len(live)} live vacations; "
+                        f"slot {event.slot} failed, so the pump is still "
+                        f"held off"
+                    )
+                    return False
+            if len(live) > 1:
+                slots = ", ".join(str(e.slot) for e in live)
+                logger.info(f"Cleared {len(live)} vacations (slots {slots})")
+            return True
 
         upcoming = sorted(
             (e for e in vacations if e.begin > now), key=lambda e: e.begin
