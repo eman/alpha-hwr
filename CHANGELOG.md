@@ -697,7 +697,28 @@
   deployed via GitHub Actions to keep https://eman.github.io/alpha-hwr up
   to date.
 
-## [Unreleased] - 2026-02-01
+## [0.3.0] - 2026-02-03
+
+### Added
+
+- Device MAC address configuration storage with typed schema and CLI support.
+- Bandit security scanning integrated into the tox workflow.
+
+### Changed
+
+- API documentation now auto-generated via mkdocstrings with strict warnings addressed.
+- CI workflows use concurrency cancellation to avoid queued backlogs.
+- ESPHome integration docs refreshed with C++ reference guidance and troubleshooting notes.
+- Configuration schema tightened with TypedDicts, annotations, and README tone cleanup.
+
+### Fixed
+
+- Corrected magic authentication packet bytes and BLE discovery alignment with the CLI implementation.
+- Fixed Motor State telemetry offsets and SETPOINT documentation clarity.
+- Resolved BasedPyright/MyPy issues in configuration handling and applied ruff cleanups.
+- Hardened XML profile parsing to handle missing root elements safely.
+
+## [0.2.0] - 2026-02-01
 
 ### Added
 
