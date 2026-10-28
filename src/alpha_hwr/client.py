@@ -478,15 +478,22 @@ class AlphaHWRClient:
             timeout: Connection timeout in seconds, if this connects.
 
         Raises:
-            ConnectionError: If the pump cannot be reached, the pairing
-                fails, or the platform has no programmatic pairing
+            ConnectionError: If no address is set, the pump cannot be
+                reached, the pairing fails, or the platform has no
+                programmatic pairing
                 (macOS, where the OS prompts on first encrypted access).
 
         Example:
             >>> client = AlphaHWRClient(address, auto_authenticate=False)  # doctest: +SKIP
             >>> await client.bond()  # doctest: +SKIP
         """
-        async with bluez_pairing_agent():
+        # The agent is the host's default while it is up, so it is told
+        # which device to accept; without an address it would accept any.
+        if not self.address:
+            raise ConnectionError(
+                "bond() needs the pump's address; discover it first"
+            )
+        async with bluez_pairing_agent(self.address):
             if not self.is_connected:
                 await self.connect(timeout=timeout)
             if self._bleak_client is None:

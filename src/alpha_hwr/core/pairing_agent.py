@@ -45,6 +45,7 @@ Any BlueZ D-Bus client library can implement this the same way:
    object.
 """
 
+import asyncio
 import logging
 import sys
 from collections.abc import AsyncIterator
@@ -57,11 +58,31 @@ AGENT_CAPABILITY = "NoInputNoOutput"
 BLUEZ_SERVICE = "org.bluez"
 BLUEZ_ROOT_PATH = "/org/bluez"
 
+#: One agent at a time. They share AGENT_PATH on bleak's one bus, so a
+#: second concurrent export fails - and its cleanup would tear down the
+#: first one's agent in the middle of a pairing.
+_agent_lock = asyncio.Lock()
+
+
+def _device_suffix(address: str) -> str:
+    """``AA:BB:...`` -> ``dev_AA_BB_...``, how BlueZ names a device path."""
+    return "dev_" + address.upper().replace(":", "_")
+
 
 @asynccontextmanager
-async def bluez_pairing_agent() -> AsyncIterator[None]:
+async def bluez_pairing_agent(
+    address: str | None = None,
+) -> AsyncIterator[None]:
     """
     Register a temporary BlueZ pairing agent for "Just Works" bonding.
+
+    The agent becomes the host's *default*, so while it is up it hears
+    every pairing and authorization request on the system, not only the
+    pump's. Given ``address``, it accepts requests for that device and
+    rejects the rest with ``org.bluez.Error.Rejected``; without one it
+    accepts them all, so callers should pass it.
+
+    Concurrent uses are serialized: they share one D-Bus object path.
 
     Registers a "NoInputNoOutput" ``org.bluez.Agent1`` object as the BlueZ
     default agent for the duration of the context, then unregisters it on
@@ -87,6 +108,7 @@ async def bluez_pairing_agent() -> AsyncIterator[None]:
     try:
         from bleak.backends.bluezdbus.manager import get_global_bluez_manager
         from dbus_fast.annotations import DBusObjectPath, DBusStr, DBusUInt32
+        from dbus_fast.errors import DBusError
         from dbus_fast.service import ServiceInterface, method
     except ImportError:
         logger.debug(
@@ -95,6 +117,16 @@ async def bluez_pairing_agent() -> AsyncIterator[None]:
         )
         yield
         return
+
+    wanted = _device_suffix(address) if address else None
+
+    def _check(device: str) -> None:
+        """Refuse a request for any device but the one being paired."""
+        if wanted is not None and not str(device).endswith(wanted):
+            logger.debug("Rejecting pairing request for %s", device)
+            raise DBusError(
+                "org.bluez.Error.Rejected", "not the device being paired"
+            )
 
     class _NoInputNoOutputAgent(ServiceInterface):
         """Minimal org.bluez.Agent1 implementation for Just Works pairing."""
@@ -114,19 +146,22 @@ async def bluez_pairing_agent() -> AsyncIterator[None]:
         def RequestConfirmation(
             self, device: DBusObjectPath, passkey: DBusUInt32
         ) -> None:
-            """Auto-accept "Just Works" confirmation requests."""
+            """Accept "Just Works" confirmation for the device being paired."""
+            _check(device)
             logger.debug("Auto-confirming pairing for device %s", device)
 
         @method()
         def RequestAuthorization(self, device: DBusObjectPath) -> None:
-            """Auto-accept authorization requests."""
+            """Accept authorization for the device being paired."""
+            _check(device)
             logger.debug("Auto-authorizing device %s", device)
 
         @method()
         def AuthorizeService(
             self, device: DBusObjectPath, uuid: DBusStr
         ) -> None:
-            """Auto-accept service authorization requests."""
+            """Accept service authorization for the device being paired."""
+            _check(device)
             logger.debug(
                 "Auto-authorizing service %s for device %s", uuid, device
             )
@@ -144,42 +179,51 @@ async def bluez_pairing_agent() -> AsyncIterator[None]:
         return
 
     agent = _NoInputNoOutputAgent()
-    registered = False
-
-    try:
-        bus.export(AGENT_PATH, agent)
-
-        introspection = await bus.introspect(BLUEZ_SERVICE, BLUEZ_ROOT_PATH)
-        proxy = bus.get_proxy_object(
-            BLUEZ_SERVICE, BLUEZ_ROOT_PATH, introspection
-        )
-        agent_manager = proxy.get_interface("org.bluez.AgentManager1")
-
-        # dbus_fast dynamically creates call_<method> methods on the proxy
-        # interface at runtime based on introspection data, so these are not
-        # visible to static type checkers.
-        await agent_manager.call_register_agent(  # type: ignore[attr-defined]
-            AGENT_PATH, AGENT_CAPABILITY
-        )
-        registered = True
-        await agent_manager.call_request_default_agent(  # type: ignore[attr-defined]
-            AGENT_PATH
-        )
-        logger.debug(
-            "Registered temporary BlueZ pairing agent at %s", AGENT_PATH
-        )
-
-        yield
-
-    finally:
-        if registered:
-            try:
-                await agent_manager.call_unregister_agent(  # type: ignore[attr-defined]
-                    AGENT_PATH
-                )
-            except Exception as e:  # noqa: BLE001 - best-effort cleanup
-                logger.debug("Failed to unregister BlueZ pairing agent: %s", e)
+    async with _agent_lock:
+        exported = False
+        registered = False
         try:
-            bus.unexport(AGENT_PATH)
-        except Exception as e:  # noqa: BLE001 - best-effort cleanup
-            logger.debug("Failed to unexport BlueZ pairing agent: %s", e)
+            bus.export(AGENT_PATH, agent)
+            exported = True
+
+            introspection = await bus.introspect(BLUEZ_SERVICE, BLUEZ_ROOT_PATH)
+            proxy = bus.get_proxy_object(
+                BLUEZ_SERVICE, BLUEZ_ROOT_PATH, introspection
+            )
+            agent_manager = proxy.get_interface("org.bluez.AgentManager1")
+
+            # dbus_fast dynamically creates call_<method> methods on the
+            # proxy interface at runtime based on introspection data, so
+            # these are not visible to static type checkers.
+            await agent_manager.call_register_agent(  # type: ignore[attr-defined]
+                AGENT_PATH, AGENT_CAPABILITY
+            )
+            registered = True
+            await agent_manager.call_request_default_agent(  # type: ignore[attr-defined]
+                AGENT_PATH
+            )
+            logger.debug(
+                "Registered temporary BlueZ pairing agent at %s", AGENT_PATH
+            )
+
+            yield
+
+        finally:
+            if registered:
+                try:
+                    await agent_manager.call_unregister_agent(  # type: ignore[attr-defined]
+                        AGENT_PATH
+                    )
+                except Exception as e:  # noqa: BLE001 - best-effort cleanup
+                    logger.debug(
+                        "Failed to unregister BlueZ pairing agent: %s", e
+                    )
+            # Only what this context exported: an export that failed may
+            # mean the path belongs to someone else.
+            if exported:
+                try:
+                    bus.unexport(AGENT_PATH)
+                except Exception as e:  # noqa: BLE001 - best-effort cleanup
+                    logger.debug(
+                        "Failed to unexport BlueZ pairing agent: %s", e
+                    )

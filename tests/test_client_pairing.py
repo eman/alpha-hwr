@@ -34,8 +34,8 @@ async def pump():
     events: list[str] = []
 
     @contextlib.asynccontextmanager
-    async def recording_agent():
-        events.append("agent up")
+    async def recording_agent(address=None):
+        events.append(f"agent up for {address}")
         try:
             yield
         finally:
@@ -77,7 +77,12 @@ async def test_the_agent_is_up_before_the_link_opens(pump):
 
     await client.bond()
 
-    assert events == ["agent up", "connect", "pair", "agent down"]
+    assert events == [
+        "agent up for AA:BB:CC:DD:EE:FF",
+        "connect",
+        "pair",
+        "agent down",
+    ]
     await client.disconnect()
 
 
@@ -90,7 +95,7 @@ async def test_an_existing_connection_is_reused(pump):
 
     await client.bond()
 
-    assert events == ["agent up", "pair", "agent down"]
+    assert events == ["agent up for AA:BB:CC:DD:EE:FF", "pair", "agent down"]
     bleak.connect.assert_awaited_once()
     await client.disconnect()
 
@@ -135,6 +140,22 @@ async def test_bond_translates_not_implemented_error(pump):
         await client.bond()
 
     await client.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_bond_needs_an_address(pump):
+    """
+    The agent is the host's default while it is up, and is told which
+    device to accept. Without an address it would accept any.
+    """
+    _, events = pump
+    client = AlphaHWRClient(None, auto_authenticate=False)
+    client.address = None  # not even from settings
+
+    with pytest.raises(ConnectionError, match="address"):
+        await client.bond()
+
+    assert events == [], "nothing registered, nothing connected"
 
 
 def test_there_is_no_unbond():
