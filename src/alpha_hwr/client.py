@@ -493,30 +493,39 @@ class AlphaHWRClient:
             raise ConnectionError(
                 "bond() needs the pump's address; discover it first"
             )
-        async with bluez_pairing_agent(self.address):
-            if not self.is_connected:
-                await self.connect(timeout=timeout)
-            if self._bleak_client is None:
-                raise ConnectionError("Not connected")
+        # Setting up the agent can fail too - BlueZ refusing RegisterAgent
+        # or RequestDefaultAgent - and that is a pairing failure like any
+        # other, so it surfaces as the ConnectionError documented above.
+        try:
+            async with bluez_pairing_agent(self.address):
+                if not self.is_connected:
+                    await self.connect(timeout=timeout)
+                if self._bleak_client is None:
+                    raise ConnectionError("Not connected")
 
-            try:
-                logger.info("Requesting BLE pairing/bonding...")
-                await self._bleak_client.pair()
-            except NotImplementedError as e:
-                raise ConnectionError(
-                    "Programmatic pairing is not supported on this platform "
-                    "(e.g. macOS). Accept the OS pairing prompt instead, or "
-                    "pair using the system Bluetooth settings."
-                ) from e
-            except Exception as e:
-                # BlueZ's answer when the pump's security request already
-                # completed the bond on connect.
-                if "AlreadyExists" in str(e):
-                    logger.info("BLE bond already in place")
-                    return
-                logger.error(f"BLE pairing failed: {e}")
-                raise ConnectionError(f"BLE pairing failed: {e}") from e
-            logger.info("BLE pairing/bonding successful")
+                try:
+                    logger.info("Requesting BLE pairing/bonding...")
+                    await self._bleak_client.pair()
+                except NotImplementedError as e:
+                    raise ConnectionError(
+                        "Programmatic pairing is not supported on this platform "
+                        "(e.g. macOS). Accept the OS pairing prompt instead, or "
+                        "pair using the system Bluetooth settings."
+                    ) from e
+                except Exception as e:
+                    # BlueZ's answer when the pump's security request already
+                    # completed the bond on connect.
+                    if "AlreadyExists" in str(e):
+                        logger.info("BLE bond already in place")
+                        return
+                    logger.error(f"BLE pairing failed: {e}")
+                    raise ConnectionError(f"BLE pairing failed: {e}") from e
+                logger.info("BLE pairing/bonding successful")
+        except ConnectionError:
+            raise
+        except Exception as e:
+            logger.error(f"BLE pairing setup failed: {e}")
+            raise ConnectionError(f"BLE pairing failed: {e}") from e
 
     async def authenticate(self, fast_mode: bool = False) -> bool:
         """

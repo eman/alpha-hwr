@@ -248,3 +248,15 @@ async def test_a_cap_that_is_not_a_number_is_not_a_template(
     assert await control.read_limiter_config("MaxFlow") is None
     assert not await control.write_limiter_config("MaxFlow", True, None)
     control._send_with_retry.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cap", [float("nan"), float("inf"), float("-inf")])
+async def test_a_direct_write_of_a_non_finite_cap_is_refused(
+    control, cap: float
+) -> None:
+    """The public primitive skips the verified write's checks; not this one."""
+    control._read_class10_object = AsyncMock(return_value=record())
+
+    assert not await control.write_limiter_config("MaxFlow", True, cap)
+    control._send_with_retry.assert_not_awaited()

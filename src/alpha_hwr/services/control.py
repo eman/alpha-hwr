@@ -1399,6 +1399,11 @@ class ControlService(BaseService):
             return False
         _, stored_m3h, record = stored
         cap_m3h = stored_m3h if limit_m3h is None else limit_m3h
+        # The verified write validates the cap; this is public too, and a
+        # NaN or infinity is not a cap the read side would accept back.
+        if not math.isfinite(cap_m3h):
+            logger.error(f"{cap_m3h} m3/h is not a cap; not writing it")
+            return False
 
         sub_id = self.SUB_LIMITER_USER_CONFIG + index - 1
         # [0A][9B][56][02 58|59][03 7F][01][00 00 12][18-byte record]

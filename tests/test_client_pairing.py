@@ -166,3 +166,23 @@ def test_there_is_no_unbond():
     the unit, so the client does not offer the operation.
     """
     assert not hasattr(AlphaHWRClient, "unbond")
+
+
+@pytest.mark.asyncio
+async def test_an_agent_bluez_refuses_is_a_connection_error():
+    """
+    RegisterAgent or RequestDefaultAgent failing is a pairing failure,
+    and surfaces as the ConnectionError bond() documents.
+    """
+
+    @contextlib.asynccontextmanager
+    async def refused_agent(address=None):
+        raise RuntimeError("[org.bluez.Error.AlreadyExists] Already Exists")
+        yield
+
+    with patch(
+        "alpha_hwr.client.bluez_pairing_agent", side_effect=refused_agent
+    ):
+        client = new_client()
+        with pytest.raises(ConnectionError, match="pairing failed"):
+            await client.bond()
