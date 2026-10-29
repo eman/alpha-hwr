@@ -3,6 +3,9 @@
 
 ## [Unreleased]
 
+
+## [0.8.0] - 2026-10-28
+
 ### Fixed
 
 - **`clear_vacation()` clears every vacation covering now.** It cleared
