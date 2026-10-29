@@ -12,4 +12,4 @@ The pump has to be paired (bonded) with the host first; see
 [Pairing](protocol/connection.md#pairing).
 
 ---
-*Version: 0.5.0*
+*Version: 0.8.0*
